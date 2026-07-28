@@ -536,8 +536,6 @@ pub fn process_checkout(state: State<DbState>, input: CheckoutInput) -> Result<C
     let subtotal: f64 = input.items.iter().map(|i| i.total).sum();
     let total_payments: f64 = input.payments.iter().map(|p| p.amount).sum();
     let total_discount: f64 = input.items.iter().map(|i| i.discount).sum();
-    let tax_amount = 0.0;
-
     let payment_method = if input.payments.len() == 1 {
         input.payments[0].method.clone()
     } else {
@@ -623,7 +621,7 @@ pub fn process_checkout(state: State<DbState>, input: CheckoutInput) -> Result<C
 // ── Legacy Create Sale (backward compat) ──
 
 #[tauri::command]
-pub fn create_sale(state: State<DbState>, customer_id: Option<i64>, user_id: Option<i64>, subtotal: f64, tax_rate: f64, tax_amount: f64, discount_amount: f64, total: f64, payment_method: String, payment_status: String, notes: Option<String>, items: Vec<SaleItemInput>) -> Result<Sale, String> {
+pub fn create_sale(state: State<DbState>, customer_id: Option<i64>, user_id: Option<i64>, _subtotal: f64, _tax_rate: f64, _tax_amount: f64, _discount_amount: f64, total: f64, payment_method: String, _payment_status: String, notes: Option<String>, items: Vec<SaleItemInput>) -> Result<Sale, String> {
     let input = CheckoutInput {
         customer_id,
         user_id,
@@ -993,7 +991,7 @@ pub fn create_quote(state: State<DbState>, input: QuoteInput) -> Result<Quote, S
         ).map_err(|e| e.to_string())?;
     }
 
-    get_quote(state, quote_id)
+    get_quote(state.clone(), quote_id)
 }
 
 #[tauri::command]
@@ -1019,7 +1017,7 @@ pub fn update_quote(state: State<DbState>, id: i64, input: QuoteInput) -> Result
         ).map_err(|e| e.to_string())?;
     }
 
-    get_quote(state, id)
+    get_quote(state.clone(), id)
 }
 
 #[tauri::command]
@@ -1037,7 +1035,7 @@ pub fn update_quote_status(state: State<DbState>, id: i64, status: String) -> Re
         "UPDATE quotes SET status=?1, updated_at=datetime('now') WHERE id=?2",
         params![status, id],
     ).map_err(|e| e.to_string())?;
-    get_quote(state, id)
+    get_quote(state.clone(), id)
 }
 
 #[tauri::command]
@@ -1071,7 +1069,7 @@ pub fn convert_quote_to_sale(state: State<DbState>, quote_id: i64, user_id: Opti
         notes: Some(format!("Converted from quote {}", quote.quote_number)),
     };
 
-    let result = process_checkout(state, input)?;
+    let result = process_checkout(state.clone(), input)?;
 
     conn.execute(
         "UPDATE quotes SET status='converted', updated_at=datetime('now') WHERE id=?1",
@@ -1248,7 +1246,7 @@ pub fn close_daily_shift(state: State<DbState>, closed_by: i64, notes: Option<St
         return Err("Daily closing already exists for today".to_string());
     }
 
-    let closeout = get_daily_closeout(state)?;
+    let closeout = get_daily_closeout(state.clone())?;
     let net_revenue = closeout.total_revenue - closeout.refunded_total;
 
     conn.execute(
@@ -1355,7 +1353,7 @@ pub fn mark_receipt_printed(state: State<DbState>, id: i64) -> Result<Receipt, S
         "UPDATE receipts SET is_printed=1, printed_at=datetime('now') WHERE id=?1",
         params![id],
     ).map_err(|e| e.to_string())?;
-    get_receipt(state, id)
+    get_receipt(state.clone(), id)
 }
 
 // ── Search Sales (for POS history lookup) ──
