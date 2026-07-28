@@ -39,7 +39,7 @@ import { type TableColumn, type TableAction, type BulkAction, type SortRequest }
 
 const DEFAULT_PAGE_SIZES = [10, 20, 30, 50, 100]
 
-export interface DataTableProps<T extends Record<string, unknown>> {
+export interface DataTableProps<T extends object> {
   data: T[]
   columns: TableColumn<T>[]
   total?: number
@@ -73,7 +73,7 @@ export interface DataTableProps<T extends Record<string, unknown>> {
   className?: string
 }
 
-export function DataTable<T extends Record<string, unknown>>({
+export function DataTable<T extends object>({
   data,
   columns,
   total = 0,
@@ -97,7 +97,7 @@ export function DataTable<T extends Record<string, unknown>>({
   actions,
   bulkActions,
   pageSizes = DEFAULT_PAGE_SIZES,
-  rowId = (row) => (row as Record<string, unknown>).id as string | number,
+  rowId = (row) => (row as Record<string, unknown> & T).id as string | number,
   emptyMessage = "No hay datos",
   emptyIcon,
   searchPlaceholder = "Buscar...",
@@ -315,7 +315,7 @@ export function DataTable<T extends Record<string, unknown>>({
               key={action.label}
               variant={action.variant || "outline"}
               size="sm"
-              onClick={() => action.onClick(data.filter((r) => selectedIds.has(rowId(r))))}
+              onClick={() => action.onClick(data.filter((r) => selectedIds.has(rowId(r))) as T[])}
             >
               {action.icon && <action.icon className="h-4 w-4 mr-1" />}
               {action.label}
@@ -443,7 +443,7 @@ export function DataTable<T extends Record<string, unknown>>({
                       const cellValue = col.accessorFn
                         ? col.accessorFn(row)
                         : col.accessorKey
-                          ? (row as Record<string, unknown>)[col.accessorKey as string]
+                          ? (row as Record<string, unknown> & T)[col.accessorKey as string]
                           : undefined
                       return (
                         <td

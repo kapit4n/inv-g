@@ -100,5 +100,7 @@
   "forbidden": "Acceso denegado",
   "forbiddenDesc": "No tienes permisos para acceder a esta página.",
   "goToDashboard": "Ir al inicio",
-  "required": "Requerido"
+  "required": "Requerido",
+  "yes": "Sí",
+  "no": "No"
 }

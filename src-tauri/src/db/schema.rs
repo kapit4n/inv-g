@@ -1,6 +1,6 @@
 use rusqlite::{Connection, Result};
 
-const SCHEMA_VERSION: i32 = 1;
+const SCHEMA_VERSION: i32 = 2;
 
 fn get_user_version(conn: &Connection) -> Result<i32> {
     let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
@@ -23,11 +23,17 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
         conn.execute_batch("PRAGMA defer_foreign_keys=ON;")?;
         conn.execute_batch(
             "
+            DROP TABLE IF EXISTS inventory_movements;
+            DROP TABLE IF EXISTS product_vehicle_compatibility;
+            DROP TABLE IF EXISTS product_images;
+            DROP TABLE IF EXISTS storage_locations;
+            DROP TABLE IF EXISTS warehouses;
+            DROP TABLE IF EXISTS manufacturers;
+            DROP TABLE IF EXISTS brands;
             DROP TABLE IF EXISTS purchase_order_items;
             DROP TABLE IF EXISTS purchase_orders;
             DROP TABLE IF EXISTS sale_items;
             DROP TABLE IF EXISTS sales;
-            DROP TABLE IF EXISTS suppliers;
             DROP TABLE IF EXISTS customers;
             DROP TABLE IF EXISTS products;
             DROP TABLE IF EXISTS categories;
@@ -38,6 +44,7 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             DROP TABLE IF EXISTS permissions;
             DROP TABLE IF EXISTS users;
             DROP TABLE IF EXISTS roles;
+            DROP TABLE IF EXISTS suppliers;
             ",
         )?;
         conn.execute_batch("PRAGMA defer_foreign_keys=OFF;")?;
@@ -138,20 +145,38 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             sku TEXT NOT NULL UNIQUE,
+            barcode TEXT,
+            oem_number TEXT,
+            internal_code TEXT,
             description TEXT,
             category_id INTEGER,
-            unit_price REAL NOT NULL DEFAULT 0,
+            brand_id INTEGER,
+            manufacturer_id INTEGER,
+            supplier_id INTEGER,
             cost_price REAL NOT NULL DEFAULT 0,
+            sale_price REAL NOT NULL DEFAULT 0,
+            wholesale_price REAL NOT NULL DEFAULT 0,
+            suggested_retail_price REAL NOT NULL DEFAULT 0,
+            tax_rate REAL NOT NULL DEFAULT 0,
             stock_quantity INTEGER NOT NULL DEFAULT 0,
             min_stock_level INTEGER NOT NULL DEFAULT 0,
             max_stock_level INTEGER NOT NULL DEFAULT 0,
+            reorder_point INTEGER NOT NULL DEFAULT 0,
             unit TEXT NOT NULL DEFAULT 'pcs',
-            barcode TEXT,
+            weight REAL,
+            warehouse_id INTEGER,
+            storage_location_id INTEGER,
             image_url TEXT,
             is_active INTEGER NOT NULL DEFAULT 1,
+            is_discontinued INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (category_id) REFERENCES categories(id)
+            FOREIGN KEY (category_id) REFERENCES categories(id),
+            FOREIGN KEY (brand_id) REFERENCES brands(id),
+            FOREIGN KEY (manufacturer_id) REFERENCES manufacturers(id),
+            FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
+            FOREIGN KEY (warehouse_id) REFERENCES warehouses(id),
+            FOREIGN KEY (storage_location_id) REFERENCES storage_locations(id)
         );
 
         CREATE TABLE IF NOT EXISTS customers (
@@ -172,10 +197,13 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
 
         CREATE TABLE IF NOT EXISTS suppliers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            contact_name TEXT,
-            email TEXT,
+            company_name TEXT NOT NULL,
+            contact_person TEXT,
             phone TEXT,
+            mobile TEXT,
+            email TEXT,
+            website TEXT,
+            tax_number TEXT,
             address TEXT,
             city TEXT,
             state TEXT,
@@ -250,6 +278,101 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             updated_at TEXT NOT NULL DEFAULT (datetime('now')),
             FOREIGN KEY (purchase_order_id) REFERENCES purchase_orders(id) ON DELETE CASCADE,
             FOREIGN KEY (product_id) REFERENCES products(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS brands (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            description TEXT,
+            country TEXT,
+            website TEXT,
+            logo_url TEXT,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS manufacturers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            country TEXT,
+            phone TEXT,
+            email TEXT,
+            website TEXT,
+            notes TEXT,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS warehouses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            code TEXT NOT NULL UNIQUE,
+            address TEXT,
+            city TEXT,
+            state TEXT,
+            country TEXT DEFAULT 'ID',
+            manager TEXT,
+            phone TEXT,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS storage_locations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            warehouse_id INTEGER NOT NULL,
+            zone TEXT,
+            aisle TEXT,
+            shelf TEXT,
+            bin TEXT,
+            code TEXT NOT NULL UNIQUE,
+            description TEXT,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS product_images (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL,
+            file_path TEXT NOT NULL,
+            is_primary INTEGER NOT NULL DEFAULT 0,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS product_vehicle_compatibility (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL,
+            vehicle_brand TEXT NOT NULL,
+            vehicle_model TEXT NOT NULL,
+            year_start INTEGER,
+            year_end INTEGER,
+            engine TEXT,
+            transmission TEXT,
+            notes TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS inventory_movements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL,
+            warehouse_id INTEGER,
+            quantity INTEGER NOT NULL,
+            type TEXT NOT NULL DEFAULT 'adjustment',
+            reference_type TEXT,
+            reference_id TEXT,
+            notes TEXT,
+            created_by INTEGER,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+            FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE SET NULL,
+            FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
         );
         ",
     )?;

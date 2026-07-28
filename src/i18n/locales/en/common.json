@@ -100,5 +100,7 @@
   "forbidden": "Forbidden",
   "forbiddenDesc": "You don't have permission to access this page.",
   "goToDashboard": "Go to dashboard",
-  "required": "Required"
+  "required": "Required",
+  "yes": "Yes",
+  "no": "No"
 }

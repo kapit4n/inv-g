@@ -1,19 +1,10 @@
+import { useState } from "react"
 import { NavLink, useLocation } from "react-router-dom"
 import {
-  LayoutDashboard,
-  ShoppingCart,
-  Package,
-  ShoppingBag,
-  Users,
-  Truck,
-  Car,
-  Warehouse,
-  BarChart3,
-  Settings,
-  HelpCircle,
-  UsersRound,
-  ChevronLeft,
-  ChevronRight,
+  LayoutDashboard, ShoppingCart, Package, ShoppingBag, Users, Truck, Car,
+  Warehouse, BarChart3, Settings, HelpCircle, UsersRound,
+  ChevronLeft, ChevronRight, ChevronDown, ChevronRight as ChevronRightIcon,
+  Layers, Tag, Cog, Briefcase, MapPin, Box,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -23,10 +14,28 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useSettingsStore } from "@/stores"
 import { cn } from "@/lib/utils"
 
-const navigation = [
+interface NavItemConfig {
+  nameKey: string
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+  children?: { nameKey: string; href: string; icon?: React.ComponentType<{ className?: string }> }[]
+}
+
+const navigation: NavItemConfig[] = [
   { nameKey: "dashboard.title", href: "/dashboard", icon: LayoutDashboard },
   { nameKey: "sales.title", href: "/sales", icon: ShoppingCart },
-  { nameKey: "inventory.title", href: "/inventory", icon: Package },
+  {
+    nameKey: "inventory.title", href: "/inventory", icon: Package,
+    children: [
+      { nameKey: "inventory.categories", href: "/inventory/categories", icon: Layers },
+      { nameKey: "inventory.brands", href: "/inventory/brands", icon: Tag },
+      { nameKey: "inventory.manufacturers", href: "/inventory/manufacturers", icon: Cog },
+      { nameKey: "inventory.suppliers", href: "/inventory/suppliers", icon: Briefcase },
+      { nameKey: "inventory.warehouses", href: "/inventory/warehouses", icon: Warehouse },
+      { nameKey: "inventory.storageLocations", href: "/inventory/storage-locations", icon: MapPin },
+      { nameKey: "inventory.products", href: "/inventory/products", icon: Box },
+    ],
+  },
   { nameKey: "purchases.title", href: "/purchases", icon: ShoppingBag },
   { nameKey: "customers.title", href: "/customers", icon: Users },
   { nameKey: "suppliers.title", href: "/suppliers", icon: Truck },
@@ -34,47 +43,103 @@ const navigation = [
   { nameKey: "warehouse.title", href: "/warehouse", icon: Warehouse },
 ]
 
-const secondaryNavigation = [
+const secondaryNavigation: NavItemConfig[] = [
   { nameKey: "reports.title", href: "/reports", icon: BarChart3 },
   { nameKey: "employees.title", href: "/employees", icon: UsersRound },
   { nameKey: "settings.title", href: "/settings", icon: Settings },
   { nameKey: "help.title", href: "/help", icon: HelpCircle },
 ]
 
+function isActivePath(location: ReturnType<typeof useLocation>, href: string): boolean {
+  return location.pathname === href || location.pathname.startsWith(href + "/")
+}
+
 export function Sidebar() {
   const { sidebarCollapsed, toggleSidebar } = useSettingsStore()
   const location = useLocation()
   const { t } = useTranslation()
+  const [expanded, setExpanded] = useState<string[]>(["/inventory"])
 
-  const NavItem = ({ item }: { item: typeof navigation[0] }) => {
-    const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + "/")
+  const toggleExpand = (href: string) => {
+    setExpanded((prev) =>
+      prev.includes(href) ? prev.filter((h) => h !== href) : [...prev, href]
+    )
+  }
+
+  const NavLinkContent = ({ item }: { item: NavItemConfig }) => {
     const Icon = item.icon
+    return (
+      <div className="flex items-center gap-3">
+        <Icon className="h-4 w-4 shrink-0" />
+        {!sidebarCollapsed && <span>{t(item.nameKey)}</span>}
+      </div>
+    )
+  }
+
+  const NavItem = ({ item }: { item: NavItemConfig }) => {
+    const isActive = isActivePath(location, item.href)
+    const hasChildren = !!item.children?.length
+    const isExpanded = expanded.includes(item.href)
 
     const link = (
-      <NavLink
-        to={item.href}
+      <div
         className={cn(
-          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
+          "flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 cursor-pointer",
           isActive
             ? "bg-primary/10 text-primary"
             : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
         )}
       >
-        <Icon className="h-4 w-4 shrink-0" />
-        {!sidebarCollapsed && <span>{t(item.nameKey)}</span>}
-      </NavLink>
+        <NavLinkContent item={item} />
+        {hasChildren && !sidebarCollapsed && (
+          <button onClick={(e) => { e.stopPropagation(); toggleExpand(item.href) }}>
+            {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRightIcon className="h-3 w-3" />}
+          </button>
+        )}
+      </div>
     )
 
-    if (sidebarCollapsed) {
-      return (
-        <Tooltip>
-          <TooltipTrigger asChild>{link}</TooltipTrigger>
-          <TooltipContent side="right">{t(item.nameKey)}</TooltipContent>
-        </Tooltip>
-      )
-    }
-
-    return link
+    return (
+      <div>
+        {sidebarCollapsed ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <NavLink to={item.href} className={cn("flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200", isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground")}>
+                <item.icon className="h-4 w-4 shrink-0" />
+              </NavLink>
+            </TooltipTrigger>
+            <TooltipContent side="right">{t(item.nameKey)}</TooltipContent>
+          </Tooltip>
+        ) : (
+          <NavLink to={item.href} className="block">
+            {link}
+          </NavLink>
+        )}
+        {hasChildren && isExpanded && !sidebarCollapsed && (
+          <div className="ml-4 mt-1 space-y-1 border-l pl-3">
+            {item.children!.map((child) => {
+              const childActive = isActivePath(location, child.href)
+              const ChildIcon = child.icon
+              return (
+                <NavLink
+                  key={child.href}
+                  to={child.href}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition-all duration-200",
+                    childActive
+                      ? "bg-primary/5 text-primary font-medium"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  )}
+                >
+                  {ChildIcon && <ChildIcon className="h-3.5 w-3.5 shrink-0" />}
+                  <span>{t(child.nameKey)}</span>
+                </NavLink>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (

@@ -61,7 +61,7 @@ export interface DeleteRequest {
   soft?: boolean
 }
 
-export interface TableColumn<T = Record<string, unknown>> {
+export interface TableColumn<T = object> {
   id: string
   header: string
   accessorKey?: keyof T | string
@@ -79,7 +79,7 @@ export interface TableColumn<T = Record<string, unknown>> {
   meta?: Record<string, unknown>
 }
 
-export interface TableAction<T = Record<string, unknown>> {
+export interface TableAction<T = object> {
   label: string
   icon?: React.ComponentType<{ className?: string }>
   onClick: (row: T) => void
@@ -89,7 +89,7 @@ export interface TableAction<T = Record<string, unknown>> {
   disabled?: (row: T) => boolean
 }
 
-export interface BulkAction<T = Record<string, unknown>> {
+export interface BulkAction<T = object> {
   label: string
   icon?: React.ComponentType<{ className?: string }>
   onClick: (rows: T[]) => void
@@ -136,7 +136,7 @@ export interface FormField {
   section?: string
 }
 
-export interface EntityConfig<T = Record<string, unknown>> {
+export interface EntityConfig<T = object> {
   name: string
   namePlural: string
   fields: FormField[]
