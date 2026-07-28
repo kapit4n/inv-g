@@ -1,6 +1,48 @@
 use rusqlite::{Connection, Result};
 
+const SCHEMA_VERSION: i32 = 1;
+
+fn get_user_version(conn: &Connection) -> Result<i32> {
+    let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+    Ok(version)
+}
+
+fn set_user_version(conn: &Connection, version: i32) -> Result<()> {
+    conn.pragma_update(None, "user_version", version)?;
+    Ok(())
+}
+
 pub fn create_tables(conn: &Connection) -> Result<()> {
+    let current_version = get_user_version(conn)?;
+
+    if current_version >= SCHEMA_VERSION {
+        return Ok(());
+    }
+
+    if current_version > 0 && current_version < SCHEMA_VERSION {
+        conn.execute_batch("PRAGMA defer_foreign_keys=ON;")?;
+        conn.execute_batch(
+            "
+            DROP TABLE IF EXISTS purchase_order_items;
+            DROP TABLE IF EXISTS purchase_orders;
+            DROP TABLE IF EXISTS sale_items;
+            DROP TABLE IF EXISTS sales;
+            DROP TABLE IF EXISTS suppliers;
+            DROP TABLE IF EXISTS customers;
+            DROP TABLE IF EXISTS products;
+            DROP TABLE IF EXISTS categories;
+            DROP TABLE IF EXISTS audit_logs;
+            DROP TABLE IF EXISTS settings;
+            DROP TABLE IF EXISTS user_sessions;
+            DROP TABLE IF EXISTS role_permissions;
+            DROP TABLE IF EXISTS permissions;
+            DROP TABLE IF EXISTS users;
+            DROP TABLE IF EXISTS roles;
+            ",
+        )?;
+        conn.execute_batch("PRAGMA defer_foreign_keys=OFF;")?;
+    }
+
     conn.execute_batch(
         "
         CREATE TABLE IF NOT EXISTS roles (
@@ -211,6 +253,7 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
         );
         ",
     )?;
+    set_user_version(conn, SCHEMA_VERSION)?;
 
     Ok(())
 }
