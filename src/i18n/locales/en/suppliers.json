@@ -1,0 +1,19 @@
+{
+  "title": "Suppliers",
+  "description": "Manage your supplier network and procurement",
+  "addSupplier": "Add Supplier",
+  "editSupplier": "Edit Supplier",
+  "deleteSupplier": "Delete Supplier",
+  "totalSuppliers": "Total Suppliers",
+  "activeSuppliers": "Active",
+  "productsSourced": "Products Sourced",
+  "searchSuppliers": "Search suppliers...",
+  "supplierName": "Supplier",
+  "contactPerson": "Contact",
+  "phone": "Phone",
+  "email": "Email",
+  "products": "Products",
+  "status": "Status",
+  "active": "Active",
+  "inactive": "Inactive"
+}

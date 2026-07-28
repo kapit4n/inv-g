@@ -1,0 +1,21 @@
+{
+  "title": "Employees",
+  "description": "Manage user accounts, roles, and access permissions",
+  "addEmployee": "Add Employee",
+  "editEmployee": "Edit Employee",
+  "deleteEmployee": "Delete Employee",
+  "totalEmployees": "Total Employees",
+  "activeEmployees": "Active",
+  "roles": "Roles",
+  "employee": "Employee",
+  "role": "Role",
+  "email": "Email",
+  "lastActive": "Last Active",
+  "status": "Status",
+  "active": "Active",
+  "inactive": "Inactive",
+  "administrator": "Administrator",
+  "salesAssociate": "Sales Associate",
+  "inventoryManager": "Inventory Manager",
+  "warehouseStaff": "Warehouse Staff"
+}

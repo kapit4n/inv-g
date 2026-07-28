@@ -1,0 +1,17 @@
+{
+  "title": "Almacén",
+  "description": "Gestiona ubicaciones de almacenamiento, asignación de contenedores y transferencias de stock",
+  "addLocation": "Agregar Ubicación",
+  "locations": "Ubicaciones",
+  "binsUsed": "Contenedores Usados",
+  "capacity": "Capacidad",
+  "transfersToday": "Transferencias Hoy",
+  "comingSoonTitle": "Soporte Multi-Almacén Próximamente",
+  "comingSoonDescription": "Organiza el inventario en múltiples almacenes, gestiona ubicaciones de contenedores, rastrea transferencias de stock y optimiza la asignación de espacio.",
+  "plannedFeatures": "Funcionalidades Planificadas",
+  "feature1": "Soporte para múltiples almacenes",
+  "feature2": "Ubicaciones de estante/contenedor",
+  "feature3": "Gestión de transferencias de stock",
+  "feature4": "Planificación de capacidad",
+  "feature5": "Escaneo de códigos de barras para ubicaciones"
+}

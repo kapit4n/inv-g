@@ -1,0 +1,23 @@
+{
+  "title": "Compras",
+  "description": "Gestiona órdenes de compra y transacciones con proveedores",
+  "newPurchaseOrder": "Nueva Orden de Compra",
+  "totalOrders": "Órdenes Totales",
+  "pendingOrders": "Pendientes",
+  "thisMonth": "Este Mes",
+  "averageOrder": "Pedido Promedio",
+  "orderNumber": "Orden #",
+  "supplier": "Proveedor",
+  "itemsCount": "Artículos",
+  "total": "Total",
+  "status": "Estado",
+  "date": "Fecha",
+  "delivered": "Entregado",
+  "inTransit": "En Tránsito",
+  "processing": "Procesando",
+  "pending": "Pendiente",
+  "cancelled": "Cancelado",
+  "searchOrders": "Buscar órdenes...",
+  "poCreated": "Orden de compra creada correctamente",
+  "poUpdated": "Orden de compra actualizada correctamente"
+}

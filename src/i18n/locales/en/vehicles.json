@@ -1,0 +1,16 @@
+{
+  "title": "Vehicles",
+  "description": "Track customer vehicles, service history, and parts compatibility",
+  "addVehicle": "Add Vehicle",
+  "totalVehicles": "Total Vehicles",
+  "serviceRecords": "Service Records",
+  "makesCovered": "Makes Covered",
+  "comingSoonTitle": "Vehicle Tracking Coming Soon",
+  "comingSoonDescription": "Track customer vehicles including make, model, year, VIN, and service history. Link vehicles to customers and recommended parts.",
+  "plannedFeatures": "Planned Features",
+  "feature1": "Vehicle database with VIN lookup",
+  "feature2": "Customer-vehicle association",
+  "feature3": "Service history tracking",
+  "feature4": "Parts compatibility matching",
+  "feature5": "Maintenance reminders"
+}

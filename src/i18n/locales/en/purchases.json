@@ -1,0 +1,23 @@
+{
+  "title": "Purchases",
+  "description": "Manage purchase orders and supplier transactions",
+  "newPurchaseOrder": "New Purchase Order",
+  "totalOrders": "Total Orders",
+  "pendingOrders": "Pending",
+  "thisMonth": "This Month",
+  "averageOrder": "Avg. Order",
+  "orderNumber": "Order #",
+  "supplier": "Supplier",
+  "itemsCount": "Items",
+  "total": "Total",
+  "status": "Status",
+  "date": "Date",
+  "delivered": "Delivered",
+  "inTransit": "In Transit",
+  "processing": "Processing",
+  "pending": "Pending",
+  "cancelled": "Cancelled",
+  "searchOrders": "Search orders...",
+  "poCreated": "Purchase order created successfully",
+  "poUpdated": "Purchase order updated successfully"
+}

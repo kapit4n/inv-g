@@ -1,0 +1,18 @@
+{
+  "title": "Reports",
+  "description": "Generate insights and analytics for your business",
+  "generateReport": "Generate Report",
+  "salesReport": "Sales Report",
+  "salesReportDesc": "Revenue, transactions, and trends analysis",
+  "inventoryReport": "Inventory Report",
+  "inventoryReportDesc": "Stock levels, valuations, and movement",
+  "purchaseReport": "Purchase Report",
+  "purchaseReportDesc": "Procurement costs and supplier analysis",
+  "customerReport": "Customer Report",
+  "customerReportDesc": "Customer purchase patterns and top buyers",
+  "profitLoss": "Profit & Loss",
+  "profitLossDesc": "Comprehensive P&L statement",
+  "taxReport": "Tax Report",
+  "taxReportDesc": "Tax collected and owed summaries",
+  "comingSoon": "Coming Soon"
+}

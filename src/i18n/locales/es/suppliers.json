@@ -1,0 +1,19 @@
+{
+  "title": "Proveedores",
+  "description": "Gestiona tu red de proveedores y adquisiciones",
+  "addSupplier": "Agregar Proveedor",
+  "editSupplier": "Editar Proveedor",
+  "deleteSupplier": "Eliminar Proveedor",
+  "totalSuppliers": "Total de Proveedores",
+  "activeSuppliers": "Activos",
+  "productsSourced": "Productos Origen",
+  "searchSuppliers": "Buscar proveedores...",
+  "supplierName": "Proveedor",
+  "contactPerson": "Contacto",
+  "phone": "Teléfono",
+  "email": "Correo",
+  "products": "Productos",
+  "status": "Estado",
+  "active": "Activo",
+  "inactive": "Inactivo"
+}

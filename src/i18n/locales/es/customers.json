@@ -1,0 +1,23 @@
+{
+  "title": "Clientes",
+  "description": "Gestiona tu base de datos de clientes e historial de compras",
+  "addCustomer": "Agregar Cliente",
+  "editCustomer": "Editar Cliente",
+  "deleteCustomer": "Eliminar Cliente",
+  "totalCustomers": "Total de Clientes",
+  "activeCustomers": "Activos",
+  "thisMonth": "Este Mes",
+  "searchCustomers": "Buscar clientes...",
+  "customerName": "Cliente",
+  "contactPerson": "Contacto",
+  "phone": "Teléfono",
+  "email": "Correo",
+  "totalPurchases": "Compras Totales",
+  "status": "Estado",
+  "active": "Activo",
+  "inactive": "Inactivo",
+  "noCustomersFound": "No se encontraron clientes",
+  "customerCreated": "Cliente creado correctamente",
+  "customerUpdated": "Cliente actualizado correctamente",
+  "confirmDelete": "¿Estás seguro de eliminar este cliente?"
+}

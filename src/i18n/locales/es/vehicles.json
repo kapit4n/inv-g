@@ -1,0 +1,16 @@
+{
+  "title": "Vehículos",
+  "description": "Gestiona vehículos de clientes, historial de servicio y compatibilidad de piezas",
+  "addVehicle": "Agregar Vehículo",
+  "totalVehicles": "Total de Vehículos",
+  "serviceRecords": "Registros de Servicio",
+  "makesCovered": "Marcas Cubiertas",
+  "comingSoonTitle": "Gestión de Vehículos Próximamente",
+  "comingSoonDescription": "Gestiona vehículos de clientes incluyendo marca, modelo, año, VIN e historial de servicio. Vincula vehículos a clientes y piezas recomendadas.",
+  "plannedFeatures": "Funcionalidades Planificadas",
+  "feature1": "Base de datos de vehículos con búsqueda por VIN",
+  "feature2": "Asociación cliente-vehículo",
+  "feature3": "Historial de servicio",
+  "feature4": "Compatibilidad de piezas",
+  "feature5": "Recordatorios de mantenimiento"
+}

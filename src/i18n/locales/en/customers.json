@@ -1,0 +1,23 @@
+{
+  "title": "Customers",
+  "description": "Manage your customer database and purchase history",
+  "addCustomer": "Add Customer",
+  "editCustomer": "Edit Customer",
+  "deleteCustomer": "Delete Customer",
+  "totalCustomers": "Total Customers",
+  "activeCustomers": "Active",
+  "thisMonth": "This Month",
+  "searchCustomers": "Search customers...",
+  "customerName": "Customer",
+  "contactPerson": "Contact",
+  "phone": "Phone",
+  "email": "Email",
+  "totalPurchases": "Total Purchases",
+  "status": "Status",
+  "active": "Active",
+  "inactive": "Inactive",
+  "noCustomersFound": "No customers found",
+  "customerCreated": "Customer created successfully",
+  "customerUpdated": "Customer updated successfully",
+  "confirmDelete": "Are you sure you want to delete this customer?"
+}

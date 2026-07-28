@@ -1,0 +1,18 @@
+{
+  "title": "Reportes",
+  "description": "Genera información y análisis para tu negocio",
+  "generateReport": "Generar Reporte",
+  "salesReport": "Reporte de Ventas",
+  "salesReportDesc": "Ingresos, transacciones y análisis de tendencias",
+  "inventoryReport": "Reporte de Inventario",
+  "inventoryReportDesc": "Niveles de stock, valoraciones y movimiento",
+  "purchaseReport": "Reporte de Compras",
+  "purchaseReportDesc": "Costos de adquisición y análisis de proveedores",
+  "customerReport": "Reporte de Clientes",
+  "customerReportDesc": "Patrones de compra y mejores clientes",
+  "profitLoss": "Ganancias y Pérdidas",
+  "profitLossDesc": "Estado de resultados completo",
+  "taxReport": "Reporte de Impuestos",
+  "taxReportDesc": "Resúmenes de impuestos recaudados y pendientes",
+  "comingSoon": "Próximamente"
+}

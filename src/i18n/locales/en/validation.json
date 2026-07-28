@@ -1,0 +1,23 @@
+{
+  "required": "Required field",
+  "requiredField": "This field is required",
+  "invalidEmail": "Invalid email address",
+  "invalidPhone": "Invalid phone number",
+  "invalidUrl": "Invalid URL",
+  "minLength": "Must be at least {min} characters",
+  "maxLength": "Must be at most {max} characters",
+  "minValue": "Minimum value is {min}",
+  "maxValue": "Maximum value is {max}",
+  "positiveNumber": "Must be a positive number",
+  "invalidNumber": "Invalid number",
+  "passwordMismatch": "Passwords do not match",
+  "passwordTooShort": "Password must be at least 8 characters",
+  "invalidSku": "Invalid SKU",
+  "invalidBarcode": "Invalid barcode",
+  "invalidPrice": "Invalid price",
+  "invalidQuantity": "Invalid quantity",
+  "selectOption": "Please select an option",
+  "fileRequired": "File is required",
+  "fileTooLarge": "File exceeds maximum size",
+  "invalidFileType": "File type not allowed"
+}

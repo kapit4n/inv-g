@@ -1,0 +1,21 @@
+{
+  "title": "Empleados",
+  "description": "Gestiona cuentas de usuario, roles y permisos de acceso",
+  "addEmployee": "Agregar Empleado",
+  "editEmployee": "Editar Empleado",
+  "deleteEmployee": "Eliminar Empleado",
+  "totalEmployees": "Total de Empleados",
+  "activeEmployees": "Activos",
+  "roles": "Roles",
+  "employee": "Empleado",
+  "role": "Rol",
+  "email": "Correo",
+  "lastActive": "Última Actividad",
+  "status": "Estado",
+  "active": "Activo",
+  "inactive": "Inactivo",
+  "administrator": "Administrador",
+  "salesAssociate": "Asociado de Ventas",
+  "inventoryManager": "Gerente de Inventario",
+  "warehouseStaff": "Personal de Almacén"
+}

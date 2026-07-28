@@ -1,0 +1,23 @@
+{
+  "required": "Campo obligatorio",
+  "requiredField": "Este campo es obligatorio",
+  "invalidEmail": "Correo electrónico inválido",
+  "invalidPhone": "Número de teléfono inválido",
+  "invalidUrl": "URL inválida",
+  "minLength": "Debe tener al menos {min} caracteres",
+  "maxLength": "Debe tener máximo {max} caracteres",
+  "minValue": "El valor mínimo es {min}",
+  "maxValue": "El valor máximo es {max}",
+  "positiveNumber": "Debe ser un número positivo",
+  "invalidNumber": "Número inválido",
+  "passwordMismatch": "Las contraseñas no coinciden",
+  "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
+  "invalidSku": "SKU inválido",
+  "invalidBarcode": "Código de barras inválido",
+  "invalidPrice": "Precio inválido",
+  "invalidQuantity": "Cantidad inválida",
+  "selectOption": "Selecciona una opción",
+  "fileRequired": "Archivo requerido",
+  "fileTooLarge": "El archivo excede el tamaño máximo permitido",
+  "invalidFileType": "Tipo de archivo no permitido"
+}

@@ -1,0 +1,17 @@
+{
+  "title": "Warehouse",
+  "description": "Manage storage locations, bin assignments, and stock transfers",
+  "addLocation": "Add Location",
+  "locations": "Locations",
+  "binsUsed": "Bins Used",
+  "capacity": "Capacity",
+  "transfersToday": "Transfers Today",
+  "comingSoonTitle": "Multi-Warehouse Support Coming Soon",
+  "comingSoonDescription": "Organize inventory across multiple warehouses, manage bin locations, track stock transfers, and optimize storage allocation.",
+  "plannedFeatures": "Planned Features",
+  "feature1": "Multiple warehouse support",
+  "feature2": "Bin/shelf location tracking",
+  "feature3": "Stock transfer management",
+  "feature4": "Capacity planning",
+  "feature5": "Barcode scanning for locations"
+}
