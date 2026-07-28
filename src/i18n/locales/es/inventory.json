@@ -92,6 +92,7 @@
   "storageCode": "Código",
   "storageDescription": "Descripción",
   "storageCreated": "Ubicación creada correctamente",
+  "storageUpdated": "Ubicación actualizada correctamente",
 
   "products": "Productos",
   "productsDescription": "Gestiona tu catálogo de productos",
@@ -158,6 +159,31 @@
   "totalWarehouses": "Total de Almacenes",
   "lowStockProducts": "Productos con Stock Bajo",
   "outOfStockProducts": "Productos sin Stock",
+  "inventoryMovements": "Movimientos de Inventario",
+  "inventoryMovementsDescription": "Registra movimientos y ajustes de stock",
+  "addMovement": "Agregar Movimiento",
+  "movementType": "Tipo",
+  "movementTypeIn": "Entrada",
+  "movementTypeOut": "Salida",
+  "movementTypeAdjustment": "Ajuste",
+  "movementCreated": "Movimiento registrado correctamente",
+  "productId": "ID del Producto",
+  "quantity": "Cantidad",
+
   "viewDetails": "Ver Detalles",
-  "manage": "Gestionar"
+  "manage": "Gestionar",
+
+  "productImages": "Imágenes del Producto",
+  "primaryImage": "Principal",
+  "imageAdded": "Imagen agregada correctamente",
+  "imagePathPlaceholder": "Ingresa la ruta de la imagen...",
+
+  "vehicleCompatibility": "Compatibilidad de Vehículos",
+  "vehicleBrand": "Marca",
+  "vehicleModel": "Modelo",
+  "yearStart": "Año Inicio",
+  "yearEnd": "Año Fin",
+  "engine": "Motor",
+  "transmission": "Transmisión",
+  "compatibilityAdded": "Compatibilidad agregada correctamente"
 }

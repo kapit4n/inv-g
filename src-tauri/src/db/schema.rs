@@ -1,6 +1,6 @@
 use rusqlite::{Connection, Result};
 
-const SCHEMA_VERSION: i32 = 2;
+const SCHEMA_VERSION: i32 = 3;
 
 fn get_user_version(conn: &Connection) -> Result<i32> {
     let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
@@ -23,6 +23,12 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
         conn.execute_batch("PRAGMA defer_foreign_keys=ON;")?;
         conn.execute_batch(
             "
+            DROP TABLE IF EXISTS receipts;
+            DROP TABLE IF EXISTS daily_closings;
+            DROP TABLE IF EXISTS cash_register_sessions;
+            DROP TABLE IF EXISTS quote_items;
+            DROP TABLE IF EXISTS quotes;
+            DROP TABLE IF EXISTS sale_payments;
             DROP TABLE IF EXISTS inventory_movements;
             DROP TABLE IF EXISTS product_vehicle_compatibility;
             DROP TABLE IF EXISTS product_images;
@@ -218,8 +224,10 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
         CREATE TABLE IF NOT EXISTS sales (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             sale_number TEXT NOT NULL UNIQUE,
+            receipt_number TEXT,
             customer_id INTEGER,
             user_id INTEGER,
+            warehouse_id INTEGER,
             subtotal REAL NOT NULL DEFAULT 0,
             tax_rate REAL NOT NULL DEFAULT 0,
             tax_amount REAL NOT NULL DEFAULT 0,
@@ -231,7 +239,8 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             updated_at TEXT NOT NULL DEFAULT (datetime('now')),
             FOREIGN KEY (customer_id) REFERENCES customers(id),
-            FOREIGN KEY (user_id) REFERENCES users(id)
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (warehouse_id) REFERENCES warehouses(id)
         );
 
         CREATE TABLE IF NOT EXISTS sale_items (
@@ -373,6 +382,97 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
             FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE SET NULL,
             FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS sale_payments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sale_id INTEGER NOT NULL,
+            method TEXT NOT NULL,
+            amount REAL NOT NULL,
+            reference TEXT,
+            change_amount REAL NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS quotes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            quote_number TEXT NOT NULL UNIQUE,
+            customer_id INTEGER,
+            user_id INTEGER,
+            subtotal REAL NOT NULL DEFAULT 0,
+            tax_rate REAL NOT NULL DEFAULT 0,
+            tax_amount REAL NOT NULL DEFAULT 0,
+            discount_amount REAL NOT NULL DEFAULT 0,
+            total REAL NOT NULL DEFAULT 0,
+            status TEXT NOT NULL DEFAULT 'draft',
+            valid_until TEXT,
+            notes TEXT,
+            terms_conditions TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (customer_id) REFERENCES customers(id),
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS quote_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            quote_id INTEGER NOT NULL,
+            product_id INTEGER NOT NULL,
+            quantity INTEGER NOT NULL DEFAULT 1,
+            unit_price REAL NOT NULL DEFAULT 0,
+            discount REAL NOT NULL DEFAULT 0,
+            total REAL NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (quote_id) REFERENCES quotes(id) ON DELETE CASCADE,
+            FOREIGN KEY (product_id) REFERENCES products(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS cash_register_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            opened_at TEXT NOT NULL DEFAULT (datetime('now')),
+            closed_at TEXT,
+            opening_balance REAL NOT NULL DEFAULT 0,
+            closing_balance REAL,
+            expected_balance REAL,
+            difference REAL,
+            status TEXT NOT NULL DEFAULT 'open',
+            notes TEXT,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS daily_closings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            closed_by INTEGER NOT NULL,
+            closed_at TEXT NOT NULL DEFAULT (datetime('now')),
+            date TEXT NOT NULL,
+            total_sales INTEGER NOT NULL DEFAULT 0,
+            total_revenue REAL NOT NULL DEFAULT 0,
+            total_tax REAL NOT NULL DEFAULT 0,
+            total_discount REAL NOT NULL DEFAULT 0,
+            cash_total REAL NOT NULL DEFAULT 0,
+            card_total REAL NOT NULL DEFAULT 0,
+            transfer_total REAL NOT NULL DEFAULT 0,
+            cash_count INTEGER NOT NULL DEFAULT 0,
+            card_count INTEGER NOT NULL DEFAULT 0,
+            transfer_count INTEGER NOT NULL DEFAULT 0,
+            refunded_count INTEGER NOT NULL DEFAULT 0,
+            refunded_total REAL NOT NULL DEFAULT 0,
+            net_revenue REAL NOT NULL DEFAULT 0,
+            notes TEXT,
+            FOREIGN KEY (closed_by) REFERENCES users(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS receipts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sale_id INTEGER NOT NULL,
+            receipt_number TEXT NOT NULL UNIQUE,
+            receipt_type TEXT NOT NULL DEFAULT 'sale',
+            printed_at TEXT,
+            is_printed INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE
         );
         ",
     )?;

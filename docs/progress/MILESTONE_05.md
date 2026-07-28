@@ -99,11 +99,11 @@ src-tauri/src/lib.rs — Registered inventory commands
 src-tauri/src/commands/inventory.rs — Fixed compilation errors
 ```
 
-## Known Issues
-- Storage location editing not yet supported (backend only has create/list)
-- Product images and vehicle compatibility not yet exposed in frontend UI
+## Known Issues (Resolved in M6)
+- ~~Storage location editing not yet supported~~ ✅ Added update/archive backend + edit mode frontend
+- ~~Product images and vehicle compatibility not yet exposed in frontend UI~~ ✅ Added image/compatibility CRUD + UI
+- ~~Inventory movements (stock in/out) not yet implemented in UI~~ ✅ Added movements list + form with stock auto-update
 - Hardware/electronic categories from seed Spanish names need review
-- Inventory movements (stock in/out) not yet implemented in UI
 
 ## Next Milestone
-Milestone 6 – Sales & Point of Sale Module
+Milestone 6 – Sales & Point of Sale Module ✅ (Complete)

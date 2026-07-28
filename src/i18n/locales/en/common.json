@@ -101,6 +101,11 @@
   "forbiddenDesc": "You don't have permission to access this page.",
   "goToDashboard": "Go to dashboard",
   "required": "Required",
+  "optional": "Optional",
+  "selectOptional": "Select (optional)",
+  "processing": "Processing...",
+  "notFound": "Not found",
+  "createdAt": "Created",
   "yes": "Yes",
   "no": "No"
 }

@@ -101,6 +101,11 @@
   "forbiddenDesc": "No tienes permisos para acceder a esta página.",
   "goToDashboard": "Ir al inicio",
   "required": "Requerido",
+  "optional": "Opcional",
+  "selectOptional": "Seleccionar (opcional)",
+  "processing": "Procesando...",
+  "notFound": "No encontrado",
+  "createdAt": "Creado",
   "yes": "Sí",
   "no": "No"
 }

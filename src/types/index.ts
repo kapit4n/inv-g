@@ -123,18 +123,87 @@ export interface Supplier {
 
 export interface Sale {
   id: number
-  invoiceNumber: string
+  saleNumber: string
+  receiptNumber?: string
   customerId?: number
-  userId: number
+  userId?: number
+  warehouseId?: number
   subtotal: number
-  tax: number
-  discount: number
+  taxRate: number
+  taxAmount: number
+  discountAmount: number
   total: number
   paymentMethod: string
   paymentStatus: string
   notes?: string
   createdAt: string
   updatedAt: string
+  customerName?: string
+  itemCount?: number
+}
+
+export interface SalePayment {
+  id: number
+  saleId: number
+  method: string
+  amount: number
+  reference?: string
+  changeAmount: number
+  createdAt: string
+}
+
+export interface PaymentInput {
+  method: string
+  amount: number
+  reference?: string
+  changeAmount: number
+}
+
+export interface CheckoutInput {
+  customerId?: number
+  userId?: number
+  warehouseId?: number
+  items: SaleItemInput[]
+  payments: PaymentInput[]
+  notes?: string
+}
+
+export interface CheckoutResult {
+  sale: Sale
+  items: SaleItem[]
+  payments: SalePayment[]
+  receiptNumber: string
+}
+
+export interface ProductForPos {
+  id: number
+  name: string
+  sku: string
+  barcode?: string
+  salePrice: number
+  wholesalePrice: number
+  stockQuantity: number
+  unit: string
+  imageUrl?: string
+  taxRate: number
+  categoryName?: string
+  isActive: boolean
+}
+
+export interface DailyCloseout {
+  totalSales: number
+  totalRevenue: number
+  totalTax: number
+  totalDiscount: number
+  cashTotal: number
+  cardTotal: number
+  transferTotal: number
+  cashCount: number
+  cardCount: number
+  transferCount: number
+  refundedCount: number
+  refundedTotal: number
+  netRevenue: number
 }
 
 export interface SaleItem {
@@ -143,8 +212,134 @@ export interface SaleItem {
   productId: number
   quantity: number
   unitPrice: number
+  discount: number
   total: number
   createdAt: string
+  updatedAt: string
+  productName?: string
+  productSku?: string
+}
+
+export interface SaleItemInput {
+  productId: number
+  quantity: number
+  unitPrice: number
+  discount: number
+  total: number
+}
+
+export interface Quote {
+  id: number
+  quoteNumber: string
+  customerId?: number
+  userId?: number
+  subtotal: number
+  taxRate: number
+  taxAmount: number
+  discountAmount: number
+  total: number
+  status: string
+  validUntil?: string
+  notes?: string
+  termsConditions?: string
+  createdAt: string
+  updatedAt: string
+  customerName?: string
+  itemCount?: number
+}
+
+export interface QuoteItem {
+  id: number
+  quoteId: number
+  productId: number
+  quantity: number
+  unitPrice: number
+  discount: number
+  total: number
+  createdAt: string
+  productName?: string
+  productSku?: string
+}
+
+export interface QuoteInput {
+  customerId?: number
+  userId?: number
+  items: SaleItemInput[]
+  taxRate: number
+  discountAmount: number
+  validUntil?: string
+  notes?: string
+  termsConditions?: string
+}
+
+export interface CashRegisterSession {
+  id: number
+  userId: number
+  openedAt: string
+  closedAt?: string
+  openingBalance: number
+  closingBalance?: number
+  expectedBalance?: number
+  difference?: number
+  status: string
+  notes?: string
+  userName?: string
+}
+
+export interface DailyClosing {
+  id: number
+  closedBy: number
+  closedAt: string
+  date: string
+  totalSales: number
+  totalRevenue: number
+  totalTax: number
+  totalDiscount: number
+  cashTotal: number
+  cardTotal: number
+  transferTotal: number
+  cashCount: number
+  cardCount: number
+  transferCount: number
+  refundedCount: number
+  refundedTotal: number
+  netRevenue: number
+  notes?: string
+  closedByName?: string
+}
+
+export interface Receipt {
+  id: number
+  saleId: number
+  receiptNumber: string
+  receiptType: string
+  printedAt?: string
+  isPrinted: boolean
+  createdAt: string
+}
+
+export interface SalesSummary {
+  totalSalesToday: number
+  revenueToday: number
+  totalSalesWeek: number
+  revenueWeek: number
+  totalSalesMonth: number
+  revenueMonth: number
+  averageOrderValue: number
+  topProducts: ProductSalesStat[]
+}
+
+export interface ProductSalesStat {
+  productId: number
+  productName: string
+  totalQuantity: number
+  totalRevenue: number
+}
+
+export interface SalesChartData {
+  labels: string[]
+  revenue: number[]
+  orders: number[]
 }
 
 export interface PurchaseOrder {

@@ -4,7 +4,8 @@ import {
   LayoutDashboard, ShoppingCart, Package, ShoppingBag, Users, Truck, Car,
   Warehouse, BarChart3, Settings, HelpCircle, UsersRound,
   ChevronLeft, ChevronRight, ChevronDown, ChevronRight as ChevronRightIcon,
-  Layers, Tag, Cog, Briefcase, MapPin, Box,
+  Layers, Tag, Cog, Briefcase, MapPin, Box, ArrowUpDown,
+  FileText, RotateCcw, DollarSign, Printer, Receipt,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -23,7 +24,18 @@ interface NavItemConfig {
 
 const navigation: NavItemConfig[] = [
   { nameKey: "dashboard.title", href: "/dashboard", icon: LayoutDashboard },
-  { nameKey: "sales.title", href: "/sales", icon: ShoppingCart },
+  {
+    nameKey: "sales.title", href: "/sales", icon: ShoppingCart,
+    children: [
+      { nameKey: "sales.pointOfSale", href: "/sales/new", icon: ShoppingCart },
+      { nameKey: "sales.salesHistory", href: "/sales", icon: Receipt },
+      { nameKey: "sales.quotes", href: "/sales/quotes", icon: FileText },
+      { nameKey: "sales.returns", href: "/sales/returns", icon: RotateCcw },
+      { nameKey: "sales.cashRegister", href: "/sales/register", icon: DollarSign },
+      { nameKey: "sales.receipts", href: "/sales/receipts", icon: Printer },
+      { nameKey: "sales.dailyCloseout", href: "/sales/closeout", icon: BarChart3 },
+    ],
+  },
   {
     nameKey: "inventory.title", href: "/inventory", icon: Package,
     children: [
@@ -34,6 +46,7 @@ const navigation: NavItemConfig[] = [
       { nameKey: "inventory.warehouses", href: "/inventory/warehouses", icon: Warehouse },
       { nameKey: "inventory.storageLocations", href: "/inventory/storage-locations", icon: MapPin },
       { nameKey: "inventory.products", href: "/inventory/products", icon: Box },
+      { nameKey: "inventory.inventoryMovements", href: "/inventory/movements", icon: ArrowUpDown },
     ],
   },
   { nameKey: "purchases.title", href: "/purchases", icon: ShoppingBag },
@@ -58,7 +71,7 @@ export function Sidebar() {
   const { sidebarCollapsed, toggleSidebar } = useSettingsStore()
   const location = useLocation()
   const { t } = useTranslation()
-  const [expanded, setExpanded] = useState<string[]>(["/inventory"])
+  const [expanded, setExpanded] = useState<string[]>(["/inventory", "/sales"])
 
   const toggleExpand = (href: string) => {
     setExpanded((prev) =>

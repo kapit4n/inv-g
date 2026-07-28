@@ -1,22 +1,30 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useParams } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { EntityFormPage } from "@/components/entity"
 import { TextField, TextareaField, SelectField } from "@/components/forms"
 import { EntityActionBar } from "@/components/entity"
-import { getWarehouses, createStorageLocation } from "@/lib/tauri"
+import { getWarehouses, getStorageLocations, createStorageLocation, updateStorageLocation } from "@/lib/tauri"
 import { useNotification } from "@/hooks/use-notification"
 
 export function StorageLocationFormPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { id } = useParams<{ id: string }>()
   const queryClient = useQueryClient()
   const notification = useNotification()
+  const isEdit = !!id
 
   const { data: warehouses = [] } = useQuery({
     queryKey: ["inventory-warehouses"],
     queryFn: getWarehouses,
+  })
+
+  const { data: allLocations = [] } = useQuery({
+    queryKey: ["inventory-storage-locations"],
+    queryFn: () => getStorageLocations(),
+    enabled: isEdit,
   })
 
   const [warehouseId, setWarehouseId] = useState<number | undefined>(undefined)
@@ -27,6 +35,21 @@ export function StorageLocationFormPage() {
   const [code, setCode] = useState("")
   const [description, setDescription] = useState("")
 
+  useEffect(() => {
+    if (isEdit && allLocations.length > 0 && id) {
+      const loc = allLocations.find((l) => l.id === Number(id))
+      if (loc) {
+        setWarehouseId(loc.warehouseId)
+        setZone(loc.zone || "")
+        setAisle(loc.aisle || "")
+        setShelf(loc.shelf || "")
+        setBin(loc.bin || "")
+        setCode(loc.code)
+        setDescription(loc.description || "")
+      }
+    }
+  }, [isEdit, allLocations, id])
+
   const createMutation = useMutation({
     mutationFn: createStorageLocation,
     onSuccess: () => {
@@ -36,19 +59,33 @@ export function StorageLocationFormPage() {
     },
   })
 
+  const updateMutation = useMutation({
+    mutationFn: updateStorageLocation,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inventory-storage-locations"] })
+      notification.success(t("common.success"), t("inventory.storageUpdated"))
+      navigate("/inventory/storage-locations")
+    },
+  })
+
   const handleSave = () => {
-    createMutation.mutate({
+    const data = {
       warehouseId: warehouseId!, zone: zone || undefined, aisle: aisle || undefined,
       shelf: shelf || undefined, bin: bin || undefined, code,
       description: description || undefined,
-    })
+    }
+    if (isEdit && id) {
+      updateMutation.mutate({ id: Number(id), ...data })
+    } else {
+      createMutation.mutate(data)
+    }
   }
 
   const warehouseOptions = warehouses.map((w) => ({ label: w.name, value: w.id }))
 
   return (
     <EntityFormPage
-      title={t("inventory.addStorageLocation")}
+      title={isEdit ? t("inventory.editStorageLocation") : t("inventory.addStorageLocation")}
       backPath="/inventory/storage-locations"
     >
       <div className="space-y-6">
@@ -63,7 +100,7 @@ export function StorageLocationFormPage() {
           </div>
           <TextareaField label={t("inventory.storageDescription")} value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
-        <EntityActionBar onSave={handleSave} saving={createMutation.isPending} showDelete={false} showArchive={false} showDuplicate={false} />
+        <EntityActionBar onSave={handleSave} saving={createMutation.isPending || updateMutation.isPending} showDelete={false} showArchive={false} showDuplicate={false} />
       </div>
     </EntityFormPage>
   )

@@ -548,6 +548,23 @@ pub fn create_storage_location(state: State<DbState>, warehouse_id: i64, zone: O
     stmt.query_row(params![id], mapper_storage_location).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+pub fn update_storage_location(state: State<DbState>, id: i64, warehouse_id: i64, zone: Option<String>, aisle: Option<String>, shelf: Option<String>, bin: Option<String>, code: String, description: Option<String>) -> Result<StorageLocation, String> {
+    let conn = get_conn(&state)?;
+    conn.execute("UPDATE storage_locations SET warehouse_id=?1, zone=?2, aisle=?3, shelf=?4, bin=?5, code=?6, description=?7, updated_at=datetime('now') WHERE id=?8",
+        params![warehouse_id, zone, aisle, shelf, bin, code, description, id]).map_err(|e| e.to_string())?;
+    let mut stmt = conn.prepare("SELECT * FROM storage_locations WHERE id = ?1").map_err(|e| e.to_string())?;
+    stmt.query_row(params![id], mapper_storage_location).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn archive_storage_location(state: State<DbState>, id: i64) -> Result<(), String> {
+    let conn = get_conn(&state)?;
+    conn.execute("UPDATE storage_locations SET is_active=0, updated_at=datetime('now') WHERE id=?1", params![id])
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 // ── Products ──
 
 #[tauri::command]
@@ -712,4 +729,123 @@ pub fn get_product_images(state: State<DbState>, product_id: i64) -> Result<Vec<
     let mut result = Vec::new();
     for row in rows { result.push(row.map_err(|e| e.to_string())?); }
     Ok(result)
+}
+
+#[tauri::command]
+pub fn create_product_image(state: State<DbState>, product_id: i64, file_path: String, is_primary: bool, sort_order: i64) -> Result<ProductImage, String> {
+    let conn = get_conn(&state)?;
+    if is_primary {
+        conn.execute("UPDATE product_images SET is_primary=0 WHERE product_id=?1", params![product_id]).map_err(|e| e.to_string())?;
+    }
+    conn.execute("INSERT INTO product_images (product_id, file_path, is_primary, sort_order) VALUES (?1, ?2, ?3, ?4)",
+        params![product_id, file_path, is_primary as i64, sort_order]).map_err(|e| e.to_string())?;
+    let id = conn.last_insert_rowid();
+    let mut stmt = conn.prepare("SELECT * FROM product_images WHERE id = ?1").map_err(|e| e.to_string())?;
+    stmt.query_row(params![id], |row| {
+        Ok(ProductImage {
+            id: row.get(0)?, product_id: row.get(1)?, file_path: row.get(2)?,
+            is_primary: row.get::<_, i64>(3)? != 0, sort_order: row.get(4)?,
+            created_at: row.get(5)?,
+        })
+    }).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_product_image(state: State<DbState>, id: i64) -> Result<(), String> {
+    let conn = get_conn(&state)?;
+    conn.execute("DELETE FROM product_images WHERE id=?1", params![id])
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+// ── Inventory Movements ──
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct InventoryMovement {
+    pub id: i64,
+    pub product_id: i64,
+    pub warehouse_id: Option<i64>,
+    pub quantity: i64,
+    pub r#type: String,
+    pub reference_type: Option<String>,
+    pub reference_id: Option<String>,
+    pub notes: Option<String>,
+    pub created_by: Option<i64>,
+    pub created_at: String,
+}
+
+#[tauri::command]
+pub fn get_inventory_movements(state: State<DbState>, product_id: Option<i64>) -> Result<Vec<InventoryMovement>, String> {
+    let conn = get_conn(&state)?;
+    let (sql, params_vec): (&str, Vec<Box<dyn rusqlite::types::ToSql>>) = if let Some(pid) = product_id {
+        ("SELECT * FROM inventory_movements WHERE product_id = ?1 ORDER BY created_at DESC", vec![Box::new(pid)])
+    } else {
+        ("SELECT * FROM inventory_movements ORDER BY created_at DESC", vec![])
+    };
+    let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
+    let param_refs: Vec<&dyn rusqlite::types::ToSql> = params_vec.iter().map(|p| p.as_ref()).collect();
+    let rows = stmt.query_map(param_refs.as_slice(), |row| {
+        Ok(InventoryMovement {
+            id: row.get(0)?, product_id: row.get(1)?, warehouse_id: row.get(2)?,
+            quantity: row.get(3)?, r#type: row.get(4)?,
+            reference_type: row.get(5)?, reference_id: row.get(6)?,
+            notes: row.get(7)?, created_by: row.get(8)?, created_at: row.get(9)?,
+        })
+    }).map_err(|e| e.to_string())?;
+    let mut result = Vec::new();
+    for row in rows { result.push(row.map_err(|e| e.to_string())?); }
+    Ok(result)
+}
+
+#[tauri::command]
+pub fn create_inventory_movement(state: State<DbState>, product_id: i64, warehouse_id: Option<i64>, quantity: i64, r#type: String, reference_type: Option<String>, reference_id: Option<String>, notes: Option<String>, created_by: Option<i64>) -> Result<InventoryMovement, String> {
+    let conn = get_conn(&state)?;
+    conn.execute(
+        "INSERT INTO inventory_movements (product_id, warehouse_id, quantity, type, reference_type, reference_id, notes, created_by) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        params![product_id, warehouse_id, quantity, r#type, reference_type, reference_id, notes, created_by],
+    ).map_err(|e| e.to_string())?;
+
+    // Update product stock quantity
+    conn.execute(
+        "UPDATE products SET stock_quantity = stock_quantity + ?1, updated_at = datetime('now') WHERE id = ?2",
+        params![quantity, product_id],
+    ).map_err(|e| e.to_string())?;
+
+    let id = conn.last_insert_rowid();
+    let mut stmt = conn.prepare("SELECT * FROM inventory_movements WHERE id = ?1").map_err(|e| e.to_string())?;
+    stmt.query_row(params![id], |row| {
+        Ok(InventoryMovement {
+            id: row.get(0)?, product_id: row.get(1)?, warehouse_id: row.get(2)?,
+            quantity: row.get(3)?, r#type: row.get(4)?,
+            reference_type: row.get(5)?, reference_id: row.get(6)?,
+            notes: row.get(7)?, created_by: row.get(8)?, created_at: row.get(9)?,
+        })
+    }).map_err(|e| e.to_string())
+}
+
+// ── Product Compatibility ──
+
+#[tauri::command]
+pub fn create_product_compatibility(state: State<DbState>, product_id: i64, vehicle_brand: String, vehicle_model: String, year_start: Option<i64>, year_end: Option<i64>, engine: Option<String>, transmission: Option<String>, notes: Option<String>) -> Result<ProductCompatibility, String> {
+    let conn = get_conn(&state)?;
+    conn.execute("INSERT INTO product_vehicle_compatibility (product_id, vehicle_brand, vehicle_model, year_start, year_end, engine, transmission, notes) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        params![product_id, vehicle_brand, vehicle_model, year_start, year_end, engine, transmission, notes]).map_err(|e| e.to_string())?;
+    let id = conn.last_insert_rowid();
+    let mut stmt = conn.prepare("SELECT * FROM product_vehicle_compatibility WHERE id = ?1").map_err(|e| e.to_string())?;
+    stmt.query_row(params![id], |row| {
+        Ok(ProductCompatibility {
+            id: row.get(0)?, product_id: row.get(1)?, vehicle_brand: row.get(2)?,
+            vehicle_model: row.get(3)?, year_start: row.get(4)?, year_end: row.get(5)?,
+            engine: row.get(6)?, transmission: row.get(7)?, notes: row.get(8)?,
+            created_at: row.get(9)?,
+        })
+    }).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_product_compatibility(state: State<DbState>, id: i64) -> Result<(), String> {
+    let conn = get_conn(&state)?;
+    conn.execute("DELETE FROM product_vehicle_compatibility WHERE id=?1", params![id])
+        .map_err(|e| e.to_string())?;
+    Ok(())
 }

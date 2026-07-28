@@ -81,6 +81,7 @@ export function StorageLocationsPage() {
         onPageSizeChange={setPageSize}
         loading={isLoading}
         error={error instanceof Error ? error.message : undefined}
+        onRowClick={(row) => navigate(`/inventory/storage-locations/${row.id}/edit`)}
       />
     </EntityListPage>
   )

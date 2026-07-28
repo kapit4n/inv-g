@@ -92,6 +92,7 @@
   "storageCode": "Code",
   "storageDescription": "Description",
   "storageCreated": "Storage location created successfully",
+  "storageUpdated": "Storage location updated successfully",
 
   "products": "Products",
   "productsDescription": "Manage your product catalog",
@@ -158,6 +159,31 @@
   "totalWarehouses": "Total Warehouses",
   "lowStockProducts": "Low Stock Products",
   "outOfStockProducts": "Out of Stock Products",
+  "inventoryMovements": "Inventory Movements",
+  "inventoryMovementsDescription": "Track stock movements and adjustments",
+  "addMovement": "Add Movement",
+  "movementType": "Type",
+  "movementTypeIn": "Stock In",
+  "movementTypeOut": "Stock Out",
+  "movementTypeAdjustment": "Adjustment",
+  "movementCreated": "Movement recorded successfully",
+  "productId": "Product ID",
+  "quantity": "Quantity",
+
   "viewDetails": "View Details",
-  "manage": "Manage"
+  "manage": "Manage",
+
+  "productImages": "Product Images",
+  "primaryImage": "Primary",
+  "imageAdded": "Image added successfully",
+  "imagePathPlaceholder": "Enter image file path...",
+
+  "vehicleCompatibility": "Vehicle Compatibility",
+  "vehicleBrand": "Brand",
+  "vehicleModel": "Model",
+  "yearStart": "Year Start",
+  "yearEnd": "Year End",
+  "engine": "Engine",
+  "transmission": "Transmission",
+  "compatibilityAdded": "Compatibility added successfully"
 }

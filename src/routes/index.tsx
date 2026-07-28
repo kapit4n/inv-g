@@ -11,8 +11,9 @@ import {
   WarehousesPage, WarehouseFormPage,
   StorageLocationsPage, StorageLocationFormPage,
   ProductsPage, ProductFormPage, ProductDetailPage,
+  InventoryMovementsPage, InventoryMovementFormPage,
 } from "@/features/inventory"
-import { SalesPage } from "@/features/sales"
+import { SalesPage, PosPage, SaleDetailPage, CloseoutPage, QuotesPage, QuoteDetailPage, QuoteFormPage, ReturnsPage, CashRegisterPage, ReceiptsPage } from "@/features/sales"
 import { PurchasesPage } from "@/features/purchases"
 import { CustomersPage } from "@/features/customers"
 import { SuppliersPage } from "@/features/suppliers"
@@ -66,11 +67,24 @@ export const router = createBrowserRouter([
       { path: "inventory/warehouses/:id/edit", element: <WarehouseFormPage /> },
       { path: "inventory/storage-locations", element: <StorageLocationsPage /> },
       { path: "inventory/storage-locations/new", element: <StorageLocationFormPage /> },
+      { path: "inventory/storage-locations/:id/edit", element: <StorageLocationFormPage /> },
+      { path: "inventory/movements", element: <InventoryMovementsPage /> },
+      { path: "inventory/movements/new", element: <InventoryMovementFormPage /> },
       { path: "inventory/products", element: <ProductsPage /> },
       { path: "inventory/products/new", element: <ProductFormPage /> },
       { path: "inventory/products/:id", element: <ProductDetailPage /> },
       { path: "inventory/products/:id/edit", element: <ProductFormPage /> },
       { path: "sales", element: <SalesPage /> },
+      { path: "sales/new", element: <PosPage /> },
+      { path: "sales/closeout", element: <CloseoutPage /> },
+      { path: "sales/quotes", element: <QuotesPage /> },
+      { path: "sales/quotes/new", element: <QuoteFormPage /> },
+      { path: "sales/quotes/:id", element: <QuoteDetailPage /> },
+      { path: "sales/quotes/:id/edit", element: <QuoteFormPage /> },
+      { path: "sales/returns", element: <ReturnsPage /> },
+      { path: "sales/register", element: <CashRegisterPage /> },
+      { path: "sales/receipts", element: <ReceiptsPage /> },
+      { path: "sales/:id", element: <SaleDetailPage /> },
       { path: "purchases", element: <PurchasesPage /> },
       { path: "customers", element: <CustomersPage /> },
       { path: "suppliers", element: <SuppliersPage /> },

@@ -3,8 +3,13 @@ import type { LoginResponse, SessionInfo, AppSetting } from "@/types"
 import type {
   InventoryCategory, Brand, Manufacturer, InventorySupplier,
   Warehouse, StorageLocation, InventoryProduct, ProductImage,
-  ProductCompatibility, DashboardStats, InventoryPaginatedResult,
+  ProductCompatibility, InventoryMovement, DashboardStats, InventoryPaginatedResult,
 } from "@/types/inventory"
+import type {
+  Customer, Sale, SaleItem, SalePayment, DailyCloseout, Quote, QuoteItem,
+  CashRegisterSession, DailyClosing, Receipt, ProductForPos, CheckoutResult,
+  CheckoutInput, SalesSummary, SalesChartData, QuoteInput
+} from "@/types"
 
 export async function getAppVersion(): Promise<string> {
   return invoke<string>("get_app_version")
@@ -167,6 +172,17 @@ export async function createStorageLocation(data: {
   return invoke<StorageLocation>("create_storage_location", data)
 }
 
+export async function updateStorageLocation(data: {
+  id: number; warehouseId: number; zone?: string; aisle?: string; shelf?: string;
+  bin?: string; code: string; description?: string
+}): Promise<StorageLocation> {
+  return invoke<StorageLocation>("update_storage_location", data)
+}
+
+export async function archiveStorageLocation(id: number): Promise<void> {
+  return invoke<void>("archive_storage_location", { id })
+}
+
 // ── Products ──
 
 export async function getProducts(page: number, pageSize: number, search?: string): Promise<InventoryPaginatedResult<InventoryProduct>> {
@@ -199,6 +215,176 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   return invoke<DashboardStats>("get_dashboard_stats")
 }
 
+// ── Inventory Movements ──
+
+export async function getInventoryMovements(productId?: number): Promise<InventoryMovement[]> {
+  return invoke<InventoryMovement[]>("get_inventory_movements", { productId })
+}
+
+export async function createInventoryMovement(data: {
+  productId: number; warehouseId?: number; quantity: number; type: string;
+  referenceType?: string; referenceId?: string; notes?: string; createdBy?: number
+}): Promise<InventoryMovement> {
+  return invoke<InventoryMovement>("create_inventory_movement", data)
+}
+
+// ── Customers ──
+
+export async function getCustomers(): Promise<Customer[]> {
+  return invoke<Customer[]>("get_customers")
+}
+
+export async function createCustomer(data: {
+  name: string; email?: string; phone?: string; address?: string;
+  city?: string; stateProvince?: string; postalCode?: string;
+  country?: string; notes?: string
+}): Promise<Customer> {
+  return invoke<Customer>("create_customer", data)
+}
+
+export async function updateCustomer(data: {
+  id: number; name: string; email?: string; phone?: string; address?: string;
+  city?: string; stateProvince?: string; postalCode?: string;
+  country?: string; notes?: string
+}): Promise<Customer> {
+  return invoke<Customer>("update_customer", data)
+}
+
+export async function archiveCustomer(id: number): Promise<void> {
+  return invoke<void>("archive_customer", { id })
+}
+
+// ── Sales ──
+
+export async function getSales(): Promise<Sale[]> {
+  return invoke<Sale[]>("get_sales")
+}
+
+export async function getSale(id: number): Promise<Sale> {
+  return invoke<Sale>("get_sale", { id })
+}
+
+export async function getSaleItems(saleId: number): Promise<SaleItem[]> {
+  return invoke<SaleItem[]>("get_sale_items", { saleId })
+}
+
+export async function getSalePayments(saleId: number): Promise<SalePayment[]> {
+  return invoke<SalePayment[]>("get_sale_payments", { saleId })
+}
+
+export async function getDailyCloseout(): Promise<DailyCloseout> {
+  return invoke<DailyCloseout>("get_daily_closeout")
+}
+
+export async function refundSale(saleId: number, reason?: string): Promise<Sale> {
+  return invoke<Sale>("refund_sale", { saleId, reason })
+}
+
+export async function createSale(data: {
+  customerId?: number; userId?: number; subtotal: number; taxRate: number;
+  taxAmount: number; discountAmount: number; total: number;
+  paymentMethod: string; paymentStatus: string; notes?: string;
+  items: { productId: number; quantity: number; unitPrice: number; discount: number; total: number }[]
+}): Promise<Sale> {
+  return invoke<Sale>("create_sale", data)
+}
+
+export async function searchProductsForPos(search: string): Promise<ProductForPos[]> {
+  return invoke<ProductForPos[]>("search_products_for_pos", { search })
+}
+
+export async function processCheckout(input: CheckoutInput): Promise<CheckoutResult> {
+  return invoke<CheckoutResult>("process_checkout", { input })
+}
+
+export async function getSalesSummary(): Promise<SalesSummary> {
+  return invoke<SalesSummary>("get_sales_summary")
+}
+
+export async function getSalesChartData(days: number): Promise<SalesChartData> {
+  return invoke<SalesChartData>("get_sales_chart_data", { days })
+}
+
+export async function searchSales(query: string): Promise<Sale[]> {
+  return invoke<Sale[]>("search_sales", { query })
+}
+
+// ── Quotes ──
+
+export async function getQuotes(): Promise<Quote[]> {
+  return invoke<Quote[]>("get_quotes")
+}
+
+export async function getQuote(id: number): Promise<Quote> {
+  return invoke<Quote>("get_quote", { id })
+}
+
+export async function getQuoteItems(quoteId: number): Promise<QuoteItem[]> {
+  return invoke<QuoteItem[]>("get_quote_items", { quoteId })
+}
+
+export async function createQuote(input: QuoteInput): Promise<Quote> {
+  return invoke<Quote>("create_quote", { input })
+}
+
+export async function updateQuote(id: number, input: QuoteInput): Promise<Quote> {
+  return invoke<Quote>("update_quote", { id, input })
+}
+
+export async function deleteQuote(id: number): Promise<void> {
+  return invoke<void>("delete_quote", { id })
+}
+
+export async function updateQuoteStatus(id: number, status: string): Promise<Quote> {
+  return invoke<Quote>("update_quote_status", { id, status })
+}
+
+export async function convertQuoteToSale(quoteId: number, userId?: number): Promise<CheckoutResult> {
+  return invoke<CheckoutResult>("convert_quote_to_sale", { quoteId, userId })
+}
+
+// ── Cash Register ──
+
+export async function getCashRegisterStatus(): Promise<CashRegisterSession | null> {
+  return invoke<CashRegisterSession | null>("get_cash_register_status")
+}
+
+export async function openCashRegister(userId: number, openingBalance: number, notes?: string): Promise<CashRegisterSession> {
+  return invoke<CashRegisterSession>("open_cash_register", { userId, openingBalance, notes })
+}
+
+export async function closeCashRegister(id: number, closingBalance: number, notes?: string): Promise<CashRegisterSession> {
+  return invoke<CashRegisterSession>("close_cash_register", { id, closingBalance, notes })
+}
+
+export async function getCashRegisterSessions(): Promise<CashRegisterSession[]> {
+  return invoke<CashRegisterSession[]>("get_cash_register_sessions")
+}
+
+// ── Daily Closings ──
+
+export async function closeDailyShift(closedBy: number, notes?: string): Promise<DailyClosing> {
+  return invoke<DailyClosing>("close_daily_shift", { closedBy, notes })
+}
+
+export async function getDailyClosings(): Promise<DailyClosing[]> {
+  return invoke<DailyClosing[]>("get_daily_closings")
+}
+
+// ── Receipts ──
+
+export async function getReceiptsForSale(saleId: number): Promise<Receipt[]> {
+  return invoke<Receipt[]>("get_receipts_for_sale", { saleId })
+}
+
+export async function getReceipt(id: number): Promise<Receipt> {
+  return invoke<Receipt>("get_receipt", { id })
+}
+
+export async function markReceiptPrinted(id: number): Promise<Receipt> {
+  return invoke<Receipt>("mark_receipt_printed", { id })
+}
+
 // ── Product Relations ──
 
 export async function getProductCompatibility(productId: number): Promise<ProductCompatibility[]> {
@@ -207,4 +393,28 @@ export async function getProductCompatibility(productId: number): Promise<Produc
 
 export async function getProductImages(productId: number): Promise<ProductImage[]> {
   return invoke<ProductImage[]>("get_product_images", { productId })
+}
+
+export async function createProductImage(data: {
+  productId: number; filePath: string; isPrimary?: boolean; sortOrder?: number
+}): Promise<ProductImage> {
+  return invoke<ProductImage>("create_product_image", data)
+}
+
+export async function deleteProductImage(id: number): Promise<void> {
+  return invoke<void>("delete_product_image", { id })
+}
+
+// ── Product Compatibility ──
+
+export async function createProductCompatibility(data: {
+  productId: number; vehicleBrand: string; vehicleModel: string;
+  yearStart?: number; yearEnd?: number; engine?: string;
+  transmission?: string; notes?: string
+}): Promise<ProductCompatibility> {
+  return invoke<ProductCompatibility>("create_product_compatibility", data)
+}
+
+export async function deleteProductCompatibility(id: number): Promise<void> {
+  return invoke<void>("delete_product_compatibility", { id })
 }

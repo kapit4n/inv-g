@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next"
 import { useParams } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { EntityDetailPage, EntityInfoCard, InfoRow } from "@/components/entity"
-import { getProduct, getCategories, getBrands, getManufacturers, getSuppliers, getWarehouses } from "@/lib/tauri"
+import { getProduct, getCategories, getBrands, getManufacturers, getSuppliers, getWarehouses, getStorageLocations, getProductImages, getProductCompatibility } from "@/lib/tauri"
 import { Badge } from "@/components/ui/badge"
 
 export function ProductDetailPage() {
@@ -20,12 +20,16 @@ export function ProductDetailPage() {
   const { data: manufacturers = [] } = useQuery({ queryKey: ["inventory-manufacturers"], queryFn: getManufacturers })
   const { data: suppliers = [] } = useQuery({ queryKey: ["inventory-suppliers"], queryFn: getSuppliers })
   const { data: warehouses = [] } = useQuery({ queryKey: ["inventory-warehouses"], queryFn: getWarehouses })
+  const { data: storageLocations = [] } = useQuery({ queryKey: ["inventory-storage-locations"], queryFn: () => getStorageLocations() })
+  const { data: images = [] } = useQuery({ queryKey: ["inventory-product-images", id], queryFn: () => getProductImages(Number(id)), enabled: !!id })
+  const { data: compatibility = [] } = useQuery({ queryKey: ["inventory-product-compatibility", id], queryFn: () => getProductCompatibility(Number(id)), enabled: !!id })
 
   const catName = categories.find((c) => c.id === product?.categoryId)?.name
   const brandName = brands.find((b) => b.id === product?.brandId)?.name
   const mfrName = manufacturers.find((m) => m.id === product?.manufacturerId)?.name
   const supName = suppliers.find((s) => s.id === product?.supplierId)?.companyName
   const whName = warehouses.find((w) => w.id === product?.warehouseId)?.name
+  const storageLocName = storageLocations.find((sl) => sl.id === product?.storageLocationId)?.code
 
   return (
     <EntityDetailPage
@@ -67,7 +71,35 @@ export function ProductDetailPage() {
             <InfoRow label={t("inventory.unit")} value={product.unit} />
             <InfoRow label={t("inventory.weight")} value={product.weight ? `${product.weight} kg` : "-"} />
             <InfoRow label={t("inventory.warehouse")} value={whName} />
+            <InfoRow label={t("inventory.storageLocation")} value={storageLocName} />
           </EntityInfoCard>
+
+          {images.length > 0 && (
+            <EntityInfoCard title={t("inventory.productImages")}>
+              <div className="space-y-2">
+                {images.map((img) => (
+                  <div key={img.id} className="flex items-center gap-2 text-sm">
+                    <span>{img.filePath}</span>
+                    {img.isPrimary && <Badge variant="outline">{t("inventory.primaryImage")}</Badge>}
+                  </div>
+                ))}
+              </div>
+            </EntityInfoCard>
+          )}
+
+          {compatibility.length > 0 && (
+            <EntityInfoCard title={t("inventory.vehicleCompatibility")} columns={2}>
+              {compatibility.map((c) => (
+                <div key={c.id} className="text-sm">
+                  {c.vehicleBrand} {c.vehicleModel}
+                  {c.yearStart && ` (${c.yearStart}${c.yearEnd ? `-${c.yearEnd}` : ""})`}
+                  {c.engine && ` | ${c.engine}`}
+                  {c.transmission && ` | ${c.transmission}`}
+                  {c.notes && ` | ${c.notes}`}
+                </div>
+              ))}
+            </EntityInfoCard>
+          )}
         </div>
       )}
     </EntityDetailPage>

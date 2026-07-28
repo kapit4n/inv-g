@@ -150,6 +150,19 @@ export interface DashboardStats {
   inventoryValue: number
 }
 
+export interface InventoryMovement {
+  id: number
+  productId: number
+  warehouseId: number | null
+  quantity: number
+  type: string
+  referenceType: string | null
+  referenceId: string | null
+  notes: string | null
+  createdBy: number | null
+  createdAt: string
+}
+
 export interface InventoryPaginatedResult<T> {
   data: T[]
   total: number
