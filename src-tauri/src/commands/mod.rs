@@ -1,3 +1,3 @@
 pub mod app;
-
-pub use app::{get_app_version, greet, health_check};
+pub mod auth;
+pub mod settings;

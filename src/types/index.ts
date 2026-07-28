@@ -1,13 +1,59 @@
 export interface User {
   id: number
+  username: string
   email: string
-  name: string
-  role: string
-  avatar?: string
+  fullName: string
+  roleId?: number
+  roleName?: string
   isActive: boolean
   lastLoginAt?: string
   createdAt: string
-  updatedAt: string
+}
+
+export interface LoginRequest {
+  username: string
+  password: string
+}
+
+export interface LoginResponse {
+  user: User
+  token: string
+  permissions: string[]
+}
+
+export interface SessionInfo {
+  user: User
+  permissions: string[]
+  expiresAt: string
+}
+
+export interface Role {
+  id: number
+  name: string
+  description?: string
+  isSystem: boolean
+  isActive: boolean
+}
+
+export interface Permission {
+  id: number
+  key: string
+  name: string
+  groupName: string
+  description?: string
+}
+
+export interface RolePermission {
+  roleId: number
+  permissionId: number
+}
+
+export interface AppSetting {
+  key: string
+  value?: string
+  groupName: string
+  settingType: string
+  description?: string
 }
 
 export interface Product {
@@ -126,27 +172,42 @@ export interface PurchaseOrderItem {
   createdAt: string
 }
 
-export interface Setting {
-  id: number
-  key: string
-  value?: string
-  group: string
-  createdAt: string
-  updatedAt: string
-}
-
 export type Theme = "light" | "dark" | "system"
 
-export interface Notification {
+export interface AppNotification {
   id: string
   title: string
   message: string
   type: "info" | "success" | "warning" | "error"
   read: boolean
   createdAt: string
+  actions?: { label: string; onClick: () => void }[]
+  duration?: number
+}
+
+export interface DialogConfig {
+  open: boolean
+  title: string
+  description?: string
+  type: "confirm" | "delete" | "warning" | "info" | "generic"
+  confirmLabel?: string
+  cancelLabel?: string
+  onConfirm?: () => void
+  onCancel?: () => void
+  children?: React.ReactNode
 }
 
 export type PageTitle = {
   title: string
   description?: string
+}
+
+export type PermissionCheck = string | string[]
+
+export interface AuthState {
+  user: User | null
+  token: string | null
+  permissions: string[]
+  isAuthenticated: boolean
+  isLoading: boolean
 }

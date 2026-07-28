@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate } from "react-router-dom"
 import { AppShell } from "@/layouts/app-shell"
+import { AuthenticatedRoute, GuestRoute } from "@/components/auth-guards"
 import { DashboardPage } from "@/features/dashboard"
 import { InventoryPage } from "@/features/inventory"
 import { SalesPage } from "@/features/sales"
@@ -12,11 +13,29 @@ import { ReportsPage } from "@/features/reports"
 import { EmployeesPage } from "@/features/employees"
 import { SettingsPage } from "@/features/settings"
 import { HelpPage } from "@/features/help"
+import { LoginPage } from "@/features/auth"
+import { ForbiddenPage } from "@/components/error-pages"
 
 export const router = createBrowserRouter([
   {
+    path: "/login",
+    element: (
+      <GuestRoute>
+        <LoginPage />
+      </GuestRoute>
+    ),
+  },
+  {
+    path: "/forbidden",
+    element: <ForbiddenPage />,
+  },
+  {
     path: "/",
-    element: <AppShell />,
+    element: (
+      <AuthenticatedRoute>
+        <AppShell />
+      </AuthenticatedRoute>
+    ),
     children: [
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: "dashboard", element: <DashboardPage /> },

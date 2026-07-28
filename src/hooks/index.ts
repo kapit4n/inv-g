@@ -1,1 +1,5 @@
-// Custom hooks will be added here as features are implemented
+export { useAuth, useCurrentUser } from "./use-auth"
+export { usePermissions, usePermission } from "./use-permissions"
+export { useSettings, useSetting, useTheme } from "./use-settings"
+export { useNotification } from "./use-notification"
+export { useDialog } from "./use-dialog"

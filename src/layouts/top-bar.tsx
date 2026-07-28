@@ -106,17 +106,17 @@ export function TopBar() {
             <Button variant="ghost" size="sm" className="gap-2 px-2">
               <Avatar className="h-6 w-6">
                 <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                  {user?.name?.charAt(0) || "A"}
+                  {user?.fullName?.charAt(0) || "A"}
                 </AvatarFallback>
               </Avatar>
-              <span className="hidden md:inline text-sm font-medium">{user?.name || "Admin"}</span>
+              <span className="hidden md:inline text-sm font-medium">{user?.fullName || "Admin"}</span>
               <ChevronDown className="h-3 w-3 text-muted-foreground" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium">{user?.name || "Admin"}</p>
+                <p className="text-sm font-medium">{user?.fullName || "Admin"}</p>
                 <p className="text-xs text-muted-foreground">{user?.email || "admin@inventorygear.com"}</p>
               </div>
             </DropdownMenuLabel>

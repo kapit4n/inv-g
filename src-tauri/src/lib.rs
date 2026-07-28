@@ -15,7 +15,6 @@ pub fn run() {
 
     let db_path = app_config.db_path.to_string_lossy().to_string();
 
-    // Ensure parent directory exists
     if let Some(parent) = app_config.db_path.parent() {
         std::fs::create_dir_all(parent).expect("Failed to create database directory");
     }
@@ -31,6 +30,15 @@ pub fn run() {
             commands::app::get_app_version,
             commands::app::health_check,
             commands::app::greet,
+            commands::auth::login,
+            commands::auth::logout,
+            commands::auth::get_current_user,
+            commands::auth::check_session,
+            commands::auth::get_user_permissions_list,
+            commands::settings::get_settings,
+            commands::settings::get_setting,
+            commands::settings::update_setting,
+            commands::settings::get_settings_by_group,
         ])
         .run(tauri::generate_context!())
         .expect("Error while running tauri application");

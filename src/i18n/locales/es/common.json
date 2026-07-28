@@ -94,5 +94,11 @@
   "database": "Base de datos",
   "darkMode": "Modo oscuro",
   "lightMode": "Modo claro",
-  "systemMode": "Modo sistema"
+  "systemMode": "Modo sistema",
+  "unauthorized": "No autorizado",
+  "unauthorizedDesc": "Debes iniciar sesión para acceder a esta página.",
+  "forbidden": "Acceso denegado",
+  "forbiddenDesc": "No tienes permisos para acceder a esta página.",
+  "goToDashboard": "Ir al inicio",
+  "required": "Requerido"
 }
