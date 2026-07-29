@@ -17,6 +17,8 @@ import { seed as seedAudit } from "./audit.seed"
 import { seed as seedUsers } from "./users.seed"
 import { seed as seedDashboard } from "./dashboard.seed"
 import { seed as seedReservations } from "./reservations.seed"
+import { seed as seedVehicles } from "./vehicles.seed"
+import { seed as seedValidate } from "./validate.seed"
 
 export const SEED_ORDER = [
   { name: "Categories", fn: seedCategories },
@@ -37,6 +39,8 @@ export const SEED_ORDER = [
   { name: "Quotes", fn: seedQuotes },
   { name: "Audit Logs", fn: seedAudit },
   { name: "Dashboard", fn: seedDashboard },
+  { name: "Vehicles", fn: seedVehicles },
+  { name: "Validation", fn: seedValidate },
 ]
 
 export async function seedAll(db: Database.Database): Promise<void> {

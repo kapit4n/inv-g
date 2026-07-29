@@ -30,7 +30,7 @@ function generateCustomers(): { name: string; phone: string; email: string; addr
   const customers: { name: string; phone: string; email: string; address: string; city: string; notes: string; createdAt: string }[] = []
 
   // Generate individuals
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < 130; i++) {
     const firstName = pick(FIRST_NAMES)
     const lastName = pick(LAST_NAMES)
     const city = bolivianCity()
@@ -66,21 +66,27 @@ function generateCustomers(): { name: string; phone: string; email: string; addr
 }
 
 export function seed(db: Database.Database): void {
-  if (exists(db, "customers")) return
+  const existing = db.prepare("SELECT COUNT(*) as cnt FROM customers").get() as { cnt: number }
+  if (existing.cnt >= 200) return
 
   const customers = generateCustomers()
 
+  const checkEmail = db.prepare("SELECT id FROM customers WHERE email = ?")
   const stmt = db.prepare(
     `INSERT INTO customers (name, email, phone, address, city, country, notes, is_active, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, 'Bolivia', ?, 1, ?, ?)`
   )
 
   const insertAll = db.transaction(() => {
+    let added = 0
     for (const c of customers) {
+      const row = checkEmail.get(c.email) as { id: number } | undefined
+      if (row) continue
       stmt.run(c.name, c.email, c.phone, c.address, c.city, c.notes, c.createdAt, c.createdAt)
+      added++
     }
+    if (added > 0) console.log(`  ✓ Added ${added} missing customers`)
   })
 
   insertAll()
-  console.log(`  ✓ Seeded ${customers.length} customers`)
 }

@@ -13,7 +13,7 @@ import type {
   CustomerCreditSummary,
   CustomerServiceSummary,
 } from "@/types"
-import { Users, TrendingUp, MapPin, Clock, CreditCard, Wrench, Skeleton as SkeletonIcon } from "lucide-react"
+import { Users, TrendingUp, MapPin, Clock, CreditCard, Wrench } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 

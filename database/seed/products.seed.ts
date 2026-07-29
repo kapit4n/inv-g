@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3"
-import { exists, generateSKU, generateBarcode, randomInt, randomDate } from "./helpers"
+import { generateSKU, generateBarcode, randomInt, randomDate } from "./helpers"
 
 interface ProductDef {
   name: string
@@ -126,6 +126,28 @@ const PRODUCTS: ProductDef[] = [
   { name: "Neumático 175/65R14", description: "Neumático 175/65 R14 para vehículos económicos", categoryName: "Neumáticos", brandName: "Continental", manufacturerName: "Bosch GmbH", cost: 75, salePrice: 190, wholesalePrice: 142, stock: 20, minStock: 4, maxStock: 50, reorderPoint: 10, imageFile: "neumatico_175_65r14.jpg" },
   { name: "Producto para Limpieza de Inyectores", description: "Aditivo limpiador de inyectores 300ml", categoryName: "Limpieza Automotriz", brandName: "Bosch", manufacturerName: "Bosch GmbH", cost: 8, salePrice: 22, wholesalePrice: 16, stock: 45, minStock: 10, maxStock: 100, reorderPoint: 20, imageFile: "limpieza_inyectores.jpg" },
   { name: "Silicona para Juntas", description: "Silicona selladora de juntas automotriz", categoryName: "Accesorios", brandName: "Bosch", manufacturerName: "Bosch GmbH", cost: 6, salePrice: 18, wholesalePrice: 12, stock: 55, minStock: 12, maxStock: 120, reorderPoint: 25, imageFile: "silicona_juntas.jpg" },
+  // ── Additional 21 products to reach 150 ──
+  { name: "Filtro de Aceite Honda Civic", description: "Filtro de aceite para Honda Civic 1.8L R18A", categoryName: "Filtros", brandName: "Bosch", manufacturerName: "Bosch GmbH", cost: 16, salePrice: 42, wholesalePrice: 32, stock: 65, minStock: 10, maxStock: 160, reorderPoint: 25, imageFile: "filtro_aceite_honda_civic.jpg" },
+  { name: "Pastillas de Freno Traseras Civic", description: "Pastillas de freno traseras Honda Civic 1.8", categoryName: "Frenos", brandName: "Bosch", manufacturerName: "Bosch GmbH", cost: 48, salePrice: 120, wholesalePrice: 90, stock: 22, minStock: 5, maxStock: 55, reorderPoint: 12, imageFile: "pastillas_freno_traseras_civic.jpg" },
+  { name: "Disco de Freno Trasero Corolla", description: "Disco de freno trasero macizo Toyota Corolla 1.8", categoryName: "Frenos", brandName: "TRW", manufacturerName: "Valeo SA", cost: 75, salePrice: 190, wholesalePrice: 142, stock: 14, minStock: 3, maxStock: 35, reorderPoint: 8, imageFile: "disco_freno_trasero_corolla.jpg" },
+  { name: "Amortiguador Delantero Monroe Hilux", description: "Amortiguador delantero Monroe para Hilux 4x4", categoryName: "Suspensión", brandName: "Monroe", manufacturerName: "Valeo SA", cost: 95, salePrice: 240, wholesalePrice: 180, stock: 10, minStock: 2, maxStock: 25, reorderPoint: 6, imageFile: "amortiguador_monroe_hilux.jpg" },
+  { name: "Amortiguador Trasero Monroe Corolla", description: "Amortiguador trasero Monroe para Corolla", categoryName: "Suspensión", brandName: "Monroe", manufacturerName: "Valeo SA", cost: 75, salePrice: 190, wholesalePrice: 142, stock: 16, minStock: 3, maxStock: 40, reorderPoint: 8, imageFile: "amortiguador_monroe_corolla.jpg" },
+  { name: "Aceite Castrol 20W50", description: "Aceite de motor Castrol GTX 20W50 4L", categoryName: "Lubricantes", brandName: "Castrol", manufacturerName: "Bosch GmbH", cost: 32, salePrice: 80, wholesalePrice: 60, stock: 55, minStock: 12, maxStock: 130, reorderPoint: 25, imageFile: "aceite_castrol_20w50.jpg" },
+  { name: "Aceite Mobil ATF 220", description: "Aceite de transmisión automática Mobil ATF 220 4L", categoryName: "Lubricantes", brandName: "Mobil", manufacturerName: "Bosch GmbH", cost: 38, salePrice: 95, wholesalePrice: 72, stock: 20, minStock: 5, maxStock: 50, reorderPoint: 10, imageFile: "aceite_mobil_atf220.jpg" },
+  { name: "Refrigerante Total Concentrado", description: "Refrigerante Total concentrado 5L para radiador", categoryName: "Refrigeración", brandName: "Total", manufacturerName: "Bosch GmbH", cost: 22, salePrice: 55, wholesalePrice: 42, stock: 35, minStock: 8, maxStock: 80, reorderPoint: 15, imageFile: "refrigerante_total.jpg" },
+  { name: "Electroventilador Universal", description: "Electroventilador de radiador 16\" universal 12V", categoryName: "Refrigeración", brandName: "Bosch", manufacturerName: "Bosch GmbH", cost: 80, salePrice: 200, wholesalePrice: 150, stock: 6, minStock: 1, maxStock: 15, reorderPoint: 4, imageFile: "electroventilador.jpg" },
+  { name: "Filtro de Aire Nissan Frontier", description: "Filtro de aire motor para Nissan Frontier 2.5", categoryName: "Filtros", brandName: "Mahle", manufacturerName: "Mann+Hummel GmbH", cost: 30, salePrice: 75, wholesalePrice: 56, stock: 28, minStock: 5, maxStock: 70, reorderPoint: 15, imageFile: "filtro_aire_frontier.jpg" },
+  { name: "Filtro de Aceite Mahle Universal", description: "Filtro de aceite Mahle universal premium", categoryName: "Filtros", brandName: "Mahle", manufacturerName: "Mann+Hummel GmbH", cost: 13, salePrice: 34, wholesalePrice: 25, stock: 75, minStock: 15, maxStock: 180, reorderPoint: 30, imageFile: "filtro_aceite_mahle.jpg" },
+  { name: "Sensor de Temperatura Bosch", description: "Sensor de temperatura del refrigerante Bosch", categoryName: "Sensores", brandName: "Bosch", manufacturerName: "Bosch GmbH", cost: 15, salePrice: 40, wholesalePrice: 30, stock: 25, minStock: 5, maxStock: 60, reorderPoint: 12, imageFile: "sensor_temperatura.jpg" },
+  { name: "Sensor de Presión de Aceite", description: "Sensor de presión de aceite Bosch universal", categoryName: "Sensores", brandName: "Bosch", manufacturerName: "Bosch GmbH", cost: 12, salePrice: 32, wholesalePrice: 24, stock: 30, minStock: 8, maxStock: 75, reorderPoint: 15, imageFile: "sensor_presion_aceite.jpg" },
+  { name: "Correa Poly-V Dayco", description: "Correa poly-V Dayco 6PK 1825", categoryName: "Correas", brandName: "Dayco", manufacturerName: "Bosch GmbH", cost: 16, salePrice: 42, wholesalePrice: 32, stock: 28, minStock: 5, maxStock: 70, reorderPoint: 12, imageFile: "correa_polyv_dayco.jpg" },
+  { name: "Bombilla H7 Osram", description: "Bombilla halógena Osram H7 55W", categoryName: "Iluminación", brandName: "Osram", manufacturerName: "Valeo SA", cost: 7, salePrice: 20, wholesalePrice: 14, stock: 90, minStock: 20, maxStock: 220, reorderPoint: 40, imageFile: "bombilla_h7_osram.jpg" },
+  { name: "Lámpara LED Interior", description: "Lámpara LED interior 31mm para techo", categoryName: "Iluminación", brandName: "Philips", manufacturerName: "Valeo SA", cost: 5, salePrice: 15, wholesalePrice: 10, stock: 60, minStock: 15, maxStock: 150, reorderPoint: 25, imageFile: "lampara_led_interior.jpg" },
+  { name: "Batería Yuasa 45Ah", description: "Batería Yuasa 45Ah 12V libre mantenimiento", categoryName: "Baterías", brandName: "Yuasa", manufacturerName: "Bosch GmbH", cost: 105, salePrice: 265, wholesalePrice: 200, stock: 12, minStock: 3, maxStock: 30, reorderPoint: 6, imageFile: "bateria_yuasa_45ah.jpg" },
+  { name: "Batería Exide 100Ah", description: "Batería Exide 100Ah 12V para camionetas", categoryName: "Baterías", brandName: "Exide", manufacturerName: "Bosch GmbH", cost: 240, salePrice: 600, wholesalePrice: 450, stock: 5, minStock: 1, maxStock: 12, reorderPoint: 3, imageFile: "bateria_exide_100ah.jpg" },
+  { name: "Neumático 235/75R15", description: "Neumático 235/75 R15 todo terreno 4x4", categoryName: "Neumáticos", brandName: "Continental", manufacturerName: "Bosch GmbH", cost: 180, salePrice: 450, wholesalePrice: 340, stock: 8, minStock: 2, maxStock: 20, reorderPoint: 4, imageFile: "neumatico_235_75r15.jpg" },
+  { name: "Líquido de Transmisión CVT", description: "Líquido CVT para transmisión continua variable 4L", categoryName: "Lubricantes", brandName: "Mobil", manufacturerName: "Bosch GmbH", cost: 45, salePrice: 115, wholesalePrice: 86, stock: 15, minStock: 3, maxStock: 40, reorderPoint: 8, imageFile: "liquido_cvt.jpg" },
+  { name: "Kit de Embrague Suzuki Vitara", description: "Kit de embrague completo Suzuki Vitara 2.0", categoryName: "Transmisión", brandName: "Valeo", manufacturerName: "Valeo SA", cost: 170, salePrice: 425, wholesalePrice: 320, stock: 4, minStock: 1, maxStock: 10, reorderPoint: 3, imageFile: "kit_embrague_vitara.jpg" },
 ]
 
 const MANUFACTURERS = [
@@ -146,35 +168,17 @@ export function seed(db: Database.Database): void {
     if (!row) mfStmt.run(m.name, m.country, m.phone, m.email, m.website)
   }
 
-  // Check if we already have all 100 products
-  const existing = db.prepare("SELECT COUNT(*) as cnt FROM products").get() as { cnt: number }
-  if (existing.cnt >= PRODUCTS.length) return
+  // Additive approach: only insert products that don't already exist
+  const count = db.prepare("SELECT COUNT(*) as cnt FROM products").get() as { cnt: number }
+  if (count.cnt >= PRODUCTS.length) return
 
-  // Delete old products and dependents to re-seed cleanly
-  // Use deferred FK to allow deletion in any order
-  db.pragma("defer_foreign_keys = ON")
-  const delAll = db.transaction(() => {
-    db.prepare("DELETE FROM product_vehicle_compatibility").run()
-    db.prepare("DELETE FROM product_images").run()
-    db.prepare("DELETE FROM inventory_movements").run()
-    db.prepare("DELETE FROM quote_items").run()
-    db.prepare("DELETE FROM quotes").run()
-    db.prepare("DELETE FROM sale_items").run()
-    db.prepare("DELETE FROM sale_payments").run()
-    db.prepare("DELETE FROM receipts").run()
-    db.prepare("DELETE FROM sales").run()
-    db.prepare("DELETE FROM products").run()
-  })
-  delAll()
-  db.pragma("defer_foreign_keys = OFF")
-
-  // Re-seed all products
   const getCategoryId = db.prepare("SELECT id FROM categories WHERE name = ?")
   const getBrandId = db.prepare("SELECT id FROM brands WHERE name = ?")
   const getManufacturerId = db.prepare("SELECT id FROM manufacturers WHERE name = ?")
   const getSupplierId = db.prepare("SELECT id FROM suppliers ORDER BY RANDOM() LIMIT 1")
   const getWarehouseId = db.prepare("SELECT id FROM warehouses ORDER BY RANDOM() LIMIT 1")
   const getLocationId = db.prepare("SELECT id FROM storage_locations WHERE warehouse_id = ? ORDER BY RANDOM() LIMIT 1")
+  const checkName = db.prepare("SELECT id FROM products WHERE name = ?")
 
   const stmt = db.prepare(
     `INSERT INTO products (name, sku, barcode, oem_number, description, category_id, brand_id, manufacturer_id, supplier_id,
@@ -184,8 +188,12 @@ export function seed(db: Database.Database): void {
   )
 
   const insertAll = db.transaction(() => {
+    let added = 0
     for (let i = 0; i < PRODUCTS.length; i++) {
       const p = PRODUCTS[i]
+      const existing = checkName.get(p.name) as { id: number } | undefined
+      if (existing) continue
+
       const catRow = getCategoryId.get(p.categoryName) as { id: number } | undefined
       const brandRow = getBrandId.get(p.brandName) as { id: number } | undefined
       const mfRow = getManufacturerId.get(p.manufacturerName) as { id: number } | undefined
@@ -207,23 +215,22 @@ export function seed(db: Database.Database): void {
       const sku = generateSKU(p.categoryName, p.brandName, i + 1)
       const barcode = generateBarcode()
       const createdAt = randomDate(365, 1)
-      const salePrice = p.salePrice
-      const wholesalePrice = p.wholesalePrice
-      const suggestedRetail = Math.round(salePrice * 1.15)
+      const suggestedRetail = Math.round(p.salePrice * 1.15)
 
       stmt.run(
         p.name, sku, barcode, `OEM-${sku}`, p.description,
         categoryId, brandId, manufacturerId, supplierId,
-        p.cost, salePrice, wholesalePrice, suggestedRetail, 0,
+        p.cost, p.salePrice, p.wholesalePrice, suggestedRetail, 0,
         p.stock, p.minStock, p.maxStock, p.reorderPoint, "pcs",
         warehouseId, locationId, p.imageFile,
         createdAt, createdAt
       )
+      added++
     }
+    if (added > 0) console.log(`  ✓ Added ${added} missing products`)
   })
 
   insertAll()
-  console.log(`  ✓ Seeded ${PRODUCTS.length} products (replaced old data)`)
 }
 
 export const PRODUCT_DEFS = PRODUCTS

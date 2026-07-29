@@ -134,7 +134,7 @@ export const router = createBrowserRouter([
       { path: "customers", element: <CustomersPage /> },
       { path: "customers/:id", element: <CustomerDetailPage /> },
       { path: "suppliers", element: <SuppliersPage /> },
-      { path: "vehicles", element: <VehiclesPage /> },
+      { path: "vehicles", element: <CrmVehiclesPage /> },
       { path: "warehouse", element: <WarehousePage /> },
       { path: "reports", element: <ReportsPage /> },
       { path: "reports/sales", element: <ReportsSalesPage /> },

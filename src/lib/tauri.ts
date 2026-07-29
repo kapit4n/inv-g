@@ -474,10 +474,6 @@ export async function markReceiptPrinted(id: number): Promise<Receipt> {
 
 // ── Product Relations ──
 
-export async function getProductCompatibility(productId: number): Promise<ProductCompatibility[]> {
-  return invoke<ProductCompatibility[]>("get_product_compatibility", { productId })
-}
-
 export async function getProductImages(productId: number): Promise<ProductImage[]> {
   return invoke<ProductImage[]>("get_product_images", { productId })
 }
