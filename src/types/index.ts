@@ -930,3 +930,484 @@ export interface CustomerType {
   commercialName?: string
   createdAt: string
 }
+
+// ── Reporting Types ──
+
+export interface ExecutiveDashboard {
+  todayRevenue: number
+  monthlyRevenue: number
+  netProfitEstimate: number
+  inventoryValue: number
+  lowStockCount: number
+  pendingPurchases: number
+  averageTicket: number
+  salesGrowth: number
+  inventoryTurnover: number
+  customerGrowth: number
+}
+
+export interface DashboardWidgets {
+  todayRevenue: number
+  monthlyRevenue: number
+  netProfitEstimate: number
+  inventoryValue: number
+  lowStockCount: number
+  pendingPurchases: number
+  topCustomers: TopCustomer[]
+  topProducts: TopProduct[]
+  bestCategories: CategoryBreakdown[]
+  recentSalesCount: number
+  cashRegisterSummary: CashRegisterSummary
+  supplierPerformanceAvg: number
+  averageTicket: number
+  salesGrowth: number
+  inventoryTurnover: number
+  customerGrowth: number
+}
+
+export interface CashRegisterSummary {
+  openSessions: number
+  todayCash: number
+  todayCard: number
+  todayTransfer: number
+}
+
+export interface RevenueByMonth {
+  month: string
+  revenue: number
+  cost: number
+  profit: number
+  count: number
+}
+
+export interface CategoryBreakdown {
+  category: string
+  value: number
+  count: number
+}
+
+export interface TopProduct {
+  productId: number
+  productName: string
+  sku: string
+  quantitySold: number
+  revenue: number
+}
+
+export interface TopCustomer {
+  customerId: number
+  customerName: string
+  totalSpent: number
+  orderCount: number
+}
+
+export interface TopSupplier {
+  supplierId: number
+  supplierName: string
+  totalPurchases: number
+  orderCount: number
+}
+
+export interface WarehouseDistribution {
+  warehouse: string
+  productCount: number
+  stockValue: number
+}
+
+export interface PurchaseVsSale {
+  month: string
+  purchases: number
+  sales: number
+}
+
+export interface CustomerGrowthPoint {
+  month: string
+  count: number
+}
+
+export interface ChartData {
+  revenueByMonth: RevenueByMonth[]
+  salesByCategory: CategoryBreakdown[]
+  salesByBrand: CategoryBreakdown[]
+  profitTrend: RevenueByMonth[]
+  inventoryTrend: RevenueByMonth[]
+  customerGrowth: CustomerGrowthPoint[]
+  warehouseDistribution: WarehouseDistribution[]
+  topProductsChart: TopProduct[]
+  topSuppliersChart: TopSupplier[]
+  purchasesVsSales: PurchaseVsSale[]
+}
+
+export interface SalesReportFilter {
+  dateFrom?: string
+  dateTo?: string
+  warehouseId?: number
+  cashierId?: number
+  customerId?: number
+  categoryId?: number
+  brandId?: number
+  productId?: number
+  paymentMethod?: string
+}
+
+export interface SalesReportRow {
+  period: string
+  transactionCount: number
+  subtotal: number
+  discount: number
+  tax: number
+  total: number
+  cost: number
+  profit: number
+}
+
+export interface SalesByCashier {
+  userId: number
+  cashierName: string
+  transactionCount: number
+  total: number
+}
+
+export interface SalesByPaymentMethod {
+  method: string
+  count: number
+  total: number
+}
+
+export interface DiscountAnalysis {
+  totalDiscounts: number
+  avgDiscountPerSale: number
+  salesWithDiscount: number
+  maxDiscount: number
+  discountPercentage: number
+}
+
+export interface ReturnsSummary {
+  totalReturns: number
+  totalRefunded: number
+  avgRefund: number
+}
+
+export interface TaxSummary {
+  totalTax: number
+  avgTaxPerSale: number
+  taxableSalesCount: number
+}
+
+export interface InventoryReportFilter {
+  warehouseId?: number
+  categoryId?: number
+  brandId?: number
+}
+
+export interface InventoryReportRow {
+  productId: number
+  productName: string
+  sku: string
+  category?: string
+  brand?: string
+  warehouse?: string
+  stockQuantity: number
+  minStock: number
+  maxStock: number
+  reorderPoint: number
+  costPrice: number
+  salePrice: number
+  stockValue: number
+  stockValueSale: number
+}
+
+export interface InventoryValuation {
+  category?: string
+  productCount: number
+  totalStock: number
+  avgCost: number
+  totalCostValue: number
+  totalSaleValue: number
+  potentialProfit: number
+}
+
+export interface StockStatusItem {
+  productId: number
+  productName: string
+  sku: string
+  stockQuantity: number
+  minStock: number
+  reorderPoint: number
+  status: string
+}
+
+export interface MovementSummary {
+  period: string
+  inbound: number
+  outbound: number
+  adjustments: number
+  netChange: number
+}
+
+export interface AgingItem {
+  productId: number
+  productName: string
+  sku: string
+  stockQuantity: number
+  daysSinceLastMovement: number
+  stockValue: number
+}
+
+export interface PurchaseReportFilter {
+  dateFrom?: string
+  dateTo?: string
+  supplierId?: number
+  status?: string
+}
+
+export interface PurchaseReportRow {
+  period: string
+  orderCount: number
+  total: number
+  itemCount: number
+  avgOrderValue: number
+}
+
+export interface PurchaseBySupplier {
+  supplierId: number
+  supplierName: string
+  orderCount: number
+  total: number
+  avgCost: number
+}
+
+export interface SupplierPerformance {
+  supplierId: number
+  supplierName: string
+  orderCount: number
+  completedCount: number
+  onTimeDelivery: number
+  avgLeadTimeDays: number
+  returnRate: number
+  totalSpent: number
+}
+
+export interface POStatusSummary {
+  status: string
+  count: number
+  total: number
+}
+
+export interface ProductToReorder {
+  productId: number
+  productName: string
+  sku: string
+  stockQuantity: number
+  reorderPoint: number
+  preferredSupplier?: string
+  lastCost: number
+}
+
+export interface CustomerReportRow {
+  customerId: number
+  customerName: string
+  customerType: string
+  email?: string
+  phone?: string
+  city?: string
+  totalSpent: number
+  orderCount: number
+  lastPurchase?: string
+  avgTicket: number
+  lifetimeValue: number
+}
+
+export interface CustomerGrowthRow {
+  month: string
+  newCustomers: number
+  totalCustomers: number
+}
+
+export interface CustomerLocation {
+  city?: string
+  state?: string
+  count: number
+}
+
+export interface CustomerCreditSummary {
+  totalAccounts: number
+  totalCreditLimit: number
+  totalBalance: number
+  availableCredit: number
+  utilizationRate: number
+  overdueAccounts: number
+}
+
+export interface CustomerServiceSummary {
+  totalReminders: number
+  pendingReminders: number
+  completedReminders: number
+  overdueReminders: number
+  totalVehicles: number
+  totalWarranties: number
+  activeWarranties: number
+}
+
+export interface SupplierRanking {
+  supplierId: number
+  supplierName: string
+  totalPurchases: number
+  orderCount: number
+  avgCost: number
+  onTimeRate: number
+  returnRate: number
+  avgLeadTime: number
+  score: number
+}
+
+export interface LeadTimeAnalysis {
+  supplierId: number
+  supplierName: string
+  minLeadTime: number
+  maxLeadTime: number
+  avgLeadTime: number
+  orderCount: number
+}
+
+export interface WarehouseUtilization {
+  warehouseId: number
+  warehouseName: string
+  productCount: number
+  totalStock: number
+  stockValue: number
+  locationCount: number
+  utilizationPct: number
+}
+
+export interface WarehouseAdjustmentSummary {
+  warehouseId: number
+  warehouseName: string
+  adjustmentCount: number
+  totalAdjusted: number
+  positiveAdjustments: number
+  negativeAdjustments: number
+}
+
+export interface ProfitSummary {
+  grossRevenue: number
+  estimatedCost: number
+  grossProfit: number
+  marginPct: number
+  period?: string
+}
+
+export interface ProfitByEntity {
+  entityId: number
+  entityName: string
+  revenue: number
+  cost: number
+  profit: number
+  margin: number
+  quantity: number
+}
+
+export interface KpiValue {
+  key: string
+  name: string
+  value: number
+  unit?: string
+  target?: number
+  trend?: string
+  category: string
+  status: string
+}
+
+export interface KpiDefinition {
+  id: number
+  name: string
+  key: string
+  description?: string
+  category: string
+  unit?: string
+  target?: number
+  warningThreshold?: number
+  criticalThreshold?: number
+  sortOrder: number
+}
+
+export interface SavedReport {
+  id: number
+  name: string
+  description?: string
+  module: string
+  config: string
+  columns?: string
+  filters?: string
+  sorting?: string
+  isFavorite: boolean
+  version: number
+  createdBy?: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface SavedReportInput {
+  name: string
+  description?: string
+  module: string
+  config?: string
+  columns?: string
+  filters?: string
+  sorting?: string
+  isFavorite?: boolean
+}
+
+export interface ScheduledReport {
+  id: number
+  savedReportId?: number
+  name: string
+  frequency: string
+  dayOfWeek?: number
+  dayOfMonth?: number
+  time: string
+  exportFormat: string
+  destination: string
+  recipients?: string
+  isActive: boolean
+  lastRunAt?: string
+  nextRunAt?: string
+  createdBy?: number
+}
+
+export interface ReportHistoryEntry {
+  id: number
+  reportName: string
+  module: string
+  filters?: string
+  exportFormat?: string
+  executionTimeMs: number
+  rowCount: number
+  filePath?: string
+  generatedBy?: number
+  generatedByName?: string
+  createdAt: string
+}
+
+export interface ReportTemplate {
+  id: number
+  name: string
+  description?: string
+  module: string
+  config: string
+  isSystem: boolean
+}
+
+export interface CostHistoryEntry {
+  id: number
+  productId: number
+  productName: string
+  productSku: string
+  supplierId?: number
+  supplierName?: string
+  oldCost: number
+  newCost: number
+  quantity: number
+  createdByName?: string
+  createdAt: string
+}

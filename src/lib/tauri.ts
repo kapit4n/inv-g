@@ -21,6 +21,21 @@ import type {
   VehicleTransmission, VehicleFuel, CustomerVehicle,
   CompatibilityEntry, ProductRecommendation,
   ServiceReminder, Warranty, CustomerNote, TimelineEntry, CrmDashboard,
+  ExecutiveDashboard, DashboardWidgets, ChartData,
+  SalesReportFilter, SalesReportRow, SalesByCashier, SalesByPaymentMethod,
+  DiscountAnalysis, ReturnsSummary, TaxSummary,
+  InventoryReportFilter, InventoryReportRow, InventoryValuation,
+  StockStatusItem, MovementSummary, AgingItem,
+  PurchaseReportFilter, PurchaseReportRow, PurchaseBySupplier,
+  SupplierPerformance as SupplierPerformanceReport, POStatusSummary, ProductToReorder,
+  CustomerReportRow, CustomerGrowthRow, CustomerLocation,
+  CustomerCreditSummary, CustomerServiceSummary,
+  SupplierRanking, LeadTimeAnalysis,
+  WarehouseUtilization, WarehouseAdjustmentSummary,
+  ProfitSummary, ProfitByEntity,
+  KpiValue, KpiDefinition,
+  SavedReport, SavedReportInput, ScheduledReport, ReportHistoryEntry, ReportTemplate,
+  CostHistoryEntry,
 } from "@/types"
 
 export async function getAppVersion(): Promise<string> {
@@ -707,4 +722,195 @@ export async function getCrmDashboard(): Promise<CrmDashboard> {
 }
 export async function getCustomersByMonth(months: number): Promise<[string, number][]> {
   return invoke<[string, number][]>("get_customers_by_month", { months })
+}
+
+// ── Executive Dashboard ──
+export async function getExecutiveDashboard(): Promise<ExecutiveDashboard> {
+  return invoke<ExecutiveDashboard>("get_executive_dashboard")
+}
+export async function getDashboardWidgets(): Promise<DashboardWidgets> {
+  return invoke<DashboardWidgets>("get_dashboard_widgets")
+}
+export async function getChartData(): Promise<ChartData> {
+  return invoke<ChartData>("get_chart_data")
+}
+
+// ── Sales Reports ──
+export async function getSalesReportDaily(f: SalesReportFilter): Promise<SalesReportRow[]> {
+  return invoke<SalesReportRow[]>("get_sales_report_daily", { f })
+}
+export async function getSalesReportWeekly(f: SalesReportFilter): Promise<SalesReportRow[]> {
+  return invoke<SalesReportRow[]>("get_sales_report_weekly", { f })
+}
+export async function getSalesReportMonthly(f: SalesReportFilter): Promise<SalesReportRow[]> {
+  return invoke<SalesReportRow[]>("get_sales_report_monthly", { f })
+}
+export async function getSalesReportYearly(f: SalesReportFilter): Promise<SalesReportRow[]> {
+  return invoke<SalesReportRow[]>("get_sales_report_yearly", { f })
+}
+export async function getSalesByCashier(f: SalesReportFilter): Promise<SalesByCashier[]> {
+  return invoke<SalesByCashier[]>("get_sales_by_cashier", { f })
+}
+export async function getSalesByPaymentMethod(f: SalesReportFilter): Promise<SalesByPaymentMethod[]> {
+  return invoke<SalesByPaymentMethod[]>("get_sales_by_payment_method", { f })
+}
+export async function getSalesDiscountAnalysis(f: SalesReportFilter): Promise<DiscountAnalysis> {
+  return invoke<DiscountAnalysis>("get_sales_discount_analysis", { f })
+}
+export async function getSalesReturnsSummary(f: SalesReportFilter): Promise<ReturnsSummary> {
+  return invoke<ReturnsSummary>("get_sales_returns_summary", { f })
+}
+export async function getSalesTaxSummary(f: SalesReportFilter): Promise<TaxSummary> {
+  return invoke<TaxSummary>("get_sales_tax_summary", { f })
+}
+export async function getSalesQuoteConversion(): Promise<number> {
+  return invoke<number>("get_sales_quote_conversion")
+}
+
+// ── Inventory Reports ──
+export async function getInventoryReport(filter: InventoryReportFilter): Promise<InventoryReportRow[]> {
+  return invoke<InventoryReportRow[]>("get_inventory_report", { filter })
+}
+export async function getInventoryValuation(): Promise<InventoryValuation[]> {
+  return invoke<InventoryValuation[]>("get_inventory_valuation")
+}
+export async function getInventoryLowStock(): Promise<StockStatusItem[]> {
+  return invoke<StockStatusItem[]>("get_inventory_low_stock")
+}
+export async function getInventoryMovementReport(months: number): Promise<MovementSummary[]> {
+  return invoke<MovementSummary[]>("get_inventory_movement_report", { months })
+}
+export async function getInventoryAging(days: number): Promise<AgingItem[]> {
+  return invoke<AgingItem[]>("get_inventory_aging", { days })
+}
+export async function getInventoryOverstock(): Promise<StockStatusItem[]> {
+  return invoke<StockStatusItem[]>("get_inventory_overstock")
+}
+export async function getInventoryFastSlow(days: number): Promise<AgingItem[]> {
+  return invoke<AgingItem[]>("get_inventory_fast_slow", { days })
+}
+
+// ── Purchasing Reports ──
+export async function getPurchasesByMonth(f: PurchaseReportFilter): Promise<PurchaseReportRow[]> {
+  return invoke<PurchaseReportRow[]>("get_purchases_by_month", { f })
+}
+export async function getPurchasesBySupplier(f: PurchaseReportFilter): Promise<PurchaseBySupplier[]> {
+  return invoke<PurchaseBySupplier[]>("get_purchases_by_supplier", { f })
+}
+export async function getSupplierPerformanceReport(): Promise<SupplierPerformanceReport[]> {
+  return invoke<SupplierPerformanceReport[]>("get_supplier_performance_report")
+}
+export async function getPoStatusSummary(): Promise<POStatusSummary[]> {
+  return invoke<POStatusSummary[]>("get_po_status_summary")
+}
+export async function getProductsToReorder(): Promise<ProductToReorder[]> {
+  return invoke<ProductToReorder[]>("get_products_to_reorder")
+}
+export async function getPurchaseCostHistory(productId?: number): Promise<CostHistoryEntry[]> {
+  return invoke<CostHistoryEntry[]>("get_purchase_cost_history", { productId })
+}
+
+// ── Customer Reports ──
+export async function getTopCustomers(limit: number): Promise<CustomerReportRow[]> {
+  return invoke<CustomerReportRow[]>("get_top_customers", { limit })
+}
+export async function getCustomerGrowthReport(): Promise<CustomerGrowthRow[]> {
+  return invoke<CustomerGrowthRow[]>("get_customer_growth_report")
+}
+export async function getCustomerLocations(): Promise<CustomerLocation[]> {
+  return invoke<CustomerLocation[]>("get_customer_locations")
+}
+export async function getInactiveCustomers(days: number): Promise<CustomerReportRow[]> {
+  return invoke<CustomerReportRow[]>("get_inactive_customers", { days })
+}
+export async function getCustomerCreditSummary(): Promise<CustomerCreditSummary> {
+  return invoke<CustomerCreditSummary>("get_customer_credit_summary")
+}
+export async function getCustomerServiceSummary(): Promise<CustomerServiceSummary> {
+  return invoke<CustomerServiceSummary>("get_customer_service_summary")
+}
+
+// ── Supplier Reports ──
+export async function getSupplierRanking(): Promise<SupplierRanking[]> {
+  return invoke<SupplierRanking[]>("get_supplier_ranking")
+}
+export async function getLeadTimeAnalysis(): Promise<LeadTimeAnalysis[]> {
+  return invoke<LeadTimeAnalysis[]>("get_lead_time_analysis")
+}
+
+// ── Warehouse Reports ──
+export async function getWarehouseUtilization(): Promise<WarehouseUtilization[]> {
+  return invoke<WarehouseUtilization[]>("get_warehouse_utilization")
+}
+export async function getWarehouseStockDistribution(warehouseId: number): Promise<InventoryValuation[]> {
+  return invoke<InventoryValuation[]>("get_warehouse_stock_distribution", { warehouseId })
+}
+export async function getWarehouseAdjustments(): Promise<WarehouseAdjustmentSummary[]> {
+  return invoke<WarehouseAdjustmentSummary[]>("get_warehouse_adjustments")
+}
+
+// ── Profitability ──
+export async function getProfitSummary(months: number): Promise<ProfitSummary[]> {
+  return invoke<ProfitSummary[]>("get_profit_summary", { months })
+}
+export async function getProfitByCategory(): Promise<ProfitByEntity[]> {
+  return invoke<ProfitByEntity[]>("get_profit_by_category")
+}
+export async function getProfitByProduct(limit: number): Promise<ProfitByEntity[]> {
+  return invoke<ProfitByEntity[]>("get_profit_by_product", { limit })
+}
+export async function getProfitBySupplier(): Promise<ProfitByEntity[]> {
+  return invoke<ProfitByEntity[]>("get_profit_by_supplier")
+}
+export async function getProfitByBrand(): Promise<ProfitByEntity[]> {
+  return invoke<ProfitByEntity[]>("get_profit_by_brand")
+}
+export async function getProfitByCustomer(limit: number): Promise<ProfitByEntity[]> {
+  return invoke<ProfitByEntity[]>("get_profit_by_customer", { limit })
+}
+export async function getProfitByWarehouse(): Promise<ProfitByEntity[]> {
+  return invoke<ProfitByEntity[]>("get_profit_by_warehouse")
+}
+
+// ── KPIs ──
+export async function getKpiValues(): Promise<KpiValue[]> {
+  return invoke<KpiValue[]>("get_kpi_values")
+}
+export async function getKpiDefinitions(): Promise<KpiDefinition[]> {
+  return invoke<KpiDefinition[]>("get_kpi_definitions")
+}
+
+// ── Saved / Scheduled Reports ──
+export async function getSavedReports(module?: string): Promise<SavedReport[]> {
+  return invoke<SavedReport[]>("get_saved_reports", { module })
+}
+export async function createSavedReport(input: SavedReportInput, createdBy: number): Promise<SavedReport> {
+  return invoke<SavedReport>("create_saved_report", { input, createdBy })
+}
+export async function deleteSavedReport(id: number): Promise<void> {
+  return invoke<void>("delete_saved_report", { id })
+}
+export async function getScheduledReports(): Promise<ScheduledReport[]> {
+  return invoke<ScheduledReport[]>("get_scheduled_reports")
+}
+export async function createScheduledReport(name: string, savedReportId: number | undefined, frequency: string, dayOfWeek: number | undefined, dayOfMonth: number | undefined, time: string, exportFormat: string, createdBy: number): Promise<ScheduledReport> {
+  return invoke<ScheduledReport>("create_scheduled_report", { name, savedReportId, frequency, dayOfWeek, dayOfMonth, time, exportFormat, createdBy })
+}
+export async function toggleScheduledReport(id: number, isActive: boolean): Promise<void> {
+  return invoke<void>("toggle_scheduled_report", { id, isActive })
+}
+export async function getReportHistory(limit: number): Promise<ReportHistoryEntry[]> {
+  return invoke<ReportHistoryEntry[]>("get_report_history", { limit })
+}
+export async function logReportGeneration(reportName: string, module: string, filters: string | undefined, exportFormat: string | undefined, executionTimeMs: number, rowCount: number, filePath: string | undefined, generatedBy: number): Promise<void> {
+  return invoke<void>("log_report_generation", { reportName, module, filters, exportFormat, executionTimeMs, rowCount, filePath, generatedBy })
+}
+export async function getReportTemplates(module?: string): Promise<ReportTemplate[]> {
+  return invoke<ReportTemplate[]>("get_report_templates", { module })
+}
+export async function getDashboardPreferences(userId: number): Promise<string> {
+  return invoke<string>("get_dashboard_preferences", { userId })
+}
+export async function saveDashboardPreferences(userId: number, widgets: string): Promise<void> {
+  return invoke<void>("save_dashboard_preferences", { userId, widgets })
 }

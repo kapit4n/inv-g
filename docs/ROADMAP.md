@@ -123,24 +123,37 @@
 - [x] i18n keys (es/en) for all CRM UI text
 - [x] Seed data permissions for new modules across 6 roles
 
-## Milestone 10: Reports & Analytics
-**Status:** Pending
-**Complexity:** Medium
+## Milestone 10: Reporting, Analytics & Business Intelligence ✅
+**Status:** Complete
+**Complexity:** High
 **Dependencies:** Milestone 6, 7, 8, 9
 
 ### Tasks
-- [ ] Sales reports (daily, weekly, monthly)
-- [ ] Inventory valuation reports
-- [ ] Profit & loss statements
-- [ ] Tax reports
-- [ ] Customer analytics
-- [ ] Chart visualizations
-- [ ] Export to PDF/CSV
+- [x] Executive dashboard with 10 widget cards and 10 interactive charts
+- [x] Sales reports (daily, weekly, monthly, yearly, by cashier, by payment method)
+- [x] Inventory reports (current stock, valuation, low/over stock, movements, aging, fast/slow moving)
+- [x] Purchasing reports (by month, by supplier, performance, PO status, reorder suggestions)
+- [x] Customer reports (top, growth, locations, inactive, credit, service summary)
+- [x] Supplier reports (ranking, lead time, performance analysis)
+- [x] Warehouse reports (utilization, adjustments, stock distribution)
+- [x] Profitability analysis (by product, category, supplier, customer, brand, warehouse)
+- [x] KPI dashboard with 12 configurable KPI cards and status indicators
+- [x] Custom report builder foundation (save, manage, generate report definitions)
+- [x] Scheduled reports foundation (create, toggle, track last run)
+- [x] Export system foundation with report history tracking
+- [x] 6 new database tables for reports management
+- [x] 45+ Rust Tauri commands for all report aggregations
+- [x] 12 frontend report pages with tabbed navigation
+- [x] Reusable chart components (Line, Bar, Area, Pie, Donut, Stacked Bar)
+- [x] Reusable filter bar and data table components
+- [x] Full i18n (296 keys per locale, es/en)
+- [x] 11 new permissions assigned to owner and administrator roles
+- [x] RBAC integration for all report features
 
-## Milestone 11: Settings & Configuration
+## Milestone 12: Administration & System Configuration
 **Status:** Pending
-**Complexity:** Low
-**Dependencies:** Milestone 3
+**Complexity:** Medium
+**Dependencies:** Milestone 3, 10
 
 ### Tasks
 - [ ] Store information settings
@@ -149,8 +162,10 @@
 - [ ] Notification preferences
 - [ ] Backup and restore
 - [ ] Appearance settings
+- [ ] Printing system
+- [ ] Deployment packaging
 
-## Milestone 12: Polish & Optimization
+## Milestone 13: Polish & Optimization
 **Status:** Pending
 **Complexity:** Medium
 **Dependencies:** All previous milestones
@@ -164,10 +179,10 @@
 - [ ] Offline mode refinement
 - [ ] Auto-updates
 
-## Milestone 13: Advanced Features
+## Milestone 14: Advanced Features
 **Status:** Pending
 **Complexity:** High
-**Dependencies:** Milestone 12
+**Dependencies:** Milestone 13
 
 ### Tasks
 - [ ] Multi-warehouse support

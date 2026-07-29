@@ -7,6 +7,7 @@ import {
   Layers, Tag, Cog, Briefcase, MapPin, Box, ArrowUpDown,
   FileText, RotateCcw, DollarSign, Printer, Receipt,
   GitCompare, BellRing, ShieldCheck, CreditCard, StickyNote,
+  TrendingUp,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -81,7 +82,23 @@ const navigation: NavItemConfig[] = [
 ]
 
 const secondaryNavigation: NavItemConfig[] = [
-  { nameKey: "reports.title", href: "/reports", icon: BarChart3 },
+  {
+    nameKey: "reports.title", href: "/reports", icon: BarChart3,
+    children: [
+      { nameKey: "reports.executiveDashboard", href: "/reports", icon: LayoutDashboard },
+      { nameKey: "reports.sales", href: "/reports/sales", icon: ShoppingCart },
+      { nameKey: "reports.inventory", href: "/reports/inventory", icon: Package },
+      { nameKey: "reports.purchasing", href: "/reports/purchasing", icon: ShoppingBag },
+      { nameKey: "reports.customers", href: "/reports/customers", icon: Users },
+      { nameKey: "reports.suppliers", href: "/reports/suppliers", icon: Truck },
+      { nameKey: "reports.warehouses", href: "/reports/warehouses", icon: Warehouse },
+      { nameKey: "reports.profitability", href: "/reports/profitability", icon: DollarSign },
+      { nameKey: "reports.kpis", href: "/reports/kpis", icon: BarChart3 },
+      { nameKey: "reports.customReports", href: "/reports/custom", icon: FileText },
+      { nameKey: "reports.scheduledReports", href: "/reports/scheduled", icon: BellRing },
+      { nameKey: "reports.exports", href: "/reports/exports", icon: Printer },
+    ],
+  },
   { nameKey: "employees.title", href: "/employees", icon: UsersRound },
   { nameKey: "settings.title", href: "/settings", icon: Settings },
   { nameKey: "help.title", href: "/help", icon: HelpCircle },

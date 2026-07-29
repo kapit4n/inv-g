@@ -186,6 +186,73 @@ pub fn run() {
             commands::purchases::get_purchase_dashboard,
             commands::purchases::get_reorder_suggestions,
             commands::purchases::get_supplier_performance,
+            // ── Reports ──
+            commands::reports::get_executive_dashboard,
+            commands::reports::get_dashboard_widgets,
+            commands::reports::get_chart_data,
+            // Sales Reports
+            commands::reports::get_sales_report_daily,
+            commands::reports::get_sales_report_weekly,
+            commands::reports::get_sales_report_monthly,
+            commands::reports::get_sales_report_yearly,
+            commands::reports::get_sales_by_cashier,
+            commands::reports::get_sales_by_payment_method,
+            commands::reports::get_sales_discount_analysis,
+            commands::reports::get_sales_returns_summary,
+            commands::reports::get_sales_tax_summary,
+            commands::reports::get_sales_quote_conversion,
+            // Inventory Reports
+            commands::reports::get_inventory_report,
+            commands::reports::get_inventory_valuation,
+            commands::reports::get_inventory_low_stock,
+            commands::reports::get_inventory_movement_report,
+            commands::reports::get_inventory_aging,
+            commands::reports::get_inventory_overstock,
+            commands::reports::get_inventory_fast_slow,
+            // Purchasing Reports
+            commands::reports::get_purchases_by_month,
+            commands::reports::get_purchases_by_supplier,
+            commands::reports::get_supplier_performance_report,
+            commands::reports::get_po_status_summary,
+            commands::reports::get_products_to_reorder,
+            commands::reports::get_purchase_cost_history,
+            // Customer Reports
+            commands::reports::get_top_customers,
+            commands::reports::get_customer_growth_report,
+            commands::reports::get_customer_locations,
+            commands::reports::get_inactive_customers,
+            commands::reports::get_customer_credit_summary,
+            commands::reports::get_customer_service_summary,
+            // Supplier Reports
+            commands::reports::get_supplier_ranking,
+            commands::reports::get_lead_time_analysis,
+            // Warehouse Reports
+            commands::reports::get_warehouse_utilization,
+            commands::reports::get_warehouse_stock_distribution,
+            commands::reports::get_warehouse_adjustments,
+            // Profitability
+            commands::reports::get_profit_summary,
+            commands::reports::get_profit_by_category,
+            commands::reports::get_profit_by_product,
+            commands::reports::get_profit_by_supplier,
+            commands::reports::get_profit_by_brand,
+            commands::reports::get_profit_by_customer,
+            commands::reports::get_profit_by_warehouse,
+            // KPIs
+            commands::reports::get_kpi_values,
+            commands::reports::get_kpi_definitions,
+            // Saved / Scheduled / History
+            commands::reports::get_saved_reports,
+            commands::reports::create_saved_report,
+            commands::reports::delete_saved_report,
+            commands::reports::get_scheduled_reports,
+            commands::reports::create_scheduled_report,
+            commands::reports::toggle_scheduled_report,
+            commands::reports::get_report_history,
+            commands::reports::log_report_generation,
+            commands::reports::get_report_templates,
+            commands::reports::get_dashboard_preferences,
+            commands::reports::save_dashboard_preferences,
         ])
         .run(tauri::generate_context!())
         .expect("Error while running tauri application");

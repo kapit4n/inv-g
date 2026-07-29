@@ -1,6 +1,6 @@
 use rusqlite::{Connection, Result};
 
-const SCHEMA_VERSION: i32 = 6;
+const SCHEMA_VERSION: i32 = 7;
 
 fn get_user_version(conn: &Connection) -> Result<i32> {
     let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
@@ -65,6 +65,12 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             DROP TABLE IF EXISTS vehicle_generations;
             DROP TABLE IF EXISTS vehicle_models;
             DROP TABLE IF EXISTS vehicle_brands;
+            DROP TABLE IF EXISTS report_history;
+            DROP TABLE IF EXISTS scheduled_reports;
+            DROP TABLE IF EXISTS saved_reports;
+            DROP TABLE IF EXISTS dashboard_preferences;
+            DROP TABLE IF EXISTS kpi_definitions;
+            DROP TABLE IF EXISTS report_templates;
             DROP TABLE IF EXISTS communication_log;
             DROP TABLE IF EXISTS audit_logs;
             DROP TABLE IF EXISTS settings;
@@ -841,6 +847,99 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             created_by INTEGER,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+            FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS saved_reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT,
+            module TEXT NOT NULL,
+            config TEXT NOT NULL DEFAULT '{}',
+            columns TEXT,
+            filters TEXT,
+            sorting TEXT,
+            is_favorite INTEGER NOT NULL DEFAULT 0,
+            version INTEGER NOT NULL DEFAULT 1,
+            created_by INTEGER,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS scheduled_reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            saved_report_id INTEGER,
+            name TEXT NOT NULL,
+            frequency TEXT NOT NULL DEFAULT 'weekly',
+            day_of_week INTEGER,
+            day_of_month INTEGER,
+            time TEXT NOT NULL DEFAULT '08:00',
+            export_format TEXT NOT NULL DEFAULT 'csv',
+            destination TEXT NOT NULL DEFAULT 'local',
+            recipients TEXT,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            last_run_at TEXT,
+            next_run_at TEXT,
+            created_by INTEGER,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (saved_report_id) REFERENCES saved_reports(id) ON DELETE SET NULL,
+            FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS report_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            report_name TEXT NOT NULL,
+            module TEXT NOT NULL,
+            filters TEXT,
+            export_format TEXT,
+            execution_time_ms INTEGER DEFAULT 0,
+            row_count INTEGER DEFAULT 0,
+            file_path TEXT,
+            generated_by INTEGER,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (generated_by) REFERENCES users(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS dashboard_preferences (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL UNIQUE,
+            layout TEXT NOT NULL DEFAULT '[]',
+            widgets TEXT NOT NULL DEFAULT '[]',
+            theme TEXT NOT NULL DEFAULT 'light',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS kpi_definitions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            key TEXT NOT NULL UNIQUE,
+            description TEXT,
+            category TEXT NOT NULL DEFAULT 'general',
+            formula TEXT,
+            unit TEXT,
+            target REAL,
+            warning_threshold REAL,
+            critical_threshold REAL,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS report_templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT,
+            module TEXT NOT NULL,
+            config TEXT NOT NULL DEFAULT '{}',
+            is_system INTEGER NOT NULL DEFAULT 0,
+            created_by INTEGER,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
             FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
         );
         ",

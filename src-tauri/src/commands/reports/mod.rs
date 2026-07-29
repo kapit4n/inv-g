@@ -1,0 +1,21 @@
+mod dashboard;
+mod sales;
+mod inventory;
+mod purchasing;
+mod customers;
+mod suppliers;
+mod warehouse;
+mod profitability;
+mod kpi;
+mod manage;
+
+pub use dashboard::*;
+pub use sales::*;
+pub use inventory::*;
+pub use purchasing::*;
+pub use customers::*;
+pub use suppliers::*;
+pub use warehouse::*;
+pub use profitability::*;
+pub use kpi::*;
+pub use manage::*;

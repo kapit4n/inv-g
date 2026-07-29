@@ -31,7 +31,12 @@ import { CrmDashboardPage, CrmCustomersPage, CrmCustomerDetailPage, CrmVehiclesP
 import { CustomersPage, CustomerDetailPage } from "@/features/customers"
 import { SuppliersPage } from "@/features/suppliers"
 import { WarehousePage } from "@/features/warehouse"
-import { ReportsPage } from "@/features/reports"
+import {
+  ReportsPage, ReportsSalesPage, ReportsInventoryPage, ReportsPurchasingPage,
+  ReportsCustomersPage, ReportsSuppliersPage, ReportsWarehousesPage,
+  ReportsProfitabilityPage, ReportsKpiPage, ReportsCustomPage,
+  ReportsScheduledPage, ReportsExportsPage,
+} from "@/features/reports"
 import { EmployeesPage } from "@/features/employees"
 import { SettingsPage } from "@/features/settings"
 import { HelpPage } from "@/features/help"
@@ -124,6 +129,17 @@ export const router = createBrowserRouter([
       { path: "vehicles", element: <VehiclesPage /> },
       { path: "warehouse", element: <WarehousePage /> },
       { path: "reports", element: <ReportsPage /> },
+      { path: "reports/sales", element: <ReportsSalesPage /> },
+      { path: "reports/inventory", element: <ReportsInventoryPage /> },
+      { path: "reports/purchasing", element: <ReportsPurchasingPage /> },
+      { path: "reports/customers", element: <ReportsCustomersPage /> },
+      { path: "reports/suppliers", element: <ReportsSuppliersPage /> },
+      { path: "reports/warehouses", element: <ReportsWarehousesPage /> },
+      { path: "reports/profitability", element: <ReportsProfitabilityPage /> },
+      { path: "reports/kpis", element: <ReportsKpiPage /> },
+      { path: "reports/custom", element: <ReportsCustomPage /> },
+      { path: "reports/scheduled", element: <ReportsScheduledPage /> },
+      { path: "reports/exports", element: <ReportsExportsPage /> },
       { path: "employees", element: <EmployeesPage /> },
       { path: "settings", element: <SettingsPage /> },
       { path: "help", element: <HelpPage /> },
