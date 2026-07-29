@@ -10,23 +10,6 @@ fn get_conn<'r>(state: &'r State<'r, DbState>) -> Result<std::sync::MutexGuard<'
 // ── Data Structures ──
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Customer {
-    pub id: i64,
-    pub name: String,
-    pub email: Option<String>,
-    pub phone: Option<String>,
-    pub address: Option<String>,
-    pub city: Option<String>,
-    pub state: Option<String>,
-    pub postal_code: Option<String>,
-    pub country: Option<String>,
-    pub notes: Option<String>,
-    pub is_active: bool,
-    pub created_at: String,
-    pub updated_at: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct Sale {
     pub id: i64,
     pub sale_number: String,
@@ -351,70 +334,7 @@ fn map_quote(row: &rusqlite::Row) -> rusqlite::Result<Quote> {
     })
 }
 
-// ── Customer Commands ──
 
-#[tauri::command]
-pub fn get_customers(state: State<DbState>) -> Result<Vec<Customer>, String> {
-    let conn = get_conn(&state)?;
-    let mut stmt = conn.prepare("SELECT * FROM customers ORDER BY name").map_err(|e| e.to_string())?;
-    let rows = stmt.query_map([], |row| {
-        Ok(Customer {
-            id: row.get(0)?, name: row.get(1)?, email: row.get(2)?,
-            phone: row.get(3)?, address: row.get(4)?, city: row.get(5)?,
-            state: row.get(6)?, postal_code: row.get(7)?, country: row.get(8)?,
-            notes: row.get(9)?, is_active: row.get::<_, i64>(10)? != 0,
-            created_at: row.get(11)?, updated_at: row.get(12)?,
-        })
-    }).map_err(|e| e.to_string())?;
-    let mut result = Vec::new();
-    for row in rows { result.push(row.map_err(|e| e.to_string())?); }
-    Ok(result)
-}
-
-#[tauri::command]
-pub fn create_customer(state: State<DbState>, name: String, email: Option<String>, phone: Option<String>, address: Option<String>, city: Option<String>, state_province: Option<String>, postal_code: Option<String>, country: Option<String>, notes: Option<String>) -> Result<Customer, String> {
-    let conn = get_conn(&state)?;
-    let state_val = state_province;
-    conn.execute("INSERT INTO customers (name, email, phone, address, city, state, postal_code, country, notes) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-        params![name, email, phone, address, city, state_val, postal_code, country, notes]).map_err(|e| e.to_string())?;
-    let id = conn.last_insert_rowid();
-    let mut stmt = conn.prepare("SELECT * FROM customers WHERE id = ?1").map_err(|e| e.to_string())?;
-    stmt.query_row(params![id], |row| {
-        Ok(Customer {
-            id: row.get(0)?, name: row.get(1)?, email: row.get(2)?,
-            phone: row.get(3)?, address: row.get(4)?, city: row.get(5)?,
-            state: row.get(6)?, postal_code: row.get(7)?, country: row.get(8)?,
-            notes: row.get(9)?, is_active: row.get::<_, i64>(10)? != 0,
-            created_at: row.get(11)?, updated_at: row.get(12)?,
-        })
-    }).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub fn update_customer(state: State<DbState>, id: i64, name: String, email: Option<String>, phone: Option<String>, address: Option<String>, city: Option<String>, state_province: Option<String>, postal_code: Option<String>, country: Option<String>, notes: Option<String>) -> Result<Customer, String> {
-    let conn = get_conn(&state)?;
-    let state_val = state_province;
-    conn.execute("UPDATE customers SET name=?1, email=?2, phone=?3, address=?4, city=?5, state=?6, postal_code=?7, country=?8, notes=?9, updated_at=datetime('now') WHERE id=?10",
-        params![name, email, phone, address, city, state_val, postal_code, country, notes, id]).map_err(|e| e.to_string())?;
-    let mut stmt = conn.prepare("SELECT * FROM customers WHERE id = ?1").map_err(|e| e.to_string())?;
-    stmt.query_row(params![id], |row| {
-        Ok(Customer {
-            id: row.get(0)?, name: row.get(1)?, email: row.get(2)?,
-            phone: row.get(3)?, address: row.get(4)?, city: row.get(5)?,
-            state: row.get(6)?, postal_code: row.get(7)?, country: row.get(8)?,
-            notes: row.get(9)?, is_active: row.get::<_, i64>(10)? != 0,
-            created_at: row.get(11)?, updated_at: row.get(12)?,
-        })
-    }).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub fn archive_customer(state: State<DbState>, id: i64) -> Result<(), String> {
-    let conn = get_conn(&state)?;
-    conn.execute("UPDATE customers SET is_active=0, updated_at=datetime('now') WHERE id=?1", params![id])
-        .map_err(|e| e.to_string())?;
-    Ok(())
-}
 
 // ── POS Search ──
 

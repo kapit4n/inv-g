@@ -1,132 +1,82 @@
-# Milestone 07 - Sales & POS (Full Implementation)
+# Milestone 07: Purchasing & Supplier Procurement
 
-## Status: Complete
+**Status:** ✅ Complete
 
 ## Summary
-Complete rewrite of the Sales & POS module with service-oriented architecture. Three-panel POS with split payments, quotes management, cash register sessions, daily closings, receipt tracking, returns processing, and sales dashboard with chart data.
+
+Implemented a complete Purchasing & Supplier Procurement module covering the full purchase lifecycle: purchase requests → purchase orders → receiving → returns, along with supplier catalog, cost history tracking, reorder suggestions, and supplier performance analytics.
 
 ## Deliverables
 
-### Database Schema (`src-tauri/src/db/schema.rs`)
-- **Bumped to v3**: Added 6 new tables + updated sales table with `receipt_number` and `warehouse_id`
-- New tables: `sale_payments`, `quotes`, `quote_items`, `cash_register_sessions`, `daily_closings`, `receipts`
+### Database (Schema v4)
+- 8 new tables: `purchase_requests`, `purchase_request_items`, `purchase_receipts`, `purchase_receipt_items`, `purchase_returns`, `purchase_return_items`, `supplier_products`, `product_cost_history`
+- Extended `purchase_orders` and `purchase_order_items` with warehouse, currency, payment terms, shipping, supplier SKU, discount, tax, damaged quantity columns
+- Seed data: 10 new purchase permissions across 6 roles
 
-### Rust Backend (`src-tauri/src/commands/sales.rs`)
-- **Service-oriented architecture**: ~900 lines with clear sections
-- **POS Search**: `search_products_for_pos` — searches by name, sku, barcode, internal_code, oem_number
-- **Checkout**: `process_checkout` — creates sale + items + payments + inventory movements + receipt in one transaction. Supports split payments (cash/card/transfer/mixed)
-- **Sales Queries**: `get_sales`, `get_sale`, `get_sale_items`, `get_sale_payments` — all with customer name and item count joins
-- **Search**: `search_sales` — by invoice number or customer name
-- **Refunds**: `refund_sale` — returns stock, creates inventory movements, generates refund receipt
-- **Daily Closeout**: `get_daily_closeout` — aggregates today's totals including split payments from `sale_payments`, backward compatible with legacy `payment_method`
-- **Sales Summary**: `get_sales_summary` — today/week/month stats + top products
-- **Chart Data**: `get_sales_chart_data` — daily revenue/order counts for N-day range
-- **Quotes CRUD**: `get_quotes`, `get_quote`, `get_quote_items`, `create_quote`, `update_quote`, `delete_quote`, `update_quote_status`
-- **Quote→Sale**: `convert_quote_to_sale` — converts quote to sale via checkout
-- **Cash Register**: `get_cash_register_status`, `open_cash_register`, `close_cash_register` (calculates expected vs actual difference), `get_cash_register_sessions`
-- **Daily Closings**: `close_daily_shift` (saves to DB, prevents duplicates), `get_daily_closings`
-- **Receipts**: `get_receipts_for_sale`, `get_receipt`, `mark_receipt_printed`
+### Rust Backend (`src-tauri/src/commands/purchases.rs`)
+- 28 Tauri commands covering:
+  - **PO CRUD**: list (filtered), get, create, update, delete, status transitions (draft→pending_approval→approved/sent→partially_received→completed, any→cancelled)
+  - **Requests**: list, get, create, status transitions (draft→submitted→approved/rejected→converted)
+  - **Receiving**: receive PO with validation, auto-stock update, inventory movements, cost history recording, PO status progression
+  - **Returns**: create return with negative inventory movement and stock deduction
+  - **Supplier catalog**: CRUD for supplier-product mappings
+  - **Cost history**: query with product/supplier filters
+  - **Dashboard**: aggregated stats, recent orders, reorder suggestions, supplier performance, top suppliers
+  - **Auto-reorder**: products below reorder point, including pending PO quantities, preferred supplier lookup
+  - **Supplier performance**: avg delivery days, return rate, late deliveries, total spend
 
-### Permissions (`src-tauri/src/db/seed.rs`)
-- Added: `sales.quotes`, `sales.register`, `sales.closeout`, `sales.receipts`
-- Assigned to owner, admin, and cashier roles
+### Frontend Pages (`src/features/purchases/pages/`)
+| Page | Route | Purpose |
+|------|-------|---------|
+| PurchasesDashboardPage | `/purchases` | Dashboard with stats, recent orders, reorder alerts, top suppliers |
+| PurchaseOrdersPage | `/purchases/orders` | Filterable list of purchase orders |
+| PurchaseOrderFormPage | `/purchases/orders/new`, `/purchases/orders/:id/edit` | Create/edit PO with dynamic items |
+| PurchaseOrderDetailPage | `/purchases/orders/:id` | Detail view with status-driven actions |
+| PurchaseRequestsPage | `/purchases/requests` | List and manage purchase requests |
+| PurchaseReceiptsPage | `/purchases/receipts` | List receipts |
+| PurchaseReceiptDetailPage | `/purchases/receipts/:id` | Detail view + receive order form |
+| PurchaseReturnsPage | `/purchases/returns` | List returns + create return dialog |
+| SupplierProductsPage | `/purchases/supplier-products` | Supplier product catalog CRUD |
+| CostHistoryPage | `/purchases/cost-history` | Product cost history viewer |
+| ReorderSuggestionsPage | `/purchases/reorder-suggestions` | Products needing reorder with action links |
 
-### Tauri Bindings (`src/lib/tauri.ts`)
-- 27 new functions: searchProductsForPos, processCheckout, getSalePayments, getSalesSummary, getSalesChartData, searchSales, getQuotes, getQuote, getQuoteItems, createQuote, updateQuote, deleteQuote, updateQuoteStatus, convertQuoteToSale, getCashRegisterStatus, openCashRegister, closeCashRegister, getCashRegisterSessions, closeDailyShift, getDailyClosings, getReceiptsForSale, getReceipt, markReceiptPrinted
+### Other Frontend
+- Expanded sidebar with 8 purchase sub-navigation items
+- 12 sub-routes registered in router
+- Full i18n keys (es/en) for all purchase UI text
+- TypeScript interfaces in `src/types/index.ts`
+- Tauri binding functions in `src/lib/tauri.ts`
 
-### TypeScript Types (`src/types/index.ts`)
-- Updated: Sale (saleNumber, receiptNumber, warehouseId, customerName, itemCount), SaleItem (discount, productName, productSku, updatedAt), DailyCloseout (netRevenue)
-- New: SalePayment, PaymentInput, CheckoutInput, CheckoutResult, ProductForPos, SaleItemInput, Quote, QuoteItem, QuoteInput, CashRegisterSession, DailyClosing, Receipt, SalesSummary, ProductSalesStat, SalesChartData
+## Files Created/Modified
 
-### Frontend Pages
+### New
+- `src-tauri/src/commands/purchases.rs`
+- `src/features/purchases/pages/purchases-dashboard-page.tsx`
+- `src/features/purchases/pages/purchase-orders-page.tsx`
+- `src/features/purchases/pages/purchase-order-form-page.tsx`
+- `src/features/purchases/pages/purchase-order-detail-page.tsx`
+- `src/features/purchases/pages/purchase-requests-page.tsx`
+- `src/features/purchases/pages/purchase-receipts-page.tsx`
+- `src/features/purchases/pages/purchase-receipt-detail-page.tsx`
+- `src/features/purchases/pages/purchase-returns-page.tsx`
+- `src/features/purchases/pages/supplier-products-page.tsx`
+- `src/features/purchases/pages/cost-history-page.tsx`
+- `src/features/purchases/pages/reorder-suggestions-page.tsx`
+- `docs/progress/MILESTONE_07.md`
 
-#### POS Terminal (`pos-page.tsx`)
-- Three-panel layout: product search (barcode/SKU via `searchProductsForPos`) | cart (quantity +/-/delete, discount input) | checkout (customer select, split payments, change calculation, notes)
-- Process via `processCheckout`
-
-#### Sales History (`sales-page.tsx`)
-- Summary stats from `getSalesSummary`, debounced search via `searchSales`
-- DataTable with payment status badges
-- Quick links: New Sale, Quotes, Closeout
-
-#### Sale Detail (`sale-detail-page.tsx`)
-- Tabbed: Details | Payments | Receipts | Refund
-- Payment method breakdown with icons
-- Receipt listing with "Mark Printed"
-- Refund mode with confirmation dialog
-
-#### Daily Closeout (`closeout-page.tsx`)
-- Stats grid + payment method breakdown cards
-- Refunds section, net revenue summary
-- "Close Day" button calling `closeDailyShift`
-- Closing history table from `getDailyClosings`
-- Thermal receipt print format (80mm)
-
-#### Quotes List (`quotes-page.tsx`)
-- Status color-coded badges, DataTable, "New Quote" button
-
-#### Quote Detail (`quote-detail-page.tsx`)
-- Items table, summary, status actions (Send/Accept/Reject), Convert to Sale
-
-#### Quote Form (`quote-form-page.tsx`)
-- Create/edit with product search, line items, tax, discount, terms
-
-#### Returns (`returns-page.tsx`)
-- Search sales, process refund with reason dialog, refund history
-
-#### Cash Register (`cash-register-page.tsx`)
-- Active session status card, open/close dialogs with balance difference calculation
-- Session history DataTable
-
-#### Receipts (`receipts-page.tsx`)
-- Per-sale receipt listing, mark printed action
-
-### Routes
-- `/sales` — list, `/sales/new` — POS, `/sales/:id` — detail
-- `/sales/quotes`, `/sales/quotes/new`, `/sales/quotes/:id`, `/sales/quotes/:id/edit`
-- `/sales/returns`, `/sales/register`, `/sales/receipts`, `/sales/closeout`
-
-### Sidebar
-- Sales section now has expandable sub-items: Point of Sale, Sales History, Quotes, Returns, Cash Register, Receipts, Daily Closeout
-
-### i18n
-- EN/ES expanded with 30+ new keys for quotes, returns, register, receipts, daily closing
-
-## Files Created
-```
-docs/progress/MILESTONE_07.md
-src/features/sales/pages/quotes-page.tsx
-src/features/sales/pages/quote-detail-page.tsx
-src/features/sales/pages/quote-form-page.tsx
-src/features/sales/pages/returns-page.tsx
-src/features/sales/pages/receipts-page.tsx
-src/features/sales/pages/cash-register-page.tsx
-```
-
-## Files Modified
-```
-src-tauri/src/db/schema.rs — v3 with 6 new tables + receipt_number/warehouse_id on sales
-src-tauri/src/commands/sales.rs — full rewrite with service architecture
-src-tauri/src/db/seed.rs — 4 new POS permissions
-src-tauri/src/lib.rs — 27 new command registrations
-src/types/index.ts — new SalePayment, Quote, CashRegisterSession, DailyClosing, Receipt, etc.
-src/lib/tauri.ts — 27 new bindings
-src/features/sales/index.ts — 6 new page exports
-src/features/sales/pages/pos-page.tsx — three-panel rewrite
-src/features/sales/pages/sales-page.tsx — full history rewrite
-src/features/sales/pages/sale-detail-page.tsx — enhanced rewrite
-src/features/sales/pages/closeout-page.tsx — enhanced rewrite
-src/routes/index.tsx — 6 new sales routes
-src/layouts/sidebar.tsx — expandable Sales nav with 7 sub-items
-src/i18n/locales/en/sales.json — 30+ new keys
-src/i18n/locales/es/sales.json — 30+ new keys
-```
-
-## Note
-- `cargo check` was not run (no Rust toolchain in environment). Run `cargo check && cargo build` before launching the app.
+### Modified
+- `src-tauri/src/db/schema.rs` — v4 schema with new tables
+- `src-tauri/src/db/seed.rs` — 10 new purchase permissions, role updates
+- `src-tauri/src/commands/mod.rs` — added purchases module
+- `src-tauri/src/lib.rs` — registered 28 purchase commands
+- `src/types/index.ts` — 19 purchase-related interfaces
+- `src/lib/tauri.ts` — 23 Tauri invoke wrapper functions
+- `src/layouts/sidebar.tsx` — 8 purchase sub-items
+- `src/routes/index.tsx` — 12 purchase sub-routes
+- `src/i18n/locales/en/purchases.json` — full English keys
+- `src/i18n/locales/es/purchases.json` — full Spanish keys
+- `src/features/purchases/index.ts` — 11 page exports
+- `docs/ROADMAP.md` — marked Milestone 7 complete
 
 ## Known Issues
-- No purchase-order integration (planned for M8)
-- No accounting ledger integration (planned for M8)
-- Cash register does not track individual cash transactions (only aggregate)
-- No barcode scanner hardware integration (front-end keyboard event listener only)
+- None

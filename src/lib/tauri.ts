@@ -6,9 +6,17 @@ import type {
   ProductCompatibility, InventoryMovement, DashboardStats, InventoryPaginatedResult,
 } from "@/types/inventory"
 import type {
-  Customer, Sale, SaleItem, SalePayment, DailyCloseout, Quote, QuoteItem,
+  Customer, CustomerDetail, CustomerSale, CreditAccount, CreditTransaction,
+  CommunicationEntry, CommunicationInput,
+  Sale, SaleItem, SalePayment, DailyCloseout, Quote, QuoteItem,
   CashRegisterSession, DailyClosing, Receipt, ProductForPos, CheckoutResult,
-  CheckoutInput, SalesSummary, SalesChartData, QuoteInput
+  CheckoutInput, SalesSummary, SalesChartData, QuoteInput,
+  PurchaseOrder, PurchaseOrderItem, PurchaseOrderInput, PurchaseOrderItemInput,
+  PurchaseRequest, PurchaseRequestItem, PurchaseRequestInput,
+  PurchaseReceipt, PurchaseReceiptItem, ReceivePOInput,
+  PurchaseReturn, PurchaseReturnItem, PurchaseReturnInput,
+  SupplierProduct, SupplierProductInput,
+  CostHistory, ReorderSuggestion, SupplierPerformance, PurchaseDashboard,
 } from "@/types"
 
 export async function getAppVersion(): Promise<string> {
@@ -23,8 +31,16 @@ export async function greet(name: string): Promise<string> {
   return invoke<string>("greet", { name })
 }
 
+export async function runSeeds(): Promise<string> {
+  return invoke<string>("run_seeds")
+}
+
 export async function login(username: string, password: string): Promise<LoginResponse> {
   return invoke<LoginResponse>("login", { username, password })
+}
+
+export async function loginByRole(roleName: string): Promise<LoginResponse> {
+  return invoke<LoginResponse>("login_by_role", { roleName })
 }
 
 export async function logout(token: string): Promise<void> {
@@ -230,28 +246,69 @@ export async function createInventoryMovement(data: {
 
 // ── Customers ──
 
-export async function getCustomers(): Promise<Customer[]> {
-  return invoke<Customer[]>("get_customers")
+export async function getCustomers(search?: string): Promise<Customer[]> {
+  return invoke<Customer[]>("get_customers", { search })
 }
 
-export async function createCustomer(data: {
-  name: string; email?: string; phone?: string; address?: string;
-  city?: string; stateProvince?: string; postalCode?: string;
-  country?: string; notes?: string
-}): Promise<Customer> {
-  return invoke<Customer>("create_customer", data)
+export async function createCustomer(
+  name: string, email?: string, phone?: string, address?: string,
+  city?: string, state?: string, postalCode?: string,
+  country?: string, notes?: string
+): Promise<Customer> {
+  return invoke<Customer>("create_customer", {
+    name, email, phone, address, city, state, postalCode, country, notes,
+  })
 }
 
-export async function updateCustomer(data: {
-  id: number; name: string; email?: string; phone?: string; address?: string;
-  city?: string; stateProvince?: string; postalCode?: string;
-  country?: string; notes?: string
-}): Promise<Customer> {
-  return invoke<Customer>("update_customer", data)
+export async function updateCustomer(
+  id: number, name: string, email?: string, phone?: string, address?: string,
+  city?: string, state?: string, postalCode?: string,
+  country?: string, notes?: string
+): Promise<Customer> {
+  return invoke<Customer>("update_customer", {
+    id, name, email, phone, address, city, state, postalCode, country, notes,
+  })
 }
 
 export async function archiveCustomer(id: number): Promise<void> {
   return invoke<void>("archive_customer", { id })
+}
+
+export async function getCustomerDetail(id: number): Promise<CustomerDetail> {
+  return invoke<CustomerDetail>("get_customer_detail", { id })
+}
+
+export async function getCustomerSales(customerId: number): Promise<CustomerSale[]> {
+  return invoke<CustomerSale[]>("get_customer_sales", { customerId })
+}
+
+export async function getCreditAccount(customerId: number): Promise<CreditAccount> {
+  return invoke<CreditAccount>("get_credit_account", { customerId })
+}
+
+export async function createCreditAccount(customerId: number, creditLimit: number): Promise<CreditAccount> {
+  return invoke<CreditAccount>("create_credit_account", { customerId, creditLimit })
+}
+
+export async function getCreditTransactions(accountId: number): Promise<CreditTransaction[]> {
+  return invoke<CreditTransaction[]>("get_credit_transactions", { accountId })
+}
+
+export async function addCreditTransaction(
+  accountId: number, amount: number, transactionType: string,
+  referenceType?: string, referenceId?: string, notes?: string, createdBy?: number,
+): Promise<CreditTransaction> {
+  return invoke<CreditTransaction>("add_credit_transaction", {
+    accountId, amount, transactionType, referenceType, referenceId, notes, createdBy,
+  })
+}
+
+export async function getCommunications(customerId: number): Promise<CommunicationEntry[]> {
+  return invoke<CommunicationEntry[]>("get_communications", { customerId })
+}
+
+export async function createCommunication(input: CommunicationInput, createdBy: number): Promise<CommunicationEntry> {
+  return invoke<CommunicationEntry>("create_communication", { input, createdBy })
 }
 
 // ── Sales ──
@@ -417,4 +474,93 @@ export async function createProductCompatibility(data: {
 
 export async function deleteProductCompatibility(id: number): Promise<void> {
   return invoke<void>("delete_product_compatibility", { id })
+}
+
+// ── Purchase Orders ──
+export async function getPurchaseOrders(params?: { search?: string; status?: string; supplierId?: number; warehouseId?: number; buyer?: string; dateFrom?: string; dateTo?: string }): Promise<PurchaseOrder[]> {
+  return invoke<PurchaseOrder[]>("get_purchase_orders", params || {})
+}
+export async function getPurchaseOrder(id: number): Promise<PurchaseOrder> {
+  return invoke<PurchaseOrder>("get_purchase_order", { id })
+}
+export async function createPurchaseOrder(userId: number, input: PurchaseOrderInput): Promise<PurchaseOrder> {
+  return invoke<PurchaseOrder>("create_purchase_order", { userId, input })
+}
+export async function updatePurchaseOrder(id: number, input: PurchaseOrderInput): Promise<PurchaseOrder> {
+  return invoke<PurchaseOrder>("update_purchase_order", { id, input })
+}
+export async function updatePurchaseOrderStatus(id: number, status: string, userId: number): Promise<PurchaseOrder> {
+  return invoke<PurchaseOrder>("update_purchase_order_status", { id, status, userId })
+}
+export async function deletePurchaseOrder(id: number): Promise<void> {
+  return invoke<void>("delete_purchase_order", { id })
+}
+export async function getPurchaseOrderItems(purchaseOrderId: number): Promise<PurchaseOrderItem[]> {
+  return invoke<PurchaseOrderItem[]>("get_purchase_order_items", { purchaseOrderId })
+}
+
+// ── Purchase Requests ──
+export async function getPurchaseRequests(status?: string): Promise<PurchaseRequest[]> {
+  return invoke<PurchaseRequest[]>("get_purchase_requests", { status })
+}
+export async function getPurchaseRequest(id: number): Promise<PurchaseRequest> {
+  return invoke<PurchaseRequest>("get_purchase_request", { id })
+}
+export async function createPurchaseRequest(userId: number, input: PurchaseRequestInput): Promise<PurchaseRequest> {
+  return invoke<PurchaseRequest>("create_purchase_request", { userId, input })
+}
+export async function updatePurchaseRequestStatus(id: number, status: string): Promise<PurchaseRequest> {
+  return invoke<PurchaseRequest>("update_purchase_request_status", { id, status })
+}
+
+// ── Receiving ──
+export async function getPurchaseReceipts(purchaseOrderId?: number): Promise<PurchaseReceipt[]> {
+  return invoke<PurchaseReceipt[]>("get_purchase_receipts", { purchaseOrderId })
+}
+export async function getPurchaseReceipt(id: number): Promise<PurchaseReceipt> {
+  return invoke<PurchaseReceipt>("get_purchase_receipt", { id })
+}
+export async function receivePurchaseOrder(poId: number, userId: number, warehouseId: number, notes: string | undefined, items: ReceivePOInput[]): Promise<PurchaseReceipt> {
+  return invoke<PurchaseReceipt>("receive_purchase_order", { poId, userId, warehouseId, notes, items })
+}
+
+// ── Purchase Returns ──
+export async function getPurchaseReturns(supplierId?: number): Promise<PurchaseReturn[]> {
+  return invoke<PurchaseReturn[]>("get_purchase_returns", { supplierId })
+}
+export async function getPurchaseReturn(id: number): Promise<PurchaseReturn> {
+  return invoke<PurchaseReturn>("get_purchase_return", { id })
+}
+export async function createPurchaseReturn(userId: number, input: PurchaseReturnInput): Promise<PurchaseReturn> {
+  return invoke<PurchaseReturn>("create_purchase_return", { userId, input })
+}
+
+// ── Supplier Catalog ──
+export async function getSupplierProducts(supplierId?: number, productId?: number): Promise<SupplierProduct[]> {
+  return invoke<SupplierProduct[]>("get_supplier_products", { supplierId, productId })
+}
+export async function createSupplierProduct(input: SupplierProductInput): Promise<SupplierProduct> {
+  return invoke<SupplierProduct>("create_supplier_product", { input })
+}
+export async function updateSupplierProduct(id: number, input: SupplierProductInput): Promise<SupplierProduct> {
+  return invoke<SupplierProduct>("update_supplier_product", { id, input })
+}
+export async function deleteSupplierProduct(id: number): Promise<void> {
+  return invoke<void>("delete_supplier_product", { id })
+}
+
+// ── Cost History ──
+export async function getCostHistory(productId?: number, supplierId?: number): Promise<CostHistory[]> {
+  return invoke<CostHistory[]>("get_cost_history", { productId, supplierId })
+}
+
+// ── Dashboard ──
+export async function getPurchaseDashboard(): Promise<PurchaseDashboard> {
+  return invoke<PurchaseDashboard>("get_purchase_dashboard")
+}
+export async function getReorderSuggestions(): Promise<ReorderSuggestion[]> {
+  return invoke<ReorderSuggestion[]>("get_reorder_suggestions")
+}
+export async function getSupplierPerformance(supplierId?: number): Promise<SupplierPerformance[]> {
+  return invoke<SupplierPerformance[]>("get_supplier_performance", { supplierId })
 }

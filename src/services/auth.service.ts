@@ -1,4 +1,4 @@
-import { login as tauriLogin, logout as tauriLogout, getCurrentUser, checkSession } from "@/lib/tauri"
+import { login as tauriLogin, loginByRole as tauriLoginByRole, logout as tauriLogout, getCurrentUser, checkSession } from "@/lib/tauri"
 import type { User, SessionInfo } from "@/types"
 
 const SESSION_KEY = "inventory-gear-session"
@@ -12,6 +12,17 @@ interface StoredSession {
 export const AuthService = {
   async login(username: string, password: string): Promise<StoredSession> {
     const response = await tauriLogin(username, password)
+    const session: StoredSession = {
+      token: response.token,
+      user: response.user,
+      permissions: response.permissions,
+    }
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session))
+    return session
+  },
+
+  async loginByRole(roleName: string): Promise<StoredSession> {
+    const response = await tauriLoginByRole(roleName)
     const session: StoredSession = {
       token: response.token,
       user: response.user,

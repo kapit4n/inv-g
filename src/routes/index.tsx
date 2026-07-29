@@ -14,8 +14,20 @@ import {
   InventoryMovementsPage, InventoryMovementFormPage,
 } from "@/features/inventory"
 import { SalesPage, PosPage, SaleDetailPage, CloseoutPage, QuotesPage, QuoteDetailPage, QuoteFormPage, ReturnsPage, CashRegisterPage, ReceiptsPage } from "@/features/sales"
-import { PurchasesPage } from "@/features/purchases"
-import { CustomersPage } from "@/features/customers"
+import {
+  PurchasesPage,
+  PurchaseOrdersPage,
+  PurchaseOrderDetailPage,
+  PurchaseOrderFormPage,
+  PurchaseRequestsPage,
+  PurchaseReceiptsPage,
+  PurchaseReceiptDetailPage,
+  PurchaseReturnsPage,
+  SupplierProductsPage,
+  CostHistoryPage,
+  ReorderSuggestionsPage,
+} from "@/features/purchases"
+import { CustomersPage, CustomerDetailPage } from "@/features/customers"
 import { SuppliersPage } from "@/features/suppliers"
 import { VehiclesPage } from "@/features/vehicles"
 import { WarehousePage } from "@/features/warehouse"
@@ -86,7 +98,19 @@ export const router = createBrowserRouter([
       { path: "sales/receipts", element: <ReceiptsPage /> },
       { path: "sales/:id", element: <SaleDetailPage /> },
       { path: "purchases", element: <PurchasesPage /> },
+      { path: "purchases/orders", element: <PurchaseOrdersPage /> },
+      { path: "purchases/orders/new", element: <PurchaseOrderFormPage /> },
+      { path: "purchases/orders/:id", element: <PurchaseOrderDetailPage /> },
+      { path: "purchases/orders/:id/edit", element: <PurchaseOrderFormPage /> },
+      { path: "purchases/requests", element: <PurchaseRequestsPage /> },
+      { path: "purchases/receipts", element: <PurchaseReceiptsPage /> },
+      { path: "purchases/receipts/:id", element: <PurchaseReceiptDetailPage /> },
+      { path: "purchases/returns", element: <PurchaseReturnsPage /> },
+      { path: "purchases/supplier-products", element: <SupplierProductsPage /> },
+      { path: "purchases/cost-history", element: <CostHistoryPage /> },
+      { path: "purchases/reorder-suggestions", element: <ReorderSuggestionsPage /> },
       { path: "customers", element: <CustomersPage /> },
+      { path: "customers/:id", element: <CustomerDetailPage /> },
       { path: "suppliers", element: <SuppliersPage /> },
       { path: "vehicles", element: <VehiclesPage /> },
       { path: "warehouse", element: <WarehousePage /> },

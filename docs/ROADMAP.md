@@ -70,31 +70,41 @@
 - ✅ Receipt printing
 - ✅ Daily close-out
 
-## Milestone 7: Purchasing
-**Status:** Pending
+## Milestone 7: Purchasing ✅
+**Status:** Complete
 **Complexity:** High
 **Dependencies:** Milestone 5
 
 ### Tasks
-- [ ] Purchase order creation
-- [ ] Receiving and inspection
-- [ ] Supplier management integration
-- [ ] Cost tracking
-- [ ] Purchase history
-- [ ] Auto-reorder suggestions
+- [x] Database schema v4 (8 new purchase tables + extended PO/PO items)
+- [x] Rust backend (28 commands: CRUD, approvals, receiving, returns, cost history, reorder, supplier performance, dashboard)
+- [x] Purchasing dashboard with stats, recent orders, reorder alerts, top suppliers
+- [x] Purchase order creation with dynamic items
+- [x] Purchase order list with filters (status, supplier, warehouse)
+- [x] Purchase order detail with status-driven action buttons
+- [x] Receiving and inspection (receive PO, track damaged qty, auto-update inventory)
+- [x] Purchase returns with inventory reversal
+- [x] Supplier product catalog
+- [x] Cost history tracking
+- [x] Auto-reorder suggestions
+- [x] Supplier performance analytics
+- [x] i18n keys (es/en)
+- [x] Seed data permissions for 6 roles
+- [x] 11 frontend page components
+- [x] 12 purchase sub-routes + sidebar navigation
 
 ## Milestone 8: Customers & Suppliers
-**Status:** Pending
+**Status:** Complete
 **Complexity:** Medium
 **Dependencies:** Milestone 6
 
 ### Tasks
-- [ ] Customer management CRUD
-- [ ] Customer purchase history
-- [ ] Supplier management CRUD
-- [ ] Supplier product catalog
-- [ ] Credit accounts
-- [ ] Communication log
+- [x] Customer management CRUD
+- [x] Customer purchase history
+- [x] Supplier management CRUD (in inventory)
+- [x] Supplier product catalog (in purchases)
+- [x] Credit accounts
+- [x] Communication log
 
 ## Milestone 9: Reports & Analytics
 **Status:** Pending

@@ -49,8 +49,26 @@ const navigation: NavItemConfig[] = [
       { nameKey: "inventory.inventoryMovements", href: "/inventory/movements", icon: ArrowUpDown },
     ],
   },
-  { nameKey: "purchases.title", href: "/purchases", icon: ShoppingBag },
-  { nameKey: "customers.title", href: "/customers", icon: Users },
+  {
+    nameKey: "purchases.title", href: "/purchases", icon: ShoppingBag,
+    children: [
+      { nameKey: "purchases.dashboard", href: "/purchases", icon: LayoutDashboard },
+      { nameKey: "purchases.orders", href: "/purchases/orders", icon: FileText },
+      { nameKey: "purchases.requests", href: "/purchases/requests", icon: Layers },
+      { nameKey: "purchases.receipts", href: "/purchases/receipts", icon: Package },
+      { nameKey: "purchases.returns", href: "/purchases/returns", icon: RotateCcw },
+      { nameKey: "purchases.supplierProducts", href: "/purchases/supplier-products", icon: Briefcase },
+      { nameKey: "purchases.costHistory", href: "/purchases/cost-history", icon: DollarSign },
+      { nameKey: "purchases.reorderSuggestions", href: "/purchases/reorder-suggestions", icon: ArrowUpDown },
+    ],
+  },
+  {
+    nameKey: "customers.title", href: "/customers", icon: Users,
+    children: [
+      { nameKey: "customers.all", href: "/customers", icon: Users },
+      { nameKey: "customers.creditAccounts", href: "/customers/credit-accounts", icon: DollarSign },
+    ],
+  },
   { nameKey: "suppliers.title", href: "/suppliers", icon: Truck },
   { nameKey: "vehicles.title", href: "/vehicles", icon: Car },
   { nameKey: "warehouse.title", href: "/warehouse", icon: Warehouse },
@@ -71,7 +89,7 @@ export function Sidebar() {
   const { sidebarCollapsed, toggleSidebar } = useSettingsStore()
   const location = useLocation()
   const { t } = useTranslation()
-  const [expanded, setExpanded] = useState<string[]>(["/inventory", "/sales"])
+  const [expanded, setExpanded] = useState<string[]>(["/inventory", "/sales", "/purchases"])
 
   const toggleExpand = (href: string) => {
     setExpanded((prev) =>

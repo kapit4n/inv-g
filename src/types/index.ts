@@ -96,12 +96,75 @@ export interface Customer {
   address?: string
   city?: string
   state?: string
-  zipCode?: string
-  taxId?: string
+  postalCode?: string
+  country?: string
   notes?: string
   isActive: boolean
   createdAt: string
   updatedAt: string
+}
+
+export interface CustomerSale {
+  id: number
+  saleNumber: string
+  total: number
+  paymentMethod: string
+  paymentStatus: string
+  itemCount?: number
+  createdAt: string
+}
+
+export interface CustomerDetail {
+  customer: Customer
+  totalSales: number
+  totalSpent: number
+  lastPurchase?: string
+  creditLimit?: number
+  creditBalance?: number
+  recentSales: CustomerSale[]
+  communications: CommunicationEntry[]
+}
+
+export interface CreditAccount {
+  id: number
+  customerId: number
+  customerName?: string
+  creditLimit: number
+  currentBalance: number
+  status: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreditTransaction {
+  id: number
+  accountId: number
+  amount: number
+  transactionType: string
+  referenceType?: string
+  referenceId?: string
+  notes?: string
+  createdBy?: number
+  createdByName?: string
+  createdAt: string
+}
+
+export interface CommunicationEntry {
+  id: number
+  customerId: number
+  type: string
+  subject: string
+  message?: string
+  createdBy?: number
+  createdByName?: string
+  createdAt: string
+}
+
+export interface CommunicationInput {
+  customerId: number
+  type: string
+  subject: string
+  message?: string
 }
 
 export interface Supplier {
@@ -342,17 +405,37 @@ export interface SalesChartData {
   orders: number[]
 }
 
+// ── Purchasing Types ──
+
 export interface PurchaseOrder {
   id: number
-  orderNumber: string
+  poNumber: string
   supplierId?: number
-  userId: number
+  supplierName?: string
+  userId?: number
+  userName?: string
+  warehouseId?: number
+  warehouseName?: string
+  orderDate: string
+  expectedDeliveryDate?: string
+  currency: string
+  paymentTerms?: string
+  shippingMethod?: string
+  referenceNumber?: string
+  buyer?: string
   subtotal: number
-  tax: number
+  taxRate: number
+  taxAmount: number
+  discountAmount: number
+  shippingCost: number
   total: number
   status: string
-  expectedDate?: string
   notes?: string
+  approvedBy?: number
+  approvedByName?: string
+  approvedAt?: string
+  sentAt?: string
+  itemCount?: number
   createdAt: string
   updatedAt: string
 }
@@ -361,10 +444,241 @@ export interface PurchaseOrderItem {
   id: number
   purchaseOrderId: number
   productId: number
+  productName?: string
+  productSku?: string
+  supplierSku?: string
   quantity: number
   unitCost: number
+  discount: number
+  tax: number
   total: number
+  receivedQuantity: number
+  damagedQuantity: number
   createdAt: string
+  updatedAt: string
+}
+
+export interface PurchaseOrderInput {
+  supplierId?: number
+  warehouseId?: number
+  paymentTerms?: string
+  shippingMethod?: string
+  referenceNumber?: string
+  buyer?: string
+  notes?: string
+  expectedDeliveryDate?: string
+  items: PurchaseOrderItemInput[]
+}
+
+export interface PurchaseOrderItemInput {
+  productId: number
+  supplierSku?: string
+  quantity: number
+  unitCost: number
+  discount: number
+  tax: number
+  total: number
+}
+
+export interface PurchaseRequest {
+  id: number
+  requestNumber: string
+  requestedBy?: number
+  requestedByName?: string
+  warehouseId?: number
+  warehouseName?: string
+  priority: string
+  status: string
+  reason?: string
+  requiredDate?: string
+  itemCount?: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PurchaseRequestItem {
+  id: number
+  requestId: number
+  productId: number
+  productName?: string
+  productSku?: string
+  requestedQuantity: number
+  currentStock: number
+  minStockLevel: number
+  supplierSuggestion?: string
+  createdAt: string
+}
+
+export interface PurchaseRequestInput {
+  warehouseId: number
+  priority: string
+  reason: string
+  requiredDate?: string
+  items: { productId: number; requestedQuantity: number }[]
+}
+
+export interface PurchaseReceipt {
+  id: number
+  receiptNumber: string
+  purchaseOrderId: number
+  poNumber?: string
+  receivedBy?: number
+  receivedByName?: string
+  warehouseId?: number
+  warehouseName?: string
+  notes?: string
+  status: string
+  itemCount?: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PurchaseReceiptItem {
+  id: number
+  receiptId: number
+  poItemId: number
+  productId: number
+  productName?: string
+  productSku?: string
+  expectedQuantity: number
+  receivedQuantity: number
+  damagedQuantity: number
+  acceptedQuantity: number
+  createdAt: string
+}
+
+export interface ReceivePOInput {
+  poItemId: number
+  productId: number
+  receivedQuantity: number
+  damagedQuantity: number
+}
+
+export interface PurchaseReturn {
+  id: number
+  returnNumber: string
+  purchaseOrderId?: number
+  poNumber?: string
+  supplierId: number
+  supplierName?: string
+  reason?: string
+  status: string
+  createdBy?: number
+  createdByName?: string
+  itemCount?: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PurchaseReturnItem {
+  id: number
+  returnId: number
+  productId: number
+  productName?: string
+  productSku?: string
+  quantity: number
+  unitCost: number
+  reason?: string
+  createdAt: string
+}
+
+export interface PurchaseReturnInput {
+  poId?: number
+  supplierId: number
+  reason: string
+  items: { productId: number; quantity: number; unitCost: number; reason?: string }[]
+}
+
+export interface SupplierProduct {
+  id: number
+  supplierId: number
+  supplierName?: string
+  productId: number
+  productName?: string
+  productSku?: string
+  brandName?: string
+  supplierSku?: string
+  isPreferred: boolean
+  minimumOrderQuantity: number
+  leadTimeDays: number
+  defaultCost: number
+  currency: string
+  status: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface SupplierProductInput {
+  supplierId: number
+  productId: number
+  supplierSku?: string
+  isPreferred: boolean
+  minimumOrderQuantity: number
+  leadTimeDays: number
+  defaultCost: number
+  currency: string
+  status: string
+}
+
+export interface CostHistory {
+  id: number
+  productId: number
+  productName?: string
+  productSku?: string
+  supplierId?: number
+  supplierName?: string
+  purchaseOrderId?: number
+  poNumber?: string
+  oldCost: number
+  newCost: number
+  quantity: number
+  createdBy?: number
+  createdByName?: string
+  createdAt: string
+}
+
+export interface ReorderSuggestion {
+  productId: number
+  productName: string
+  productSku: string
+  currentStock: number
+  minStockLevel: number
+  reorderPoint: number
+  maxStockLevel: number
+  salePrice: number
+  costPrice: number
+  pendingPoQuantity: number
+  reservedQuantity: number
+  suggestedOrder: number
+  preferredSupplierId?: number
+  preferredSupplierName?: string
+}
+
+export interface SupplierPerformance {
+  supplierId: number
+  supplierName: string
+  totalOrders: number
+  completedOrders: number
+  cancelledOrders: number
+  avgDeliveryDays?: number
+  totalPurchased: number
+  avgCost: number
+  returnRate: number
+  lateDeliveries: number
+  preferredScore: number
+}
+
+export interface PurchaseDashboard {
+  pendingOrders: number
+  awaitingApproval: number
+  awaitingDelivery: number
+  todayReceipts: number
+  monthlyPurchased: number
+  monthlyOrderCount: number
+  recentOrders: PurchaseOrder[]
+  reorderSuggestions: ReorderSuggestion[]
+  supplierPerformances: SupplierPerformance[]
+  topSuppliers: [string, number][]
 }
 
 export type Theme = "light" | "dark" | "system"

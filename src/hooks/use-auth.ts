@@ -11,6 +11,12 @@ export function useAuth() {
     return session
   }, [store])
 
+  const loginByRole = useCallback(async (roleName: string) => {
+    const session = await AuthService.loginByRole(roleName)
+    store.setSession(session.user, session.token, session.permissions)
+    return session
+  }, [store])
+
   const logout = useCallback(async () => {
     await AuthService.logout()
     store.clearSession()
@@ -24,6 +30,7 @@ export function useAuth() {
     isLoading: store.isLoading,
     initialized: store.initialized,
     login,
+    loginByRole,
     logout,
   }
 }

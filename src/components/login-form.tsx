@@ -1,25 +1,35 @@
 import { useState, type FormEvent } from "react"
 import { useTranslation } from "react-i18next"
-import { Eye, EyeOff, Loader2, LogIn } from "lucide-react"
+import { Eye, EyeOff, Loader2, LogIn, Bug, Shield, User, Store, Wrench, Database } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { useAuth } from "@/hooks"
 
 interface LoginFormProps {
   onSuccess?: () => void
 }
 
+const TEST_ROLES = [
+  { name: "owner", icon: Shield, color: "text-red-500" },
+  { name: "admin", icon: Wrench, color: "text-orange-500" },
+  { name: "cashier", icon: User, color: "text-blue-500" },
+  { name: "warehouse", icon: Store, color: "text-green-500" },
+  { name: "viewer", icon: Database, color: "text-gray-500" },
+]
+
 export function LoginForm({ onSuccess }: LoginFormProps) {
   const { t } = useTranslation()
-  const { login } = useAuth()
+  const { login, loginByRole } = useAuth()
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [remember, setRemember] = useState(true)
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [testingOpen, setTestingOpen] = useState(false)
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -40,6 +50,19 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       onSuccess?.()
     } catch (err) {
       setError(typeof err === "string" ? err : t("auth.invalidCredentials"))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRoleLogin = async (role: string) => {
+    setError(null)
+    setLoading(true)
+    try {
+      await loginByRole(role)
+      onSuccess?.()
+    } catch (err) {
+      setError(typeof err === "string" ? err : "Login failed")
     } finally {
       setLoading(false)
     }
@@ -107,6 +130,37 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         )}
         {loading ? t("auth.signingIn") : t("auth.signIn")}
       </Button>
+
+      <Collapsible open={testingOpen} onOpenChange={setTestingOpen}>
+        <CollapsibleTrigger asChild>
+          <Button type="button" variant="outline" size="sm" className="w-full gap-2 text-xs text-muted-foreground">
+            <Bug className="h-3.5 w-3.5" />
+            {testingOpen ? "Hide testing quick-login" : "Testing: quick login by role"}
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-2 pt-2">
+          <p className="text-xs text-muted-foreground">Click a role to log in as the first active user with that role:</p>
+          <div className="grid grid-cols-2 gap-2">
+            {TEST_ROLES.map((r) => {
+              const Icon = r.icon
+              return (
+                <Button
+                  key={r.name}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={loading}
+                  onClick={() => handleRoleLogin(r.name)}
+                  className="justify-start gap-2"
+                >
+                  <Icon className={`h-4 w-4 ${r.color}`} />
+                  <span className="capitalize">{r.name}</span>
+                </Button>
+              )
+            })}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
     </form>
   )
 }

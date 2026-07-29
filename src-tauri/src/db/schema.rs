@@ -1,6 +1,6 @@
 use rusqlite::{Connection, Result};
 
-const SCHEMA_VERSION: i32 = 3;
+const SCHEMA_VERSION: i32 = 5;
 
 fn get_user_version(conn: &Connection) -> Result<i32> {
     let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
@@ -23,6 +23,14 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
         conn.execute_batch("PRAGMA defer_foreign_keys=ON;")?;
         conn.execute_batch(
             "
+            DROP TABLE IF EXISTS purchase_return_items;
+            DROP TABLE IF EXISTS purchase_returns;
+            DROP TABLE IF EXISTS purchase_receipt_items;
+            DROP TABLE IF EXISTS purchase_receipts;
+            DROP TABLE IF EXISTS product_cost_history;
+            DROP TABLE IF EXISTS supplier_products;
+            DROP TABLE IF EXISTS purchase_request_items;
+            DROP TABLE IF EXISTS purchase_requests;
             DROP TABLE IF EXISTS receipts;
             DROP TABLE IF EXISTS daily_closings;
             DROP TABLE IF EXISTS cash_register_sessions;
@@ -43,6 +51,9 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             DROP TABLE IF EXISTS customers;
             DROP TABLE IF EXISTS products;
             DROP TABLE IF EXISTS categories;
+            DROP TABLE IF EXISTS credit_transactions;
+            DROP TABLE IF EXISTS credit_accounts;
+            DROP TABLE IF EXISTS communication_log;
             DROP TABLE IF EXISTS audit_logs;
             DROP TABLE IF EXISTS settings;
             DROP TABLE IF EXISTS user_sessions;
@@ -262,27 +273,45 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             po_number TEXT NOT NULL UNIQUE,
             supplier_id INTEGER,
             user_id INTEGER,
+            warehouse_id INTEGER,
+            order_date TEXT NOT NULL DEFAULT (datetime('now')),
+            expected_delivery_date TEXT,
+            currency TEXT NOT NULL DEFAULT 'BOB',
+            payment_terms TEXT,
+            shipping_method TEXT,
+            reference_number TEXT,
+            buyer TEXT,
             subtotal REAL NOT NULL DEFAULT 0,
             tax_rate REAL NOT NULL DEFAULT 0,
             tax_amount REAL NOT NULL DEFAULT 0,
+            discount_amount REAL NOT NULL DEFAULT 0,
+            shipping_cost REAL NOT NULL DEFAULT 0,
             total REAL NOT NULL DEFAULT 0,
             status TEXT NOT NULL DEFAULT 'draft',
-            expected_delivery_date TEXT,
             notes TEXT,
+            approved_by INTEGER,
+            approved_at TEXT,
+            sent_at TEXT,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             updated_at TEXT NOT NULL DEFAULT (datetime('now')),
             FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
-            FOREIGN KEY (user_id) REFERENCES users(id)
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (warehouse_id) REFERENCES warehouses(id),
+            FOREIGN KEY (approved_by) REFERENCES users(id)
         );
 
         CREATE TABLE IF NOT EXISTS purchase_order_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             purchase_order_id INTEGER NOT NULL,
             product_id INTEGER NOT NULL,
+            supplier_sku TEXT,
             quantity INTEGER NOT NULL DEFAULT 1,
             unit_cost REAL NOT NULL DEFAULT 0,
+            discount REAL NOT NULL DEFAULT 0,
+            tax REAL NOT NULL DEFAULT 0,
             total REAL NOT NULL DEFAULT 0,
             received_quantity INTEGER NOT NULL DEFAULT 0,
+            damaged_quantity INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             updated_at TEXT NOT NULL DEFAULT (datetime('now')),
             FOREIGN KEY (purchase_order_id) REFERENCES purchase_orders(id) ON DELETE CASCADE,
@@ -473,6 +502,162 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             is_printed INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS purchase_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            request_number TEXT NOT NULL UNIQUE,
+            requested_by INTEGER,
+            warehouse_id INTEGER,
+            priority TEXT NOT NULL DEFAULT 'medium',
+            status TEXT NOT NULL DEFAULT 'draft',
+            reason TEXT,
+            required_date TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (requested_by) REFERENCES users(id),
+            FOREIGN KEY (warehouse_id) REFERENCES warehouses(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS purchase_request_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            request_id INTEGER NOT NULL,
+            product_id INTEGER NOT NULL,
+            requested_quantity INTEGER NOT NULL DEFAULT 1,
+            current_stock INTEGER NOT NULL DEFAULT 0,
+            min_stock_level INTEGER NOT NULL DEFAULT 0,
+            supplier_suggestion TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (request_id) REFERENCES purchase_requests(id) ON DELETE CASCADE,
+            FOREIGN KEY (product_id) REFERENCES products(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS purchase_receipts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            receipt_number TEXT NOT NULL UNIQUE,
+            purchase_order_id INTEGER NOT NULL,
+            received_by INTEGER,
+            warehouse_id INTEGER,
+            notes TEXT,
+            status TEXT NOT NULL DEFAULT 'pending',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (purchase_order_id) REFERENCES purchase_orders(id),
+            FOREIGN KEY (received_by) REFERENCES users(id),
+            FOREIGN KEY (warehouse_id) REFERENCES warehouses(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS purchase_receipt_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            receipt_id INTEGER NOT NULL,
+            po_item_id INTEGER NOT NULL,
+            product_id INTEGER NOT NULL,
+            expected_quantity INTEGER NOT NULL DEFAULT 0,
+            received_quantity INTEGER NOT NULL DEFAULT 0,
+            damaged_quantity INTEGER NOT NULL DEFAULT 0,
+            accepted_quantity INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (receipt_id) REFERENCES purchase_receipts(id) ON DELETE CASCADE,
+            FOREIGN KEY (po_item_id) REFERENCES purchase_order_items(id),
+            FOREIGN KEY (product_id) REFERENCES products(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS purchase_returns (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            return_number TEXT NOT NULL UNIQUE,
+            purchase_order_id INTEGER,
+            supplier_id INTEGER NOT NULL,
+            reason TEXT,
+            status TEXT NOT NULL DEFAULT 'pending',
+            created_by INTEGER,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (purchase_order_id) REFERENCES purchase_orders(id),
+            FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
+            FOREIGN KEY (created_by) REFERENCES users(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS purchase_return_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            return_id INTEGER NOT NULL,
+            product_id INTEGER NOT NULL,
+            quantity INTEGER NOT NULL DEFAULT 1,
+            unit_cost REAL NOT NULL DEFAULT 0,
+            reason TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (return_id) REFERENCES purchase_returns(id) ON DELETE CASCADE,
+            FOREIGN KEY (product_id) REFERENCES products(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS supplier_products (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            supplier_id INTEGER NOT NULL,
+            product_id INTEGER NOT NULL,
+            supplier_sku TEXT,
+            is_preferred INTEGER NOT NULL DEFAULT 0,
+            minimum_order_quantity INTEGER NOT NULL DEFAULT 1,
+            lead_time_days INTEGER NOT NULL DEFAULT 1,
+            default_cost REAL NOT NULL DEFAULT 0,
+            currency TEXT NOT NULL DEFAULT 'BOB',
+            status TEXT NOT NULL DEFAULT 'active',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE,
+            FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+            UNIQUE(supplier_id, product_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS product_cost_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL,
+            supplier_id INTEGER,
+            purchase_order_id INTEGER,
+            old_cost REAL NOT NULL DEFAULT 0,
+            new_cost REAL NOT NULL DEFAULT 0,
+            quantity INTEGER NOT NULL DEFAULT 0,
+            created_by INTEGER,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+            FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
+            FOREIGN KEY (purchase_order_id) REFERENCES purchase_orders(id),
+            FOREIGN KEY (created_by) REFERENCES users(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS credit_accounts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_id INTEGER NOT NULL UNIQUE,
+            credit_limit REAL NOT NULL DEFAULT 0,
+            current_balance REAL NOT NULL DEFAULT 0,
+            status TEXT NOT NULL DEFAULT 'active',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS credit_transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            account_id INTEGER NOT NULL,
+            amount REAL NOT NULL,
+            transaction_type TEXT NOT NULL,
+            reference_type TEXT,
+            reference_id TEXT,
+            notes TEXT,
+            created_by INTEGER,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (account_id) REFERENCES credit_accounts(id) ON DELETE CASCADE,
+            FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS communication_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_id INTEGER NOT NULL,
+            type TEXT NOT NULL DEFAULT 'note',
+            subject TEXT NOT NULL,
+            message TEXT,
+            created_by INTEGER,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+            FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
         );
         ",
     )?;

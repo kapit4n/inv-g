@@ -1,5 +1,6 @@
+import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { useLocation } from "react-router-dom"
+import { useLocation, useNavigate } from "react-router-dom"
 import {
   Bell,
   Moon,
@@ -10,6 +11,8 @@ import {
   User,
   Settings,
   ChevronDown,
+  Database,
+  Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -24,6 +27,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import type { Theme } from "@/types"
 import { useThemeStore, useSettingsStore, useAuthStore, useNotificationStore } from "@/stores"
+import { useAuth } from "@/hooks"
+import { runSeeds } from "@/lib/tauri"
 import { NotificationPanel } from "@/components/notification-panel"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
@@ -44,11 +49,14 @@ const routeNameKeys: Record<string, string> = {
 
 export function TopBar() {
   const location = useLocation()
+  const navigate = useNavigate()
   const { t } = useTranslation()
   const { theme, setTheme } = useThemeStore()
   const { setCommandPaletteOpen } = useSettingsStore()
   const { user } = useAuthStore()
+  const { logout } = useAuth()
   const { unreadCount } = useNotificationStore()
+  const [seeding, setSeeding] = useState(false)
 
   const themes = ["light", "dark", "system"] as const
 
@@ -132,7 +140,12 @@ export function TopBar() {
               <Badge variant="secondary" className="ml-auto text-[10px]">{t("common.comingSoon")}</Badge>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive focus:text-destructive">
+            <DropdownMenuItem onClick={async () => { setSeeding(true); try { await runSeeds(); alert("Seed completed!"); } catch (e) { alert("Seed failed: " + e); } finally { setSeeding(false); } }}>
+              {seeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
+              {seeding ? "Seeding..." : "Seed Demo Data"}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={async () => { await logout(); navigate("/login", { replace: true }) }}>
               <LogOut className="mr-2 h-4 w-4" />
               {t("auth.logout")}
             </DropdownMenuItem>

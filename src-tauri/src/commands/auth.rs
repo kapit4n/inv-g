@@ -120,6 +120,80 @@ pub fn login(username: String, password: String) -> Result<LoginResponse, String
 }
 
 #[tauri::command]
+pub fn login_by_role(role_name: String) -> Result<LoginResponse, String> {
+    let db = DB_STATE.get().ok_or("Database not initialized")?;
+    let conn = db.conn.lock().map_err(|e| e.to_string())?;
+
+    let role = conn.query_row(
+        "SELECT id, name FROM roles WHERE name = ?1 AND is_active = 1",
+        rusqlite::params![role_name],
+        |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)),
+    ).map_err(|_| format!("Role '{}' not found", role_name))?;
+
+    let (role_id, _role_name_str) = role;
+
+    let user_row = conn.query_row(
+        "SELECT u.id, u.username, u.email, u.password_hash, u.full_name,
+                u.role_id, u.is_active, u.created_at
+         FROM users u WHERE u.role_id = ?1 AND u.is_active = 1 LIMIT 1",
+        rusqlite::params![role_id],
+        |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, Option<i64>>(5)?,
+                row.get::<_, i64>(6)?,
+                row.get::<_, String>(7)?,
+            ))
+        },
+    ).map_err(|_| format!("No active user found for role '{}'", role_name))?;
+
+    let (user_id, user_name, email, _password_hash, full_name, user_role_id, is_active, created_at) = user_row;
+
+    let token = uuid::Uuid::new_v4().to_string();
+    let expires_at = chrono::Utc::now()
+        .checked_add_signed(chrono::Duration::hours(24))
+        .unwrap()
+        .format("%Y-%m-%d %H:%M:%S")
+        .to_string();
+
+    conn.execute(
+        "INSERT INTO user_sessions (user_id, token, expires_at) VALUES (?1, ?2, ?3)",
+        rusqlite::params![user_id, token, expires_at],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "UPDATE users SET last_login_at = datetime('now') WHERE id = ?1",
+        rusqlite::params![user_id],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details, severity)
+         VALUES (?1, 'login_test', 'user', ?2, 'Test login by role', 'info')",
+        rusqlite::params![user_id, user_id.to_string()],
+    ).ok();
+
+    let permissions = get_user_permissions(&conn, user_id, user_role_id);
+
+    let user = UserResponse {
+        id: user_id,
+        username: user_name,
+        email,
+        full_name,
+        role_id: user_role_id,
+        role_name: Some(role_name),
+        is_active: is_active == 1,
+        last_login_at: Some(chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string()),
+        created_at,
+    };
+
+    Ok(LoginResponse { user, token, permissions })
+}
+
+#[tauri::command]
 pub fn logout(token: String) -> Result<(), String> {
     let db = DB_STATE.get().ok_or("Database not initialized")?;
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
