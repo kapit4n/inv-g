@@ -142,20 +142,6 @@ pub struct ProductImage {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ProductCompatibility {
-    pub id: i64,
-    pub product_id: i64,
-    pub vehicle_brand: String,
-    pub vehicle_model: String,
-    pub year_start: Option<i64>,
-    pub year_end: Option<i64>,
-    pub engine: Option<String>,
-    pub transmission: Option<String>,
-    pub notes: Option<String>,
-    pub created_at: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct DashboardStats {
     pub total_products: i64,
     pub active_products: i64,
@@ -699,23 +685,6 @@ pub fn get_dashboard_stats(state: State<DbState>) -> Result<DashboardStats, Stri
 }
 
 #[tauri::command]
-pub fn get_product_compatibility(state: State<DbState>, product_id: i64) -> Result<Vec<ProductCompatibility>, String> {
-    let conn = get_conn(&state)?;
-    let mut stmt = conn.prepare("SELECT * FROM product_vehicle_compatibility WHERE product_id = ?1").map_err(|e| e.to_string())?;
-    let rows = stmt.query_map(params![product_id], |row| {
-        Ok(ProductCompatibility {
-            id: row.get(0)?, product_id: row.get(1)?, vehicle_brand: row.get(2)?,
-            vehicle_model: row.get(3)?, year_start: row.get(4)?, year_end: row.get(5)?,
-            engine: row.get(6)?, transmission: row.get(7)?, notes: row.get(8)?,
-            created_at: row.get(9)?,
-        })
-    }).map_err(|e| e.to_string())?;
-    let mut result = Vec::new();
-    for row in rows { result.push(row.map_err(|e| e.to_string())?); }
-    Ok(result)
-}
-
-#[tauri::command]
 pub fn get_product_images(state: State<DbState>, product_id: i64) -> Result<Vec<ProductImage>, String> {
     let conn = get_conn(&state)?;
     let mut stmt = conn.prepare("SELECT * FROM product_images WHERE product_id = ?1 ORDER BY sort_order").map_err(|e| e.to_string())?;
@@ -823,29 +792,4 @@ pub fn create_inventory_movement(state: State<DbState>, product_id: i64, warehou
     }).map_err(|e| e.to_string())
 }
 
-// ── Product Compatibility ──
 
-#[tauri::command]
-pub fn create_product_compatibility(state: State<DbState>, product_id: i64, vehicle_brand: String, vehicle_model: String, year_start: Option<i64>, year_end: Option<i64>, engine: Option<String>, transmission: Option<String>, notes: Option<String>) -> Result<ProductCompatibility, String> {
-    let conn = get_conn(&state)?;
-    conn.execute("INSERT INTO product_vehicle_compatibility (product_id, vehicle_brand, vehicle_model, year_start, year_end, engine, transmission, notes) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-        params![product_id, vehicle_brand, vehicle_model, year_start, year_end, engine, transmission, notes]).map_err(|e| e.to_string())?;
-    let id = conn.last_insert_rowid();
-    let mut stmt = conn.prepare("SELECT * FROM product_vehicle_compatibility WHERE id = ?1").map_err(|e| e.to_string())?;
-    stmt.query_row(params![id], |row| {
-        Ok(ProductCompatibility {
-            id: row.get(0)?, product_id: row.get(1)?, vehicle_brand: row.get(2)?,
-            vehicle_model: row.get(3)?, year_start: row.get(4)?, year_end: row.get(5)?,
-            engine: row.get(6)?, transmission: row.get(7)?, notes: row.get(8)?,
-            created_at: row.get(9)?,
-        })
-    }).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub fn delete_product_compatibility(state: State<DbState>, id: i64) -> Result<(), String> {
-    let conn = get_conn(&state)?;
-    conn.execute("DELETE FROM product_vehicle_compatibility WHERE id=?1", params![id])
-        .map_err(|e| e.to_string())?;
-    Ok(())
-}

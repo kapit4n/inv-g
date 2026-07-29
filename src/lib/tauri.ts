@@ -17,6 +17,10 @@ import type {
   PurchaseReturn, PurchaseReturnItem, PurchaseReturnInput,
   SupplierProduct, SupplierProductInput,
   CostHistory, ReorderSuggestion, SupplierPerformance, PurchaseDashboard,
+  VehicleBrand, VehicleModel, VehicleGeneration, VehicleEngine,
+  VehicleTransmission, VehicleFuel, CustomerVehicle,
+  CompatibilityEntry, ProductRecommendation,
+  ServiceReminder, Warranty, CustomerNote, TimelineEntry, CrmDashboard,
 } from "@/types"
 
 export async function getAppVersion(): Promise<string> {
@@ -563,4 +567,144 @@ export async function getReorderSuggestions(): Promise<ReorderSuggestion[]> {
 }
 export async function getSupplierPerformance(supplierId?: number): Promise<SupplierPerformance[]> {
   return invoke<SupplierPerformance[]>("get_supplier_performance", { supplierId })
+}
+
+// ── Vehicle Brands ──
+export async function getVehicleBrands(search?: string): Promise<VehicleBrand[]> {
+  return invoke<VehicleBrand[]>("get_vehicle_brands", { search })
+}
+export async function createVehicleBrand(name: string, description?: string, country?: string): Promise<VehicleBrand> {
+  return invoke<VehicleBrand>("create_vehicle_brand", { name, description, country })
+}
+export async function updateVehicleBrand(id: number, name: string, description?: string, country?: string): Promise<VehicleBrand> {
+  return invoke<VehicleBrand>("update_vehicle_brand", { id, name, description, country })
+}
+
+// ── Vehicle Models ──
+export async function getVehicleModels(brandId?: number, search?: string): Promise<VehicleModel[]> {
+  return invoke<VehicleModel[]>("get_vehicle_models", { brandId, search })
+}
+export async function createVehicleModel(brandId: number, name: string): Promise<VehicleModel> {
+  return invoke<VehicleModel>("create_vehicle_model", { brandId, name })
+}
+
+// ── Vehicle Generations ──
+export async function getVehicleGenerations(modelId: number): Promise<VehicleGeneration[]> {
+  return invoke<VehicleGeneration[]>("get_vehicle_generations", { modelId })
+}
+export async function createVehicleGeneration(modelId: number, name?: string, yearStart?: number, yearEnd?: number): Promise<VehicleGeneration> {
+  return invoke<VehicleGeneration>("create_vehicle_generation", { modelId, name, yearStart, yearEnd })
+}
+
+// ── Vehicle Engines ──
+export async function getVehicleEngines(search?: string): Promise<VehicleEngine[]> {
+  return invoke<VehicleEngine[]>("get_vehicle_engines", { search })
+}
+export async function createVehicleEngine(name: string, displacement?: string, power?: string, fuelType?: string): Promise<VehicleEngine> {
+  return invoke<VehicleEngine>("create_vehicle_engine", { name, displacement, power, fuelType })
+}
+
+// ── Vehicle Transmissions ──
+export async function getVehicleTransmissions(): Promise<VehicleTransmission[]> {
+  return invoke<VehicleTransmission[]>("get_vehicle_transmissions")
+}
+export async function createVehicleTransmission(name: string, type?: string, gears?: number): Promise<VehicleTransmission> {
+  return invoke<VehicleTransmission>("create_vehicle_transmission", { name, type, gears })
+}
+
+// ── Vehicle Fuels ──
+export async function getVehicleFuels(): Promise<VehicleFuel[]> {
+  return invoke<VehicleFuel[]>("get_vehicle_fuels")
+}
+export async function createVehicleFuel(name: string): Promise<VehicleFuel> {
+  return invoke<VehicleFuel>("create_vehicle_fuel", { name })
+}
+
+// ── Customer Vehicles ──
+export async function getCustomerVehicles(customerId: number): Promise<CustomerVehicle[]> {
+  return invoke<CustomerVehicle[]>("get_customer_vehicles", { customerId })
+}
+export async function getCustomerVehicle(id: number): Promise<CustomerVehicle> {
+  return invoke<CustomerVehicle>("get_customer_vehicle", { id })
+}
+export async function createCustomerVehicle(params: { customerId: number; licensePlate?: string; nickname?: string; brandId?: number; modelId?: number; generationId?: number; year?: number; engineId?: number; transmissionId?: number; fuelId?: number; vin?: string; color?: string; mileage?: number; purchaseDate?: string; notes?: string; userId: number }): Promise<CustomerVehicle> {
+  return invoke<CustomerVehicle>("create_customer_vehicle", params)
+}
+export async function updateCustomerVehicle(id: number, params: { customerId: number; licensePlate?: string; nickname?: string; brandId?: number; modelId?: number; generationId?: number; year?: number; engineId?: number; transmissionId?: number; fuelId?: number; vin?: string; color?: string; mileage?: number; purchaseDate?: string; notes?: string; userId: number }): Promise<CustomerVehicle> {
+  return invoke<CustomerVehicle>("update_customer_vehicle", { id, ...params })
+}
+export async function deleteCustomerVehicle(id: number): Promise<void> {
+  return invoke<void>("delete_customer_vehicle", { id })
+}
+
+// ── Compatibility ──
+export async function getProductCompatibility(productId: number): Promise<CompatibilityEntry[]> {
+  return invoke<CompatibilityEntry[]>("get_product_compatibility", { productId })
+}
+export async function createCompatibility(productId: number, brandId?: number, modelId?: number, generationId?: number, engineId?: number, transmissionId?: number, yearStart?: number, yearEnd?: number, notes?: string): Promise<CompatibilityEntry> {
+  return invoke<CompatibilityEntry>("create_compatibility", { productId, brandId, modelId, generationId, engineId, transmissionId, yearStart, yearEnd, notes })
+}
+export async function deleteCompatibility(id: number): Promise<void> {
+  return invoke<void>("delete_compatibility", { id })
+}
+export async function searchCompatibleProducts(brandId?: number, modelId?: number, year?: number, engineId?: number, transmissionId?: number, search?: string): Promise<ProductRecommendation[]> {
+  return invoke<ProductRecommendation[]>("search_compatible_products", { brandId, modelId, year, engineId, transmissionId, search })
+}
+export async function getRecommendationsForVehicle(brandId?: number, modelId?: number, year?: number): Promise<ProductRecommendation[]> {
+  return invoke<ProductRecommendation[]>("get_recommendations_for_vehicle", { brandId, modelId, year })
+}
+
+// ── Service Reminders ──
+export async function getServiceReminders(status?: string, customerId?: number): Promise<ServiceReminder[]> {
+  return invoke<ServiceReminder[]>("get_service_reminders", { status, customerId })
+}
+export async function getServiceReminder(id: number): Promise<ServiceReminder> {
+  return invoke<ServiceReminder>("get_service_reminder", { id })
+}
+export async function createServiceReminder(customerId: number, vehicleId: number | undefined, reminderType: string, title: string, description?: string, dueDate?: string, dueMileage?: number, notes?: string, createdBy: number): Promise<ServiceReminder> {
+  return invoke<ServiceReminder>("create_service_reminder", { customerId, vehicleId, reminderType, title, description, dueDate, dueMileage, notes, createdBy })
+}
+export async function updateServiceReminderStatus(id: number, status: string, userId: number): Promise<ServiceReminder> {
+  return invoke<ServiceReminder>("update_service_reminder_status", { id, status, userId })
+}
+export async function getOverdueReminders(): Promise<ServiceReminder[]> {
+  return invoke<ServiceReminder[]>("get_overdue_reminders")
+}
+
+// ── Warranties ──
+export async function getWarranties(customerId?: number, status?: string): Promise<Warranty[]> {
+  return invoke<Warranty[]>("get_warranties", { customerId, status })
+}
+export async function getWarranty(id: number): Promise<Warranty> {
+  return invoke<Warranty>("get_warranty", { id })
+}
+export async function createWarranty(saleId?: number, productId?: number, customerId: number, vehicleId?: number, warrantyType: string, periodMonths: number, startDate: string, notes?: string, createdBy: number): Promise<Warranty> {
+  return invoke<Warranty>("create_warranty", { saleId, productId, customerId, vehicleId, warrantyType, periodMonths, startDate, notes, createdBy })
+}
+export async function updateWarrantyStatus(id: number, status: string): Promise<Warranty> {
+  return invoke<Warranty>("update_warranty_status", { id, status })
+}
+export async function getExpiringWarranties(days: number): Promise<Warranty[]> {
+  return invoke<Warranty[]>("get_expiring_warranties", { days })
+}
+
+// ── Customer Notes ──
+export async function getCustomerNotes(customerId: number): Promise<CustomerNote[]> {
+  return invoke<CustomerNote[]>("get_customer_notes", { customerId })
+}
+export async function createCustomerNote(customerId: number, noteType: string, title?: string, content?: string, isPrivate: boolean, createdBy: number): Promise<CustomerNote> {
+  return invoke<CustomerNote>("create_customer_note", { customerId, noteType, title, content, isPrivate, createdBy })
+}
+
+// ── Customer Timeline ──
+export async function getCustomerTimeline(customerId: number): Promise<TimelineEntry[]> {
+  return invoke<TimelineEntry[]>("get_customer_timeline", { customerId })
+}
+
+// ── CRM Dashboard ──
+export async function getCrmDashboard(): Promise<CrmDashboard> {
+  return invoke<CrmDashboard>("get_crm_dashboard")
+}
+export async function getCustomersByMonth(months: number): Promise<[string, number][]> {
+  return invoke<[string, number][]>("get_customers_by_month", { months })
 }

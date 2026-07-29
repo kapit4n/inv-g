@@ -1,6 +1,6 @@
 use rusqlite::{Connection, Result};
 
-const SCHEMA_VERSION: i32 = 5;
+const SCHEMA_VERSION: i32 = 6;
 
 fn get_user_version(conn: &Connection) -> Result<i32> {
     let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
@@ -53,6 +53,18 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             DROP TABLE IF EXISTS categories;
             DROP TABLE IF EXISTS credit_transactions;
             DROP TABLE IF EXISTS credit_accounts;
+            DROP TABLE IF EXISTS service_reminders;
+            DROP TABLE IF EXISTS warranties;
+            DROP TABLE IF EXISTS customer_notes;
+            DROP TABLE IF EXISTS customer_timeline;
+            DROP TABLE IF EXISTS customer_vehicles;
+            DROP TABLE IF EXISTS vehicle_years;
+            DROP TABLE IF EXISTS vehicle_fuels;
+            DROP TABLE IF EXISTS vehicle_transmissions;
+            DROP TABLE IF EXISTS vehicle_engines;
+            DROP TABLE IF EXISTS vehicle_generations;
+            DROP TABLE IF EXISTS vehicle_models;
+            DROP TABLE IF EXISTS vehicle_brands;
             DROP TABLE IF EXISTS communication_log;
             DROP TABLE IF EXISTS audit_logs;
             DROP TABLE IF EXISTS settings;
@@ -198,14 +210,24 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
 
         CREATE TABLE IF NOT EXISTS customers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            email TEXT,
+            name TEXT NOT NULL DEFAULT '',
+            customer_code TEXT,
+            customer_type TEXT NOT NULL DEFAULT 'individual',
+            first_name TEXT,
+            last_name TEXT,
+            business_name TEXT,
+            tax_number TEXT,
             phone TEXT,
+            mobile TEXT,
+            email TEXT,
+            whatsapp TEXT,
             address TEXT,
             city TEXT,
             state TEXT,
-            postal_code TEXT,
             country TEXT DEFAULT 'ID',
+            postal_code TEXT,
+            preferred_contact TEXT,
+            preferred_language TEXT DEFAULT 'es',
             notes TEXT,
             is_active INTEGER NOT NULL DEFAULT 1,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -379,20 +401,6 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             file_path TEXT NOT NULL,
             is_primary INTEGER NOT NULL DEFAULT 0,
             sort_order INTEGER NOT NULL DEFAULT 0,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS product_vehicle_compatibility (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            product_id INTEGER NOT NULL,
-            vehicle_brand TEXT NOT NULL,
-            vehicle_model TEXT NOT NULL,
-            year_start INTEGER,
-            year_end INTEGER,
-            engine TEXT,
-            transmission TEXT,
-            notes TEXT,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
         );
@@ -646,6 +654,182 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             FOREIGN KEY (account_id) REFERENCES credit_accounts(id) ON DELETE CASCADE,
             FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS vehicle_brands (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            description TEXT,
+            country TEXT,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS vehicle_models (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            brand_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (brand_id) REFERENCES vehicle_brands(id) ON DELETE CASCADE,
+            UNIQUE(brand_id, name)
+        );
+
+        CREATE TABLE IF NOT EXISTS vehicle_generations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            model_id INTEGER NOT NULL,
+            name TEXT,
+            year_start INTEGER,
+            year_end INTEGER,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (model_id) REFERENCES vehicle_models(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS vehicle_engines (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            displacement TEXT,
+            power TEXT,
+            fuel_type TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS vehicle_transmissions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            type TEXT,
+            gears INTEGER,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS vehicle_fuels (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS customer_vehicles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_id INTEGER NOT NULL,
+            license_plate TEXT,
+            nickname TEXT,
+            brand_id INTEGER,
+            model_id INTEGER,
+            generation_id INTEGER,
+            year INTEGER,
+            engine_id INTEGER,
+            transmission_id INTEGER,
+            fuel_id INTEGER,
+            vin TEXT,
+            color TEXT,
+            mileage INTEGER DEFAULT 0,
+            purchase_date TEXT,
+            notes TEXT,
+            status TEXT NOT NULL DEFAULT 'active',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+            FOREIGN KEY (brand_id) REFERENCES vehicle_brands(id),
+            FOREIGN KEY (model_id) REFERENCES vehicle_models(id),
+            FOREIGN KEY (generation_id) REFERENCES vehicle_generations(id),
+            FOREIGN KEY (engine_id) REFERENCES vehicle_engines(id),
+            FOREIGN KEY (transmission_id) REFERENCES vehicle_transmissions(id),
+            FOREIGN KEY (fuel_id) REFERENCES vehicle_fuels(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS customer_notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_id INTEGER NOT NULL,
+            note_type TEXT NOT NULL DEFAULT 'general',
+            title TEXT,
+            content TEXT,
+            is_private INTEGER NOT NULL DEFAULT 0,
+            created_by INTEGER,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+            FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS customer_timeline (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_id INTEGER NOT NULL,
+            event_type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT,
+            reference_type TEXT,
+            reference_id TEXT,
+            created_by INTEGER,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+            FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS service_reminders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_id INTEGER NOT NULL,
+            vehicle_id INTEGER,
+            reminder_type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT,
+            due_date TEXT,
+            due_mileage INTEGER,
+            status TEXT NOT NULL DEFAULT 'pending',
+            completed_at TEXT,
+            completed_by INTEGER,
+            notes TEXT,
+            created_by INTEGER,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+            FOREIGN KEY (vehicle_id) REFERENCES customer_vehicles(id) ON DELETE SET NULL,
+            FOREIGN KEY (completed_by) REFERENCES users(id) ON DELETE SET NULL,
+            FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS warranties (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            warranty_number TEXT NOT NULL UNIQUE,
+            sale_id INTEGER,
+            product_id INTEGER,
+            customer_id INTEGER NOT NULL,
+            vehicle_id INTEGER,
+            warranty_type TEXT NOT NULL DEFAULT 'standard',
+            period_months INTEGER NOT NULL DEFAULT 12,
+            start_date TEXT NOT NULL,
+            expiration_date TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'active',
+            notes TEXT,
+            created_by INTEGER,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE SET NULL,
+            FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL,
+            FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+            FOREIGN KEY (vehicle_id) REFERENCES customer_vehicles(id) ON DELETE SET NULL,
+            FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS product_vehicle_compatibility (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL,
+            brand_id INTEGER,
+            model_id INTEGER,
+            generation_id INTEGER,
+            engine_id INTEGER,
+            transmission_id INTEGER,
+            year_start INTEGER,
+            year_end INTEGER,
+            notes TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+            FOREIGN KEY (brand_id) REFERENCES vehicle_brands(id),
+            FOREIGN KEY (model_id) REFERENCES vehicle_models(id),
+            FOREIGN KEY (generation_id) REFERENCES vehicle_generations(id),
+            FOREIGN KEY (engine_id) REFERENCES vehicle_engines(id),
+            FOREIGN KEY (transmission_id) REFERENCES vehicle_transmissions(id)
         );
 
         CREATE TABLE IF NOT EXISTS communication_log (

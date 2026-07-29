@@ -720,3 +720,213 @@ export interface AuthState {
   isAuthenticated: boolean
   isLoading: boolean
 }
+
+// ── Vehicle Types ──
+
+export interface VehicleBrand {
+  id: number
+  name: string
+  description?: string
+  country?: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface VehicleModel {
+  id: number
+  brandId: number
+  name: string
+  brandName?: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface VehicleGeneration {
+  id: number
+  modelId: number
+  name?: string
+  yearStart?: number
+  yearEnd?: number
+  createdAt: string
+}
+
+export interface VehicleEngine {
+  id: number
+  name: string
+  displacement?: string
+  power?: string
+  fuelType?: string
+  createdAt: string
+}
+
+export interface VehicleTransmission {
+  id: number
+  name: string
+  type?: string
+  gears?: number
+  createdAt: string
+}
+
+export interface VehicleFuel {
+  id: number
+  name: string
+  createdAt: string
+}
+
+export interface CustomerVehicle {
+  id: number
+  customerId: number
+  licensePlate?: string
+  nickname?: string
+  brandId?: number
+  modelId?: number
+  generationId?: number
+  year?: number
+  engineId?: number
+  transmissionId?: number
+  fuelId?: number
+  vin?: string
+  color?: string
+  mileage: number
+  purchaseDate?: string
+  notes?: string
+  status: string
+  createdAt: string
+  updatedAt: string
+  brandName?: string
+  modelName?: string
+  engineName?: string
+  transmissionName?: string
+  fuelName?: string
+  customerName?: string
+}
+
+export interface CompatibilityEntry {
+  id: number
+  productId: number
+  productName?: string
+  productSku?: string
+  brandId?: number
+  brandName?: string
+  modelId?: number
+  modelName?: string
+  generationId?: number
+  generationName?: string
+  engineId?: number
+  engineName?: string
+  transmissionId?: number
+  transmissionName?: string
+  yearStart?: number
+  yearEnd?: number
+  notes?: string
+  createdAt: string
+}
+
+export interface ProductRecommendation {
+  productId: number
+  productName: string
+  productSku: string
+  salePrice: number
+  stockQuantity: number
+  categoryName?: string
+  brandName?: string
+  compatibilityCount: number
+}
+
+export interface ServiceReminder {
+  id: number
+  customerId: number
+  vehicleId?: number
+  reminderType: string
+  title: string
+  description?: string
+  dueDate?: string
+  dueMileage?: number
+  status: string
+  completedAt?: string
+  completedBy?: number
+  completedByName?: string
+  notes?: string
+  createdBy?: number
+  createdByName?: string
+  createdAt: string
+  updatedAt: string
+  customerName?: string
+  vehicleInfo?: string
+}
+
+export interface Warranty {
+  id: number
+  warrantyNumber: string
+  saleId?: number
+  productId?: number
+  customerId: number
+  vehicleId?: number
+  warrantyType: string
+  periodMonths: number
+  startDate: string
+  expirationDate: string
+  status: string
+  notes?: string
+  createdBy?: number
+  createdAt: string
+  updatedAt: string
+  productName?: string
+  customerName?: string
+  vehicleInfo?: string
+  saleNumber?: string
+}
+
+export interface CustomerNote {
+  id: number
+  customerId: number
+  noteType: string
+  title?: string
+  content?: string
+  isPrivate: boolean
+  createdBy?: number
+  createdByName?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TimelineEntry {
+  id: number
+  customerId: number
+  eventType: string
+  title: string
+  description?: string
+  referenceType?: string
+  referenceId?: string
+  createdBy?: number
+  createdByName?: string
+  createdAt: string
+}
+
+export interface CrmDashboard {
+  totalCustomers: number
+  newCustomersMonth: number
+  activeCustomers: number
+  workshops: number
+  fleetCompanies: number
+  vehiclesRegistered: number
+  upcomingReminders: number
+  expiredWarranties: number
+  customersWithCredit: number
+  lifetimeRevenue: number
+  customersByType: [string, number][]
+  vehicleBrands: [string, number][]
+  topCustomers: [string, number][]
+}
+
+export interface CustomerType {
+  id: number
+  customerId: number
+  type: string
+  companyName?: string
+  rnc?: string
+  commercialName?: string
+  createdAt: string
+}

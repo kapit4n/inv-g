@@ -27,9 +27,9 @@ import {
   CostHistoryPage,
   ReorderSuggestionsPage,
 } from "@/features/purchases"
+import { CrmDashboardPage, CrmCustomersPage, CrmCustomerDetailPage, CrmVehiclesPage, CrmCompatibilityPage, CrmRemindersPage, CrmWarrantiesPage, CrmCreditPage, CrmNotesPage } from "@/features/crm"
 import { CustomersPage, CustomerDetailPage } from "@/features/customers"
 import { SuppliersPage } from "@/features/suppliers"
-import { VehiclesPage } from "@/features/vehicles"
 import { WarehousePage } from "@/features/warehouse"
 import { ReportsPage } from "@/features/reports"
 import { EmployeesPage } from "@/features/employees"
@@ -61,6 +61,15 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: "dashboard", element: <DashboardPage /> },
+      { path: "crm", element: <CrmDashboardPage /> },
+      { path: "crm/customers", element: <CrmCustomersPage /> },
+      { path: "crm/customers/:id", element: <CrmCustomerDetailPage /> },
+      { path: "crm/vehicles", element: <CrmVehiclesPage /> },
+      { path: "crm/compatibility", element: <CrmCompatibilityPage /> },
+      { path: "crm/reminders", element: <CrmRemindersPage /> },
+      { path: "crm/warranties", element: <CrmWarrantiesPage /> },
+      { path: "crm/credit", element: <CrmCreditPage /> },
+      { path: "crm/notes", element: <CrmNotesPage /> },
       { path: "inventory", element: <InventoryDashboardPage /> },
       { path: "inventory/categories", element: <CategoriesPage /> },
       { path: "inventory/categories/new", element: <CategoryFormPage /> },

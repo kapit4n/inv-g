@@ -106,10 +106,27 @@
 - [x] Credit accounts
 - [x] Communication log
 
-## Milestone 9: Reports & Analytics
+## Milestone 9: CRM & Vehicles ✅
+**Status:** Complete
+**Complexity:** High
+**Dependencies:** Milestone 6, 7, 8
+
+### Tasks
+- [x] CRM dashboard with aggregated stats and charts
+- [x] Customer management with notes, timeline, and credit accounts
+- [x] Vehicle catalog (brands, models, generations, engines, transmissions, fuels)
+- [x] Customer vehicle registry with detailed specs
+- [x] Product-vehicle compatibility system with recommendations
+- [x] Service reminders with mileage/date tracking
+- [x] Warranty management with expiration monitoring
+- [x] Full sidebar navigation restructuring for CRM module
+- [x] i18n keys (es/en) for all CRM UI text
+- [x] Seed data permissions for new modules across 6 roles
+
+## Milestone 10: Reports & Analytics
 **Status:** Pending
 **Complexity:** Medium
-**Dependencies:** Milestone 6, 7, 8
+**Dependencies:** Milestone 6, 7, 8, 9
 
 ### Tasks
 - [ ] Sales reports (daily, weekly, monthly)
@@ -120,7 +137,7 @@
 - [ ] Chart visualizations
 - [ ] Export to PDF/CSV
 
-## Milestone 10: Settings & Configuration
+## Milestone 11: Settings & Configuration
 **Status:** Pending
 **Complexity:** Low
 **Dependencies:** Milestone 3
@@ -133,7 +150,7 @@
 - [ ] Backup and restore
 - [ ] Appearance settings
 
-## Milestone 11: Polish & Optimization
+## Milestone 12: Polish & Optimization
 **Status:** Pending
 **Complexity:** Medium
 **Dependencies:** All previous milestones
@@ -147,10 +164,10 @@
 - [ ] Offline mode refinement
 - [ ] Auto-updates
 
-## Milestone 12: Advanced Features
+## Milestone 13: Advanced Features
 **Status:** Pending
 **Complexity:** High
-**Dependencies:** Milestone 11
+**Dependencies:** Milestone 12
 
 ### Tasks
 - [ ] Multi-warehouse support

@@ -6,6 +6,7 @@ import {
   ChevronLeft, ChevronRight, ChevronDown, ChevronRight as ChevronRightIcon,
   Layers, Tag, Cog, Briefcase, MapPin, Box, ArrowUpDown,
   FileText, RotateCcw, DollarSign, Printer, Receipt,
+  GitCompare, BellRing, ShieldCheck, CreditCard, StickyNote,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -63,14 +64,19 @@ const navigation: NavItemConfig[] = [
     ],
   },
   {
-    nameKey: "customers.title", href: "/customers", icon: Users,
+    nameKey: "crm.title", href: "/crm", icon: Users,
     children: [
-      { nameKey: "customers.all", href: "/customers", icon: Users },
-      { nameKey: "customers.creditAccounts", href: "/customers/credit-accounts", icon: DollarSign },
+      { nameKey: "crm.dashboard", href: "/crm", icon: LayoutDashboard },
+      { nameKey: "crm.customers", href: "/crm/customers", icon: Users },
+      { nameKey: "crm.vehicles", href: "/crm/vehicles", icon: Car },
+      { nameKey: "crm.compatibility", href: "/crm/compatibility", icon: GitCompare },
+      { nameKey: "crm.reminders", href: "/crm/reminders", icon: BellRing },
+      { nameKey: "crm.warranties", href: "/crm/warranties", icon: ShieldCheck },
+      { nameKey: "crm.credit", href: "/crm/credit", icon: CreditCard },
+      { nameKey: "crm.notes", href: "/crm/notes", icon: StickyNote },
     ],
   },
   { nameKey: "suppliers.title", href: "/suppliers", icon: Truck },
-  { nameKey: "vehicles.title", href: "/vehicles", icon: Car },
   { nameKey: "warehouse.title", href: "/warehouse", icon: Warehouse },
 ]
 

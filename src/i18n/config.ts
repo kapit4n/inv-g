@@ -17,6 +17,7 @@ import esEmployees from "./locales/es/employees.json"
 import esValidation from "./locales/es/validation.json"
 import esErrors from "./locales/es/errors.json"
 import esHelp from "./locales/es/help.json"
+import esCrm from "./locales/es/crm.json"
 
 import enCommon from "./locales/en/common.json"
 import enDashboard from "./locales/en/dashboard.json"
@@ -34,6 +35,7 @@ import enEmployees from "./locales/en/employees.json"
 import enValidation from "./locales/en/validation.json"
 import enErrors from "./locales/en/errors.json"
 import enHelp from "./locales/en/help.json"
+import enCrm from "./locales/en/crm.json"
 
 const resources = {
   es: {
@@ -53,6 +55,7 @@ const resources = {
     validation: esValidation,
     errors: esErrors,
     help: esHelp,
+    crm: esCrm,
   },
   en: {
     common: enCommon,
@@ -71,6 +74,7 @@ const resources = {
     validation: enValidation,
     errors: enErrors,
     help: enHelp,
+    crm: enCrm,
   },
 }
 
@@ -85,7 +89,7 @@ export function setupI18n(language?: string) {
       ns: [
         "common", "dashboard", "inventory", "sales", "purchases",
         "customers", "suppliers", "vehicles", "warehouse", "reports",
-        "settings", "auth", "employees", "validation", "errors", "help",
+        "settings", "auth", "employees", "validation", "errors", "help", "crm",
       ],
       nsSeparator: ".",
       interpolation: {

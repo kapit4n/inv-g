@@ -81,6 +81,34 @@ pub struct CommunicationEntry {
     pub created_at: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CustomerNote {
+    pub id: i64,
+    pub customer_id: i64,
+    pub note_type: String,
+    pub title: Option<String>,
+    pub content: Option<String>,
+    pub is_private: bool,
+    pub created_by: Option<i64>,
+    pub created_by_name: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TimelineEntry {
+    pub id: i64,
+    pub customer_id: i64,
+    pub event_type: String,
+    pub title: String,
+    pub description: Option<String>,
+    pub reference_type: Option<String>,
+    pub reference_id: Option<String>,
+    pub created_by: Option<i64>,
+    pub created_by_name: Option<String>,
+    pub created_at: String,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct CommunicationInput {
     pub customer_id: i64,
@@ -507,4 +535,119 @@ pub fn create_communication(input: CommunicationInput, created_by: i64) -> Resul
     ).map_err(|e| e.to_string())?;
 
     Ok(row)
+}
+
+fn row_to_customer_note(row: &rusqlite::Row) -> rusqlite::Result<CustomerNote> {
+    Ok(CustomerNote {
+        id: row.get(0)?,
+        customer_id: row.get(1)?,
+        note_type: row.get(2)?,
+        title: row.get(3)?,
+        content: row.get(4)?,
+        is_private: row.get::<_, i64>(5)? != 0,
+        created_by: row.get(6)?,
+        created_by_name: row.get(7)?,
+        created_at: row.get(8)?,
+        updated_at: row.get(9)?,
+    })
+}
+
+fn row_to_timeline_entry(row: &rusqlite::Row) -> rusqlite::Result<TimelineEntry> {
+    Ok(TimelineEntry {
+        id: row.get(0)?,
+        customer_id: row.get(1)?,
+        event_type: row.get(2)?,
+        title: row.get(3)?,
+        description: row.get(4)?,
+        reference_type: row.get(5)?,
+        reference_id: row.get(6)?,
+        created_by: row.get(7)?,
+        created_by_name: row.get(8)?,
+        created_at: row.get(9)?,
+    })
+}
+
+pub(crate) fn add_timeline_entry(
+    customer_id: i64,
+    event_type: &str,
+    title: &str,
+    description: Option<&str>,
+    reference_type: Option<&str>,
+    reference_id: Option<&str>,
+    created_by: Option<i64>,
+) -> Result<(), String> {
+    let db = DB_STATE.get().ok_or("Database not initialized")?;
+    let conn = db.conn.lock().map_err(|e| e.to_string())?;
+
+    map_err!(conn.execute(
+        "INSERT INTO customer_timeline (customer_id, event_type, title, description, reference_type, reference_id, created_by) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        rusqlite::params![customer_id, event_type, title, description, reference_type, reference_id, created_by],
+    ))?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_customer_notes(customer_id: i64) -> Result<Vec<CustomerNote>, String> {
+    let db = DB_STATE.get().ok_or("Database not initialized")?;
+    let conn = db.conn.lock().map_err(|e| e.to_string())?;
+
+    let mut stmt = map_err!(conn.prepare(
+        "SELECT cn.id, cn.customer_id, cn.note_type, cn.title, cn.content, cn.is_private, cn.created_by, u.full_name AS created_by_name, cn.created_at, cn.updated_at FROM customer_notes cn LEFT JOIN users u ON u.id = cn.created_by WHERE cn.customer_id = ?1 ORDER BY cn.created_at DESC"
+    ))?;
+    let rows = map_err!(stmt.query_map(rusqlite::params![customer_id], row_to_customer_note))?;
+    let mut result = Vec::new();
+    for row in rows {
+        result.push(map_err!(row)?);
+    }
+    Ok(result)
+}
+
+#[tauri::command]
+pub fn create_customer_note(
+    customer_id: i64,
+    note_type: String,
+    title: Option<String>,
+    content: Option<String>,
+    is_private: bool,
+    created_by: i64,
+) -> Result<CustomerNote, String> {
+    let db = DB_STATE.get().ok_or("Database not initialized")?;
+    let conn = db.conn.lock().map_err(|e| e.to_string())?;
+
+    map_err!(conn.execute(
+        "INSERT INTO customer_notes (customer_id, note_type, title, content, is_private, created_by) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        rusqlite::params![customer_id, note_type, title, content, if is_private { 1 } else { 0 }, created_by],
+    ))?;
+
+    let new_id = conn.last_insert_rowid();
+
+    map_err!(conn.execute(
+        "INSERT INTO customer_timeline (customer_id, event_type, title, description, created_by) VALUES (?1, 'note_added', ?2, ?3, ?4)",
+        rusqlite::params![customer_id, format!("Note Added: {}", title.as_deref().unwrap_or("Untitled")), content.as_deref(), created_by],
+    ))?;
+
+    let row = conn.query_row(
+        "SELECT cn.id, cn.customer_id, cn.note_type, cn.title, cn.content, cn.is_private, cn.created_by, u.full_name AS created_by_name, cn.created_at, cn.updated_at FROM customer_notes cn LEFT JOIN users u ON u.id = cn.created_by WHERE cn.id = ?1",
+        rusqlite::params![new_id],
+        row_to_customer_note,
+    ).map_err(|e| e.to_string())?;
+
+    Ok(row)
+}
+
+#[tauri::command]
+pub fn get_customer_timeline(customer_id: i64) -> Result<Vec<TimelineEntry>, String> {
+    let db = DB_STATE.get().ok_or("Database not initialized")?;
+    let conn = db.conn.lock().map_err(|e| e.to_string())?;
+
+    let mut stmt = map_err!(conn.prepare(
+        "SELECT ct.id, ct.customer_id, ct.event_type, ct.title, ct.description, ct.reference_type, ct.reference_id, ct.created_by, u.full_name AS created_by_name, ct.created_at FROM customer_timeline ct LEFT JOIN users u ON u.id = ct.created_by WHERE ct.customer_id = ?1 ORDER BY ct.created_at DESC"
+    ))?;
+    let rows = map_err!(stmt.query_map(rusqlite::params![customer_id], row_to_timeline_entry))?;
+    let mut result = Vec::new();
+    for row in rows {
+        result.push(map_err!(row)?);
+    }
+    Ok(result)
 }
