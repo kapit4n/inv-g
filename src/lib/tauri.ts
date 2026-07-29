@@ -1,5 +1,16 @@
 import { invoke } from "@tauri-apps/api/core"
-import type { LoginResponse, SessionInfo, AppSetting } from "@/types"
+import type {
+  LoginResponse, SessionInfo, AppSetting,
+  AdminUser, AdminRole, AdminPermission, RoleWithPermissions,
+  AdminDashboard, UserActivityPoint, DbGrowthPoint,
+  BackupRecord, RestoreRecord,
+  PrinterSetting, PrinterInput, DeviceSetting, DeviceInput,
+  AdminAppSetting, SettingCategory,
+  DatabaseStats, TableInfo, MigrationInfo,
+  DiagnosticCheck, DiagnosticReport,
+  AuditEvent, AuditFilter,
+  SystemUpdate, LicenseInfo, MaintenanceLog,
+} from "@/types"
 import type {
   InventoryCategory, Brand, Manufacturer, InventorySupplier,
   Warehouse, StorageLocation, InventoryProduct, ProductImage,
@@ -913,4 +924,378 @@ export async function getDashboardPreferences(userId: number): Promise<string> {
 }
 export async function saveDashboardPreferences(userId: number, widgets: string): Promise<void> {
   return invoke<void>("save_dashboard_preferences", { userId, widgets })
+}
+
+// ── Admin Dashboard ──
+
+export async function getAdminDashboard(): Promise<AdminDashboard> {
+  return invoke<AdminDashboard>("get_admin_dashboard")
+}
+
+export async function getUserActivityChart(days?: number): Promise<UserActivityPoint[]> {
+  return invoke<UserActivityPoint[]>("get_user_activity_chart", { days })
+}
+
+export async function getDatabaseGrowthChart(days?: number): Promise<DbGrowthPoint[]> {
+  return invoke<DbGrowthPoint[]>("get_database_growth_chart", { days })
+}
+
+export async function getRecentAuditEvents(limit?: number): Promise<AuditEvent[]> {
+  return invoke<AuditEvent[]>("get_recent_audit_events", { limit })
+}
+
+// ── Admin Users ──
+
+export async function getAdminUsers(search?: string, roleId?: number, isActive?: boolean, page?: number, pageSize?: number): Promise<AdminUser[]> {
+  return invoke<AdminUser[]>("get_admin_users", { search, roleId, isActive, page, pageSize })
+}
+
+export async function getAdminUser(id: number): Promise<AdminUser> {
+  return invoke<AdminUser>("get_admin_user", { id })
+}
+
+export async function createAdminUser(input: { username: string; email: string; password: string; fullName: string; phone?: string; roleId?: number; notes?: string }, createdBy: number): Promise<AdminUser> {
+  return invoke<AdminUser>("create_admin_user", { input, createdBy })
+}
+
+export async function updateAdminUser(input: { id: number; username?: string; email?: string; fullName?: string; phone?: string; roleId?: number; isActive?: boolean; notes?: string }): Promise<AdminUser> {
+  return invoke<AdminUser>("update_admin_user", { input })
+}
+
+export async function archiveAdminUser(id: number): Promise<void> {
+  return invoke<void>("archive_admin_user", { id })
+}
+
+export async function restoreAdminUser(id: number): Promise<void> {
+  return invoke<void>("restore_admin_user", { id })
+}
+
+export async function resetUserPassword(id: number, newPassword: string, requireChange: boolean): Promise<void> {
+  return invoke<void>("reset_user_password", { id, newPassword, requireChange })
+}
+
+export async function lockUserAccount(id: number, durationMinutes?: number): Promise<void> {
+  return invoke<void>("lock_user_account", { id, durationMinutes })
+}
+
+export async function unlockUserAccount(id: number): Promise<void> {
+  return invoke<void>("unlock_user_account", { id })
+}
+
+export async function getUserSessions(userId: number): Promise<{ id: number; user_id: number; token: string; expires_at: string; is_active: boolean; created_at: string }[]> {
+  return invoke<{ id: number; user_id: number; token: string; expires_at: string; is_active: boolean; created_at: string }[]>("get_user_sessions", { userId })
+}
+
+export async function revokeUserSession(sessionId: number): Promise<void> {
+  return invoke<void>("revoke_user_session", { sessionId })
+}
+
+export async function getTotalUserCount(): Promise<number> {
+  return invoke<number>("get_total_user_count")
+}
+
+// ── Admin Roles ──
+
+export async function getAdminRoles(search?: string): Promise<AdminRole[]> {
+  return invoke<AdminRole[]>("get_admin_roles", { search })
+}
+
+export async function getAdminRole(id: number): Promise<RoleWithPermissions> {
+  return invoke<RoleWithPermissions>("get_admin_role", { id })
+}
+
+export async function getAllPermissions(search?: string, group?: string): Promise<AdminPermission[]> {
+  return invoke<AdminPermission[]>("get_all_permissions", { search, group })
+}
+
+export async function getPermissionGroups(): Promise<string[]> {
+  return invoke<string[]>("get_permission_groups")
+}
+
+export async function createAdminRole(input: { name: string; description?: string; permissions: string[] }): Promise<AdminRole> {
+  return invoke<AdminRole>("create_admin_role", { input })
+}
+
+export async function updateAdminRole(input: { id: number; name?: string; description?: string; isActive?: boolean; permissions: string[] }): Promise<AdminRole> {
+  return invoke<AdminRole>("update_admin_role", { input })
+}
+
+export async function cloneAdminRole(id: number, newName: string): Promise<AdminRole> {
+  return invoke<AdminRole>("clone_admin_role", { id, newName })
+}
+
+export async function archiveAdminRole(id: number): Promise<void> {
+  return invoke<void>("archive_admin_role", { id })
+}
+
+export async function assignPermissionsToRole(roleId: number, permissionKeys: string[]): Promise<void> {
+  return invoke<void>("assign_permissions_to_role", { roleId, permissionKeys })
+}
+
+export async function bulkAssignPermissions(roleIds: number[], permissionKeys: string[], assign: boolean): Promise<void> {
+  return invoke<void>("bulk_assign_permissions", { roleIds, permissionKeys, assign })
+}
+
+// ── Admin Settings ──
+
+export async function getAppSettings(category?: string): Promise<AdminAppSetting[]> {
+  return invoke<AdminAppSetting[]>("get_app_settings", { category })
+}
+
+export async function getSettingCategories(): Promise<SettingCategory[]> {
+  return invoke<SettingCategory[]>("get_setting_categories")
+}
+
+export async function updateAppSetting(key: string, value: string): Promise<void> {
+  return invoke<void>("update_app_setting", { input: { key, value } })
+}
+
+export async function updateAppSettingsBulk(settings: { key: string; value: string }[]): Promise<void> {
+  return invoke<void>("update_app_settings_bulk", { settings })
+}
+
+export async function getSettingHistory(key: string): Promise<{ id: number; user_id?: number; username: string; action: string; details?: string; created_at: string }[]> {
+  return invoke<{ id: number; user_id?: number; username: string; action: string; details?: string; created_at: string }[]>("get_setting_history", { key })
+}
+
+export async function resetSettingToDefault(key: string): Promise<void> {
+  return invoke<void>("reset_setting_to_default", { key })
+}
+
+// ── Admin Printers ──
+
+export async function getPrinters(printerType?: string): Promise<PrinterSetting[]> {
+  return invoke<PrinterSetting[]>("get_printers", { printerType })
+}
+
+export async function createPrinter(input: PrinterInput): Promise<PrinterSetting> {
+  return invoke<PrinterSetting>("create_printer", { input })
+}
+
+export async function updatePrinter(id: number, input: PrinterInput): Promise<PrinterSetting> {
+  return invoke<PrinterSetting>("update_printer", { id, input })
+}
+
+export async function deletePrinter(id: number): Promise<void> {
+  return invoke<void>("delete_printer", { id })
+}
+
+export async function setDefaultPrinter(id: number): Promise<void> {
+  return invoke<void>("set_default_printer", { id })
+}
+
+export async function testPrinter(id: number): Promise<string> {
+  return invoke<string>("test_printer", { id })
+}
+
+export async function getPrinterTypes(): Promise<string[]> {
+  return invoke<string[]>("get_printer_types")
+}
+
+// ── Admin Devices ──
+
+export async function getDevices(deviceType?: string): Promise<DeviceSetting[]> {
+  return invoke<DeviceSetting[]>("get_devices", { deviceType })
+}
+
+export async function createDevice(input: DeviceInput): Promise<DeviceSetting> {
+  return invoke<DeviceSetting>("create_device", { input })
+}
+
+export async function updateDevice(id: number, input: DeviceInput): Promise<DeviceSetting> {
+  return invoke<DeviceSetting>("update_device", { id, input })
+}
+
+export async function deleteDevice(id: number): Promise<void> {
+  return invoke<void>("delete_device", { id })
+}
+
+export async function testDevice(id: number): Promise<string> {
+  return invoke<string>("test_device", { id })
+}
+
+export async function getDeviceTypes(): Promise<string[]> {
+  return invoke<string[]>("get_device_types")
+}
+
+// ── Admin Backups ──
+
+export async function getBackupHistory(limit?: number): Promise<BackupRecord[]> {
+  return invoke<BackupRecord[]>("get_backup_history", { limit })
+}
+
+export async function createBackup(backupType: string, notes?: string, createdBy?: number): Promise<BackupRecord> {
+  return invoke<BackupRecord>("create_backup", { backupType, notes, createdBy })
+}
+
+export async function deleteBackup(id: number): Promise<void> {
+  return invoke<void>("delete_backup", { id })
+}
+
+export async function getRestoreHistory(limit?: number): Promise<RestoreRecord[]> {
+  return invoke<RestoreRecord[]>("get_restore_history", { limit })
+}
+
+export async function getScheduledBackupConfig(): Promise<Record<string, string>> {
+  return invoke<Record<string, string>>("get_scheduled_backup_config")
+}
+
+export async function saveScheduledBackupConfig(config: Record<string, string>): Promise<void> {
+  return invoke<void>("save_scheduled_backup_config", { config })
+}
+
+export async function getBackupStats(): Promise<{ total_backups: number; total_size_bytes: number; total_size_mb: string; last_backup?: string }> {
+  return invoke<{ total_backups: number; total_size_bytes: number; total_size_mb: string; last_backup?: string }>("get_backup_stats")
+}
+
+// ── Admin Database ──
+
+export async function getDatabaseStats(): Promise<DatabaseStats> {
+  return invoke<DatabaseStats>("get_database_stats")
+}
+
+export async function getTableSizes(): Promise<TableInfo[]> {
+  return invoke<TableInfo[]>("get_table_sizes")
+}
+
+export async function vacuumDatabase(): Promise<string> {
+  return invoke<string>("vacuum_database")
+}
+
+export async function optimizeDatabase(): Promise<string> {
+  return invoke<string>("optimize_database")
+}
+
+export async function checkDatabaseIntegrity(): Promise<string> {
+  return invoke<string>("check_database_integrity")
+}
+
+export async function getMigrationStatus(): Promise<MigrationInfo[]> {
+  return invoke<MigrationInfo[]>("get_migration_status")
+}
+
+export async function reindexDatabase(): Promise<string> {
+  return invoke<string>("reindex_database")
+}
+
+// ── Admin Diagnostics ──
+
+export async function runDiagnostics(): Promise<DiagnosticCheck[]> {
+  return invoke<DiagnosticCheck[]>("run_diagnostics")
+}
+
+export async function getDiagnosticHistory(limit?: number): Promise<DiagnosticReport[]> {
+  return invoke<DiagnosticReport[]>("get_diagnostic_history", { limit })
+}
+
+export async function saveDiagnosticReport(reportType: string, status: string, summary: string, details: unknown, createdBy: number): Promise<void> {
+  return invoke<void>("save_diagnostic_report", { reportType, status, summary, details, createdBy })
+}
+
+export async function getDiagnosticSummary(): Promise<{ healthy: number; warning: number; critical: number; total: number; last_report?: string }> {
+  return invoke<{ healthy: number; warning: number; critical: number; total: number; last_report?: string }>("get_diagnostic_summary")
+}
+
+export async function getSystemLogs(lines?: number): Promise<string> {
+  return invoke<string>("get_system_logs", { lines })
+}
+
+export async function getSupportPackage(): Promise<string> {
+  return invoke<string>("get_support_package")
+}
+
+// ── Admin Audit ──
+
+export async function getAuditEvents(filter?: AuditFilter, page?: number, pageSize?: number): Promise<AuditEvent[]> {
+  return invoke<AuditEvent[]>("get_audit_events", { filter, page, pageSize })
+}
+
+export async function getAuditEvent(id: number): Promise<AuditEvent> {
+  return invoke<AuditEvent>("get_audit_event", { id })
+}
+
+export async function getAuditSummary(): Promise<{ total_events: number; by_severity: Record<string, number>; by_action: Record<string, number>; by_entity_type: Record<string, number> }> {
+  return invoke<{ total_events: number; by_severity: Record<string, number>; by_action: Record<string, number>; by_entity_type: Record<string, number> }>("get_audit_summary")
+}
+
+export async function getAuditTimeline(days?: number): Promise<{ date: string; count: number }[]> {
+  return invoke<{ date: string; count: number }[]>("get_audit_timeline", { days })
+}
+
+export async function getAuditByAction(): Promise<{ action: string; count: number; last_occurrence: string }[]> {
+  return invoke<{ action: string; count: number; last_occurrence: string }[]>("get_audit_by_action")
+}
+
+export async function getAuditByUser(days?: number): Promise<{ user_id: number; username: string; full_name: string; count: number; last_activity: string }[]> {
+  return invoke<{ user_id: number; username: string; full_name: string; count: number; last_activity: string }[]>("get_audit_by_user", { days })
+}
+
+export async function exportAuditLogs(filter?: AuditFilter): Promise<string> {
+  return invoke<string>("export_audit_logs", { filter })
+}
+
+// ── Admin Updates ──
+
+export async function getSystemUpdates(): Promise<SystemUpdate[]> {
+  return invoke<SystemUpdate[]>("get_system_updates")
+}
+
+export async function checkForUpdates(): Promise<{ current_version: string; latest_version: string; has_update: boolean }> {
+  return invoke<{ current_version: string; latest_version: string; has_update: boolean }>("check_for_updates")
+}
+
+export async function getCurrentVersion(): Promise<string> {
+  return invoke<string>("get_current_version")
+}
+
+export async function recordUpdateAvailable(version: string, releaseNotes?: string, downloadUrl?: string): Promise<void> {
+  return invoke<void>("record_update_available", { version, releaseNotes, downloadUrl })
+}
+
+export async function markUpdateInstalled(updateId: number, installedBy: number): Promise<void> {
+  return invoke<void>("mark_update_installed", { updateId, installedBy })
+}
+
+// ── Admin License ──
+
+export async function getLicenseInfo(): Promise<LicenseInfo | null> {
+  return invoke<LicenseInfo | null>("get_license_info")
+}
+
+export async function saveLicense(input: { licenseKey: string; licenseType: string; companyName?: string; contactName?: string; contactEmail?: string; maxUsers: number; maxStores: number; features: string; activationDate?: string; expirationDate?: string }): Promise<LicenseInfo> {
+  return invoke<LicenseInfo>("save_license", { input })
+}
+
+export async function activateLicense(licenseKey: string): Promise<LicenseInfo> {
+  return invoke<LicenseInfo>("activate_license", { licenseKey })
+}
+
+export async function deactivateLicense(): Promise<void> {
+  return invoke<void>("deactivate_license")
+}
+
+export async function validateLicense(): Promise<{ valid: boolean; status: string; expiration_date?: string; expired: boolean }> {
+  return invoke<{ valid: boolean; status: string; expiration_date?: string; expired: boolean }>("validate_license")
+}
+
+// ── Admin Maintenance ──
+
+export async function getMaintenanceLogs(limit?: number): Promise<MaintenanceLog[]> {
+  return invoke<MaintenanceLog[]>("get_maintenance_logs", { limit })
+}
+
+export async function runMaintenance(operation: string, createdBy: number): Promise<{ operation: string; status: string; details: string; duration_ms: number; affected_rows: number; error?: string }> {
+  return invoke<{ operation: string; status: string; details: string; duration_ms: number; affected_rows: number; error?: string }>("run_maintenance", { operation, createdBy })
+}
+
+export async function clearAuditLogs(beforeDays: number): Promise<number> {
+  return invoke<number>("clear_audit_logs", { beforeDays })
+}
+
+export async function getStorageInfo(): Promise<{ database_size_bytes: number; database_size_mb: string; backup_count: number; backup_total_size_bytes: number; backup_total_size_mb: string; audit_log_count: number; log_size_bytes: number; log_size_mb: string }> {
+  return invoke<{ database_size_bytes: number; database_size_mb: string; backup_count: number; backup_total_size_bytes: number; backup_total_size_mb: string; audit_log_count: number; log_size_bytes: number; log_size_mb: string }>("get_storage_info")
+}
+
+export async function getSystemInfo(): Promise<{ app_version: string; db_version: number; operating_system: string; architecture: string; hostname: string; timestamp: string }> {
+  return invoke<{ app_version: string; db_version: number; operating_system: string; architecture: string; hostname: string; timestamp: string }>("get_system_info")
 }

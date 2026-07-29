@@ -37,6 +37,14 @@ import {
   ReportsProfitabilityPage, ReportsKpiPage, ReportsCustomPage,
   ReportsScheduledPage, ReportsExportsPage,
 } from "@/features/reports"
+import {
+  AdminDashboardPage, AdminUsersPage, AdminUserFormPage,
+  AdminRolesPage, AdminRoleFormPage, AdminSettingsPage,
+  AdminPrintersPage, AdminDevicesPage, AdminBackupsPage,
+  AdminRestorePage, AdminDatabasePage, AdminDiagnosticsPage,
+  AdminAuditPage, AdminUpdatesPage, AdminLicensePage,
+  AdminMaintenancePage, AdminAboutPage,
+} from "@/features/admin"
 import { EmployeesPage } from "@/features/employees"
 import { SettingsPage } from "@/features/settings"
 import { HelpPage } from "@/features/help"
@@ -140,6 +148,26 @@ export const router = createBrowserRouter([
       { path: "reports/custom", element: <ReportsCustomPage /> },
       { path: "reports/scheduled", element: <ReportsScheduledPage /> },
       { path: "reports/exports", element: <ReportsExportsPage /> },
+      // ── Admin ──
+      { path: "admin", element: <AdminDashboardPage /> },
+      { path: "admin/users", element: <AdminUsersPage /> },
+      { path: "admin/users/new", element: <AdminUserFormPage /> },
+      { path: "admin/users/:id/edit", element: <AdminUserFormPage /> },
+      { path: "admin/roles", element: <AdminRolesPage /> },
+      { path: "admin/roles/new", element: <AdminRoleFormPage /> },
+      { path: "admin/roles/:id/edit", element: <AdminRoleFormPage /> },
+      { path: "admin/settings", element: <AdminSettingsPage /> },
+      { path: "admin/printers", element: <AdminPrintersPage /> },
+      { path: "admin/devices", element: <AdminDevicesPage /> },
+      { path: "admin/backups", element: <AdminBackupsPage /> },
+      { path: "admin/restore", element: <AdminRestorePage /> },
+      { path: "admin/database", element: <AdminDatabasePage /> },
+      { path: "admin/diagnostics", element: <AdminDiagnosticsPage /> },
+      { path: "admin/audit", element: <AdminAuditPage /> },
+      { path: "admin/updates", element: <AdminUpdatesPage /> },
+      { path: "admin/licensing", element: <AdminLicensePage /> },
+      { path: "admin/maintenance", element: <AdminMaintenancePage /> },
+      { path: "admin/about", element: <AdminAboutPage /> },
       { path: "employees", element: <EmployeesPage /> },
       { path: "settings", element: <SettingsPage /> },
       { path: "help", element: <HelpPage /> },

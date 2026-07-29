@@ -1,6 +1,6 @@
 use rusqlite::{Connection, Result};
 
-const SCHEMA_VERSION: i32 = 7;
+const SCHEMA_VERSION: i32 = 8;
 
 fn get_user_version(conn: &Connection) -> Result<i32> {
     let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
@@ -71,6 +71,14 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             DROP TABLE IF EXISTS dashboard_preferences;
             DROP TABLE IF EXISTS kpi_definitions;
             DROP TABLE IF EXISTS report_templates;
+            DROP TABLE IF EXISTS system_updates;
+            DROP TABLE IF EXISTS restore_history;
+            DROP TABLE IF EXISTS printer_settings;
+            DROP TABLE IF EXISTS maintenance_logs;
+            DROP TABLE IF EXISTS license_information;
+            DROP TABLE IF EXISTS diagnostic_reports;
+            DROP TABLE IF EXISTS device_settings;
+            DROP TABLE IF EXISTS backup_history;
             DROP TABLE IF EXISTS communication_log;
             DROP TABLE IF EXISTS audit_logs;
             DROP TABLE IF EXISTS settings;
@@ -122,12 +130,21 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             email TEXT NOT NULL UNIQUE,
             password_hash TEXT NOT NULL,
             full_name TEXT NOT NULL,
+            phone TEXT,
             role_id INTEGER,
             is_active INTEGER NOT NULL DEFAULT 1,
+            is_locked INTEGER NOT NULL DEFAULT 0,
+            locked_until TEXT,
+            failed_login_attempts INTEGER NOT NULL DEFAULT 0,
+            password_expires_at TEXT,
+            password_change_required INTEGER NOT NULL DEFAULT 0,
             last_login_at TEXT,
+            notes TEXT,
+            created_by INTEGER,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (role_id) REFERENCES roles(id)
+            FOREIGN KEY (role_id) REFERENCES roles(id),
+            FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
         );
 
         CREATE TABLE IF NOT EXISTS user_sessions (
@@ -941,6 +958,144 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             updated_at TEXT NOT NULL DEFAULT (datetime('now')),
             FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+        );
+
+        -- Admin Module Tables (v8)
+        CREATE TABLE IF NOT EXISTS backup_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            file_name TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            file_size INTEGER NOT NULL DEFAULT 0,
+            backup_type TEXT NOT NULL DEFAULT 'manual',
+            compression TEXT NOT NULL DEFAULT 'none',
+            encryption TEXT NOT NULL DEFAULT 'none',
+            status TEXT NOT NULL DEFAULT 'completed',
+            checksum TEXT,
+            notes TEXT,
+            created_by INTEGER,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS restore_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            backup_id INTEGER,
+            file_name TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            restore_type TEXT NOT NULL DEFAULT 'complete',
+            status TEXT NOT NULL DEFAULT 'completed',
+            tables_restored TEXT,
+            error_message TEXT,
+            created_by INTEGER,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (backup_id) REFERENCES backup_history(id) ON DELETE SET NULL,
+            FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS printer_settings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            printer_type TEXT NOT NULL DEFAULT 'receipt',
+            driver_name TEXT,
+            device_name TEXT,
+            interface_type TEXT NOT NULL DEFAULT 'usb',
+            ip_address TEXT,
+            port INTEGER,
+            paper_size TEXT NOT NULL DEFAULT '80mm',
+            margins TEXT NOT NULL DEFAULT '{\"top\":0,\"bottom\":0,\"left\":0,\"right\":0}',
+            copies INTEGER NOT NULL DEFAULT 1,
+            orientation TEXT NOT NULL DEFAULT 'portrait',
+            is_default INTEGER NOT NULL DEFAULT 0,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            config JSON NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS device_settings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            device_type TEXT NOT NULL DEFAULT 'scanner',
+            identifier TEXT,
+            interface_type TEXT NOT NULL DEFAULT 'usb',
+            config JSON NOT NULL DEFAULT '{}',
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS application_settings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            category TEXT NOT NULL DEFAULT 'general',
+            key TEXT NOT NULL UNIQUE,
+            value TEXT,
+            setting_type TEXT NOT NULL DEFAULT 'string',
+            description TEXT,
+            options TEXT,
+            validation TEXT,
+            is_system INTEGER NOT NULL DEFAULT 0,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS license_information (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            license_key TEXT NOT NULL UNIQUE,
+            license_type TEXT NOT NULL DEFAULT 'trial',
+            company_name TEXT,
+            contact_name TEXT,
+            contact_email TEXT,
+            max_users INTEGER NOT NULL DEFAULT 5,
+            max_stores INTEGER NOT NULL DEFAULT 1,
+            features TEXT NOT NULL DEFAULT '[]',
+            activation_date TEXT,
+            expiration_date TEXT,
+            status TEXT NOT NULL DEFAULT 'inactive',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS maintenance_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            operation TEXT NOT NULL,
+            details TEXT,
+            status TEXT NOT NULL DEFAULT 'completed',
+            duration_ms INTEGER NOT NULL DEFAULT 0,
+            affected_rows INTEGER NOT NULL DEFAULT 0,
+            error_message TEXT,
+            created_by INTEGER,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS diagnostic_reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            report_type TEXT NOT NULL DEFAULT 'system',
+            status TEXT NOT NULL DEFAULT 'healthy',
+            summary TEXT,
+            details JSON NOT NULL DEFAULT '{}',
+            issues_found INTEGER NOT NULL DEFAULT 0,
+            warnings INTEGER NOT NULL DEFAULT 0,
+            created_by INTEGER,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS system_updates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            version TEXT NOT NULL,
+            release_date TEXT,
+            release_notes TEXT,
+            download_url TEXT,
+            file_name TEXT,
+            file_size INTEGER,
+            checksum TEXT,
+            status TEXT NOT NULL DEFAULT 'available',
+            installed_at TEXT,
+            installed_by INTEGER,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (installed_by) REFERENCES users(id) ON DELETE SET NULL
         );
         ",
     )?;

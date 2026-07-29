@@ -57,6 +57,20 @@ const DEFAULT_PERMISSIONS: &[(&str, &str, &str, &str)] = &[
     ("warranty.manage", "Gestionar Garantías", "warranty", "Manage warranties"),
     ("customers.notes", "Notas de Cliente", "customers", "Manage customer notes"),
     ("auth.manage", "Gestionar Usuarios", "auth", "Manage users and roles"),
+    ("admin.users.manage", "Gestionar Usuarios", "admin", "Create, edit, disable users"),
+    ("admin.roles.manage", "Gestionar Roles", "admin", "Create, edit, clone roles"),
+    ("admin.permissions.manage", "Gestionar Permisos", "admin", "Manage permission assignments"),
+    ("admin.settings.manage", "Gestionar Configuración", "admin", "Manage application settings"),
+    ("admin.backups.manage", "Gestionar Respaldos", "admin", "Create and manage backups"),
+    ("admin.restore", "Restaurar Sistema", "admin", "Restore from backups"),
+    ("admin.database.manage", "Gestionar Base de Datos", "admin", "Database maintenance operations"),
+    ("admin.printers.manage", "Gestionar Impresoras", "admin", "Manage printer settings"),
+    ("admin.audit.view", "Ver Auditoría", "admin", "View audit logs"),
+    ("admin.maintenance.manage", "Mantenimiento", "admin", "Run maintenance operations"),
+    ("admin.updates.manage", "Gestionar Actualizaciones", "admin", "Manage system updates"),
+    ("admin.license.manage", "Gestionar Licencia", "admin", "Manage license information"),
+    ("admin.diagnostics.view", "Ver Diagnósticos", "admin", "View diagnostics"),
+    ("admin.devices.manage", "Gestionar Dispositivos", "admin", "Manage connected devices"),
     ("inventory.categories.manage", "Gestionar Categorías", "inventory", "Manage categories"),
     ("inventory.brands.manage", "Gestionar Marcas", "inventory", "Manage brands"),
     ("inventory.manufacturers.manage", "Gestionar Fabricantes", "inventory", "Manage manufacturers"),
@@ -87,6 +101,11 @@ const ROLES: &[(&str, &str, bool, &[&str])] = &[
         "reminders.view", "reminders.manage",
         "warranty.view", "warranty.manage",
         "auth.manage",
+        "admin.users.manage", "admin.roles.manage", "admin.permissions.manage",
+        "admin.settings.manage", "admin.backups.manage", "admin.restore",
+        "admin.database.manage", "admin.printers.manage", "admin.audit.view",
+        "admin.maintenance.manage", "admin.updates.manage", "admin.license.manage",
+        "admin.diagnostics.view", "admin.devices.manage",
     ]),
     ("administrator", "Administrador", true, &[
         "dashboard.view",
@@ -110,6 +129,11 @@ const ROLES: &[(&str, &str, bool, &[&str])] = &[
         "vehicles.view", "vehicles.create", "vehicles.update", "vehicles.delete",
         "reminders.view", "reminders.manage",
         "warranty.view", "warranty.manage",
+        "admin.users.manage", "admin.roles.manage", "admin.permissions.manage",
+        "admin.settings.manage", "admin.backups.manage", "admin.restore",
+        "admin.database.manage", "admin.printers.manage", "admin.audit.view",
+        "admin.maintenance.manage", "admin.updates.manage", "admin.license.manage",
+        "admin.diagnostics.view", "admin.devices.manage",
     ]),
     ("cashier", "Cajero", true, &[
         "dashboard.view",
@@ -248,22 +272,196 @@ pub fn seed_database(conn: &Connection) -> Result<()> {
         "SELECT COUNT(*) FROM users", [], |row| row.get(0)
     )?;
 
-    if existing_users > 0 {
-        return Ok(());
+    if existing_users == 0 {
+        seed_permissions(conn)?;
+        seed_roles(conn)?;
+        seed_users(conn)?;
+        seed_settings(conn)?;
+        seed_categories(conn)?;
+        seed_brands(conn)?;
+        seed_manufacturers(conn)?;
+        seed_suppliers(conn)?;
+        seed_warehouses(conn)?;
+        seed_storage_locations(conn)?;
+        seed_products(conn)?;
     }
 
-    seed_permissions(conn)?;
-    seed_roles(conn)?;
-    seed_users(conn)?;
-    seed_settings(conn)?;
-    seed_categories(conn)?;
-    seed_brands(conn)?;
-    seed_manufacturers(conn)?;
-    seed_suppliers(conn)?;
-    seed_warehouses(conn)?;
-    seed_storage_locations(conn)?;
-    seed_products(conn)?;
+    // Always seed these (they check existence internally)
+    seed_additional_permissions(conn)?;
+    seed_application_settings(conn)?;
+    seed_printer_settings(conn)?;
+    seed_device_settings(conn)?;
+    seed_license_record(conn)?;
+    seed_system_update_record(conn)?;
 
+    Ok(())
+}
+
+fn seed_additional_permissions(conn: &Connection) -> Result<()> {
+    let existing: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM permissions WHERE key LIKE 'admin.%'", [], |row| row.get(0)
+    )?;
+    if existing > 0 { return Ok(()); }
+    for (key, name, group, description) in DEFAULT_PERMISSIONS {
+        conn.execute(
+            "INSERT OR IGNORE INTO permissions (key, name, group_name, description) VALUES (?1, ?2, ?3, ?4)",
+            rusqlite::params![key, name, group, description],
+        )?;
+    }
+    for (role_name, _desc, _sys, perms) in ROLES {
+        let role_id: Option<i64> = conn.query_row(
+            "SELECT id FROM roles WHERE name = ?1",
+            rusqlite::params![role_name],
+            |row| row.get(0),
+        ).ok();
+        if let Some(rid) = role_id {
+            for perm_key in perms.iter().copied() {
+                if let Ok(perm_id) = conn.query_row::<i64, _, _>(
+                    "SELECT id FROM permissions WHERE key = ?1",
+                    rusqlite::params![perm_key],
+                    |row| row.get(0),
+                ) {
+                    conn.execute(
+                        "INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (?1, ?2)",
+                        rusqlite::params![rid, perm_id],
+                    )?;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn seed_application_settings(conn: &Connection) -> Result<()> {
+    let existing: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM application_settings", [], |row| row.get(0)
+    )?;
+    if existing > 0 { return Ok(()); }
+
+    // Migrate from legacy settings table
+    let settings: Vec<(String, String)> = {
+        let mut stmt = conn.prepare("SELECT key, value FROM settings WHERE value IS NOT NULL").ok();
+        if let Some(mut s) = stmt {
+            let rows = s.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))).ok();
+            if let Some(r) = rows {
+                r.filter_map(|r| r.ok()).collect()
+            } else { vec![] }
+        } else { vec![] }
+    };
+
+    let app_settings: &[(&str, &str, &str, &str, &str, Option<&str>)] = &[
+        ("general", "store_name", "Inventory Gear", "string", "Store name", None),
+        ("general", "store_logo", "", "string", "Store logo URL", None),
+        ("general", "currency", "USD", "string", "Default currency", None),
+        ("general", "timezone", "America/Mexico_City", "string", "Timezone", None),
+        ("general", "tax_rate", "16", "number", "Default tax rate percentage", None),
+        ("general", "language", "es", "string", "Default language", Some("{\"options\":[\"es\",\"en\"]}")),
+        ("theme", "theme", "system", "string", "Default theme", Some("{\"options\":[\"light\",\"dark\",\"system\"]}")),
+        ("localization", "date_format", "DD/MM/YYYY", "string", "Date format", None),
+        ("localization", "time_format", "HH:mm", "string", "Time format", None),
+        ("localization", "number_format", "1,234.56", "string", "Number format", None),
+        ("security", "auto_logout_minutes", "60", "number", "Auto logout after minutes of inactivity", None),
+        ("security", "password_min_length", "6", "number", "Minimum password length", None),
+        ("security", "password_require_uppercase", "false", "boolean", "Require uppercase in password", None),
+        ("security", "password_require_numbers", "false", "boolean", "Require numbers in password", None),
+        ("security", "failed_login_lockout", "5", "number", "Failed login attempts before lockout", None),
+        ("security", "lockout_duration_minutes", "30", "number", "Lockout duration in minutes", None),
+        ("security", "password_expiry_days", "0", "number", "Password expiry in days (0 = never)", None),
+        ("inventory", "low_stock_threshold", "10", "number", "Low stock alert threshold", None),
+        ("inventory", "default_warehouse", "", "string", "Default warehouse", None),
+        ("inventory", "barcode_format", "CODE128", "string", "Barcode format", Some("{\"options\":[\"CODE128\",\"EAN13\",\"UPC\",\"QR\"]}")),
+        ("sales", "receipt_footer", "Thank you for your purchase!", "string", "Receipt footer text", None),
+        ("sales", "invoice_prefix", "INV-", "string", "Invoice number prefix", None),
+        ("sales", "default_payment_method", "cash", "string", "Default payment method", None),
+        ("purchasing", "po_prefix", "PO-", "string", "Purchase order prefix", None),
+        ("printing", "default_printer", "", "string", "Default printer name", None),
+        ("printing", "receipt_printer", "", "string", "Receipt printer name", None),
+        ("printing", "invoice_printer", "", "string", "Invoice printer name", None),
+        ("printing", "label_printer", "", "string", "Label printer name", None),
+        ("printing", "paper_size_default", "80mm", "string", "Default paper size", None),
+        ("database", "auto_vacuum", "false", "boolean", "Enable auto vacuum", None),
+        ("backup", "auto_backup", "true", "boolean", "Enable automatic backups", None),
+        ("backup", "backup_interval_hours", "24", "number", "Backup interval in hours", None),
+        ("backup", "backup_retention_days", "30", "number", "Backup retention in days", None),
+        ("backup", "backup_compression", "true", "boolean", "Compress backups", None),
+        ("backup", "backup_encryption", "false", "boolean", "Encrypt backups", None),
+        ("backup", "backup_destination", "local", "string", "Backup destination", Some("{\"options\":[\"local\",\"external\",\"cloud\"]}")),
+        ("backup", "backup_path", "", "string", "Backup directory path", None),
+        ("updates", "auto_check_updates", "true", "boolean", "Automatically check for updates", None),
+        ("updates", "update_channel", "stable", "string", "Update channel", Some("{\"options\":[\"stable\",\"beta\",\"nightly\"]}")),
+        ("performance", "cache_enabled", "true", "boolean", "Enable caching", None),
+        ("performance", "cache_ttl_seconds", "300", "number", "Cache TTL in seconds", None),
+    ];
+    for (category, key, value, stype, description, options) in app_settings {
+        conn.execute(
+            "INSERT OR IGNORE INTO application_settings (category, key, value, setting_type, description, options, sort_order) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0)",
+            rusqlite::params![category, key, value, stype, description, options.map(|o| o.to_string())],
+        )?;
+    }
+    // Override with existing settings values
+    for (key, value) in settings {
+        conn.execute("UPDATE application_settings SET value = ?1 WHERE key = ?2", rusqlite::params![value, key]).ok();
+    }
+    Ok(())
+}
+
+fn seed_printer_settings(conn: &Connection) -> Result<()> {
+    let existing: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM printer_settings", [], |row| row.get(0)
+    )?;
+    if existing > 0 { return Ok(()); }
+    conn.execute(
+        "INSERT INTO printer_settings (name, printer_type, interface_type, paper_size, is_default, is_active) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        rusqlite::params!["Default Receipt Printer", "receipt", "usb", "80mm", 1, 1],
+    )?;
+    conn.execute(
+        "INSERT INTO printer_settings (name, printer_type, interface_type, paper_size, is_default, is_active) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        rusqlite::params!["Default Invoice Printer", "invoice", "usb", "A4", 0, 1],
+    )?;
+    Ok(())
+}
+
+fn seed_device_settings(conn: &Connection) -> Result<()> {
+    let existing: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM device_settings", [], |row| row.get(0)
+    )?;
+    if existing > 0 { return Ok(()); }
+    conn.execute(
+        "INSERT INTO device_settings (name, device_type, identifier, interface_type) VALUES (?1, ?2, ?3, ?4)",
+        rusqlite::params!["Default Barcode Scanner", "scanner", "", "usb"],
+    )?;
+    Ok(())
+}
+
+fn seed_license_record(conn: &Connection) -> Result<()> {
+    let existing: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM license_information", [], |row| row.get(0)
+    )?;
+    if existing > 0 { return Ok(()); }
+    conn.execute(
+        "INSERT INTO license_information (license_key, license_type, company_name, max_users, max_stores, features, status) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        rusqlite::params!["TRIAL-0000-0000-0000", "trial", "My Company", 5, 1, "[\"core\"]", "trial"],
+    )?;
+    Ok(())
+}
+
+fn seed_system_update_record(conn: &Connection) -> Result<()> {
+    let existing: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM system_updates", [], |row| row.get(0)
+    )?;
+    if existing > 0 { return Ok(()); }
+
+    // Get the current app version from settings
+    let version: String = conn.query_row(
+        "SELECT value FROM settings WHERE key = 'app_version'",
+        [],
+        |row| row.get(0),
+    ).unwrap_or_else(|_| "0.1.0".into());
+
+    conn.execute(
+        "INSERT INTO system_updates (version, status) VALUES (?1, ?2)",
+        rusqlite::params![version, "installed"],
+    )?;
     Ok(())
 }
 

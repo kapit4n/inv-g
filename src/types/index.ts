@@ -1411,3 +1411,343 @@ export interface CostHistoryEntry {
   createdByName?: string
   createdAt: string
 }
+
+// ── Admin Types ──
+
+export interface AdminUser {
+  id: number
+  username: string
+  email: string
+  fullName: string
+  phone?: string
+  roleId?: number
+  roleName?: string
+  isActive: boolean
+  isLocked: boolean
+  lockedUntil?: string
+  failedLoginAttempts: number
+  passwordExpiresAt?: string
+  passwordChangeRequired: boolean
+  lastLoginAt?: string
+  notes?: string
+  createdBy?: number
+  createdByName?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateUserInput {
+  username: string
+  email: string
+  password: string
+  fullName: string
+  phone?: string
+  roleId?: number
+  notes?: string
+}
+
+export interface UpdateUserInput {
+  id: number
+  username?: string
+  email?: string
+  fullName?: string
+  phone?: string
+  roleId?: number
+  isActive?: boolean
+  notes?: string
+}
+
+export interface AdminRole {
+  id: number
+  name: string
+  description?: string
+  isSystem: boolean
+  isActive: boolean
+  permissionCount: number
+  userCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AdminPermission {
+  id: number
+  key: string
+  name: string
+  groupName: string
+  description?: string
+}
+
+export interface RoleWithPermissions {
+  role: AdminRole
+  permissions: string[]
+}
+
+export interface CreateRoleInput {
+  name: string
+  description?: string
+  permissions: string[]
+}
+
+export interface UpdateRoleInput {
+  id: number
+  name?: string
+  description?: string
+  isActive?: boolean
+  permissions: string[]
+}
+
+export interface AdminDashboard {
+  activeUsers: number
+  totalUsers: number
+  databaseSize: string
+  databaseSizeBytes: number
+  lastBackup?: string
+  backupStatus: string
+  storageUsage: string
+  storageUsedBytes: number
+  appVersion: string
+  connectedPrinters: number
+  recentLogins: number
+  recentErrors: number
+  auditEventsToday: number
+  systemHealth: string
+  licenseStatus: string
+}
+
+export interface UserActivityPoint {
+  date: string
+  count: number
+}
+
+export interface DbGrowthPoint {
+  date: string
+  sizeBytes: number
+}
+
+export interface BackupRecord {
+  id: number
+  fileName: string
+  filePath: string
+  fileSize: number
+  backupType: string
+  compression: string
+  encryption: string
+  status: string
+  checksum?: string
+  notes?: string
+  createdBy?: number
+  createdByName?: string
+  createdAt: string
+}
+
+export interface RestoreRecord {
+  id: number
+  backupId?: number
+  fileName: string
+  filePath: string
+  restoreType: string
+  status: string
+  tablesRestored?: string
+  errorMessage?: string
+  createdBy?: number
+  createdByName?: string
+  createdAt: string
+}
+
+export interface PrinterSetting {
+  id: number
+  name: string
+  printerType: string
+  driverName?: string
+  deviceName?: string
+  interfaceType: string
+  ipAddress?: string
+  port?: number
+  paperSize: string
+  margins: string
+  copies: number
+  orientation: string
+  isDefault: boolean
+  isActive: boolean
+  config: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PrinterInput {
+  name: string
+  printerType: string
+  driverName?: string
+  deviceName?: string
+  interfaceType: string
+  ipAddress?: string
+  port?: number
+  paperSize: string
+  margins: string
+  copies: number
+  orientation: string
+  isDefault: boolean
+  config: string
+}
+
+export interface DeviceSetting {
+  id: number
+  name: string
+  deviceType: string
+  identifier?: string
+  interfaceType: string
+  config: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface DeviceInput {
+  name: string
+  deviceType: string
+  identifier?: string
+  interfaceType: string
+  config: string
+}
+
+export interface AdminAppSetting {
+  id: number
+  category: string
+  key: string
+  value?: string
+  settingType: string
+  description?: string
+  options?: string
+  validation?: string
+  isSystem: boolean
+  sortOrder: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface SettingCategory {
+  category: string
+  count: number
+}
+
+export interface DatabaseStats {
+  pageSize: number
+  pageCount: number
+  totalSize: number
+  tableCount: number
+  indexCount: number
+  integrityOk: boolean
+  freelistCount: number
+  schemaVersion: number
+}
+
+export interface TableInfo {
+  name: string
+  rowCount: number
+  pageCount: number
+}
+
+export interface MigrationInfo {
+  version: number
+  appliedAt?: string
+}
+
+export interface DiagnosticCheck {
+  name: string
+  status: string
+  message: string
+  details?: string
+}
+
+export interface DiagnosticReport {
+  id: number
+  reportType: string
+  status: string
+  summary?: string
+  details: unknown
+  issuesFound: number
+  warnings: number
+  createdBy?: number
+  createdAt: string
+}
+
+export interface AuditEvent {
+  id: number
+  userId?: number
+  username: string
+  fullName: string
+  action: string
+  entityType?: string
+  entityId?: string
+  details?: string
+  severity: string
+  createdAt: string
+}
+
+export interface AuditFilter {
+  action?: string
+  entityType?: string
+  severity?: string
+  userId?: number
+  dateFrom?: string
+  dateTo?: string
+  search?: string
+}
+
+export interface SystemUpdate {
+  id: number
+  version: string
+  releaseDate?: string
+  releaseNotes?: string
+  downloadUrl?: string
+  fileName?: string
+  fileSize?: number
+  checksum?: string
+  status: string
+  installedAt?: string
+  installedBy?: number
+  createdAt: string
+}
+
+export interface LicenseInfo {
+  id: number
+  licenseKey: string
+  licenseType: string
+  companyName?: string
+  contactName?: string
+  contactEmail?: string
+  maxUsers: number
+  maxStores: number
+  features: string
+  activationDate?: string
+  expirationDate?: string
+  status: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface LicenseInput {
+  licenseKey: string
+  licenseType: string
+  companyName?: string
+  contactName?: string
+  contactEmail?: string
+  maxUsers: number
+  maxStores: number
+  features: string
+  activationDate?: string
+  expirationDate?: string
+}
+
+export interface MaintenanceLog {
+  id: number
+  operation: string
+  details?: string
+  status: string
+  durationMs: number
+  affectedRows: number
+  errorMessage?: string
+  createdBy?: number
+  createdByName?: string
+  createdAt: string
+}

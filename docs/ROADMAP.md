@@ -150,10 +150,34 @@
 - [x] 11 new permissions assigned to owner and administrator roles
 - [x] RBAC integration for all report features
 
+## Milestone 11: Administration Frontend ✅
+**Status:** Complete
+**Complexity:** Medium
+**Dependencies:** Milestone 3, 10
+
+### Tasks
+- [x] Admin dashboard with system health, stats, quick actions
+- [x] User management (list, create, edit, archive, lock/unlock, reset password)
+- [x] Role management (list, create, edit, clone, archive) with permission matrix
+- [x] System settings editor with category sidebar
+- [x] Printer management (add, edit, test, delete, set default)
+- [x] Device management (add, edit, test, delete)
+- [x] Backup management (create, list, delete)
+- [x] Restore management with warning/history
+- [x] Database maintenance (stats, vacuum, optimize, integrity check, reindex)
+- [x] Diagnostics (run checks, history)
+- [x] Audit log viewer with severity filtering and search
+- [x] System updates (version display, check for updates, history)
+- [x] License activation and status display
+- [x] Maintenance operations (cache, optimize, clean, vacuum, reindex, integrity)
+- [x] About page with system info, version, resources
+- [x] TypeScript interfaces for all admin entities
+- [x] Tauri invoke wrappers for ~90 admin backend commands
+
 ## Milestone 12: Administration & System Configuration
 **Status:** Pending
 **Complexity:** Medium
-**Dependencies:** Milestone 3, 10
+**Dependencies:** Milestone 11
 
 ### Tasks
 - [ ] Store information settings

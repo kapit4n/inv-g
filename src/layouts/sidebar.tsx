@@ -7,7 +7,8 @@ import {
   Layers, Tag, Cog, Briefcase, MapPin, Box, ArrowUpDown,
   FileText, RotateCcw, DollarSign, Printer, Receipt,
   GitCompare, BellRing, ShieldCheck, CreditCard, StickyNote,
-  TrendingUp,
+  TrendingUp, Monitor, HardDrive, Wifi, Database, Shield, Activity,
+  Smartphone, ScanLine,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -97,6 +98,27 @@ const secondaryNavigation: NavItemConfig[] = [
       { nameKey: "reports.customReports", href: "/reports/custom", icon: FileText },
       { nameKey: "reports.scheduledReports", href: "/reports/scheduled", icon: BellRing },
       { nameKey: "reports.exports", href: "/reports/exports", icon: Printer },
+    ],
+  },
+  {
+    nameKey: "admin.title", href: "/admin", icon: Shield,
+    children: [
+      { nameKey: "admin.dashboard", href: "/admin", icon: Monitor },
+      { nameKey: "admin.users", href: "/admin/users", icon: Users },
+      { nameKey: "admin.roles", href: "/admin/roles", icon: ShieldCheck },
+      { nameKey: "admin.permissions", href: "/admin/roles", icon: Shield },
+      { nameKey: "admin.settings", href: "/admin/settings", icon: Settings },
+      { nameKey: "admin.printers", href: "/admin/printers", icon: Printer },
+      { nameKey: "admin.devices", href: "/admin/devices", icon: Smartphone },
+      { nameKey: "admin.backups", href: "/admin/backups", icon: HardDrive },
+      { nameKey: "admin.restore", href: "/admin/restore", icon: RotateCcw },
+      { nameKey: "admin.database", href: "/admin/database", icon: Database },
+      { nameKey: "admin.diagnostics", href: "/admin/diagnostics", icon: Activity },
+      { nameKey: "admin.audit", href: "/admin/audit", icon: FileText },
+      { nameKey: "admin.updates", href: "/admin/updates", icon: Wifi },
+      { nameKey: "admin.licensing", href: "/admin/licensing", icon: Shield },
+      { nameKey: "admin.maintenance", href: "/admin/maintenance", icon: Cog },
+      { nameKey: "admin.about", href: "/admin/about", icon: HelpCircle },
     ],
   },
   { nameKey: "employees.title", href: "/employees", icon: UsersRound },
