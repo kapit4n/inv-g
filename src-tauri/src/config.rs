@@ -31,3 +31,29 @@ impl AppConfig {
         config
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_config() {
+        let config = AppConfig::default();
+        assert_eq!(config.app_name, "Inventory Gear");
+        assert_eq!(config.log_level, "info");
+        assert!(config.version.len() > 0);
+    }
+
+    #[test]
+    fn test_config_with_dir() {
+        let dir = PathBuf::from("/tmp/test-dir");
+        let config = AppConfig::new(dir);
+        assert_eq!(config.db_path, PathBuf::from("/tmp/test-dir/inventory_gear.db"));
+    }
+
+    #[test]
+    fn test_config_app_name_constant() {
+        let config = AppConfig::default();
+        assert_eq!(config.app_name, "Inventory Gear");
+    }
+}

@@ -50,3 +50,35 @@ pub fn run_seeds() -> Result<String, String> {
         Err(format!("Seed script failed:\n{}\n{}", stdout, stderr))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_app_version() {
+        let version = get_app_version();
+        assert!(!version.is_empty());
+        assert!(version.contains('.'));
+    }
+
+    #[test]
+    fn test_health_check() {
+        let result = health_check();
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "Inventory Gear is running");
+    }
+
+    #[test]
+    fn test_greet() {
+        let greeting = greet("TestUser");
+        assert!(greeting.contains("TestUser"));
+        assert!(greeting.contains("Welcome"));
+    }
+
+    #[test]
+    fn test_greet_empty_name() {
+        let greeting = greet("");
+        assert!(greeting.contains("Welcome"));
+    }
+}

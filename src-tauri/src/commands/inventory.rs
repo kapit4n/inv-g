@@ -803,4 +803,33 @@ pub fn create_inventory_movement(state: State<DbState>, product_id: i64, warehou
     }).map_err(|e| e.to_string())
 }
 
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_category_serialization() {
+        let json = r#"{"id":1,"name":"Electronics","description":"Electronic items","parentId":null,"icon":"cpu","sortOrder":0,"createdAt":"2025-01-01T00:00:00Z","updatedAt":"2025-01-01T00:00:00Z"}"#;
+        let cat: serde_json::Value = serde_json::from_str(json).unwrap();
+        assert_eq!(cat["name"], "Electronics");
+        assert!(cat.get("parentId").unwrap().is_null());
+    }
+
+    #[test]
+    fn test_product_serialization() {
+        let json = r#"{"id":1,"name":"Product A","sku":"SKU-001","costPrice":10.5,"sellPrice":15.99,"stockQuantity":100,"isActive":true,"unit":"pcs"}"#;
+        let prod: serde_json::Value = serde_json::from_str(json).unwrap();
+        assert_eq!(prod["sku"], "SKU-001");
+        assert_eq!(prod["stockQuantity"], 100);
+        assert_eq!(prod["isActive"], true);
+    }
+
+    #[test]
+    fn test_paginated_result_structure() {
+        let json = r#"{"data":[],"total":0,"page":1,"pageSize":20,"totalPages":0}"#;
+        let result: serde_json::Value = serde_json::from_str(json).unwrap();
+        assert_eq!(result["total"], 0);
+        assert_eq!(result["page"], 1);
+        assert!(result["data"].is_array());
+    }
+}
+
 

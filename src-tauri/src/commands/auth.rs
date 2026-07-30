@@ -363,3 +363,85 @@ fn get_user_permissions(conn: &rusqlite::Connection, _user_id: i64, role_id: Opt
 
     permissions
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_user_response_serialization() {
+        let user = UserResponse {
+            id: 1,
+            username: "admin".to_string(),
+            email: "admin@test.com".to_string(),
+            full_name: "Admin User".to_string(),
+            role_id: Some(1),
+            role_name: Some("Admin".to_string()),
+            is_active: true,
+            last_login_at: None,
+            created_at: "2025-01-01T00:00:00Z".to_string(),
+        };
+        let json = serde_json::to_string(&user).unwrap();
+        assert!(json.contains("fullName"));
+        assert!(json.contains("isActive"));
+        assert!(json.contains("lastLoginAt"));
+    }
+
+    #[test]
+    fn test_login_response_serialization() {
+        let user = UserResponse {
+            id: 1,
+            username: "admin".to_string(),
+            email: "admin@test.com".to_string(),
+            full_name: "Admin User".to_string(),
+            role_id: Some(1),
+            role_name: Some("Admin".to_string()),
+            is_active: true,
+            last_login_at: None,
+            created_at: "2025-01-01T00:00:00Z".to_string(),
+        };
+        let resp = LoginResponse {
+            user,
+            token: "test-token".to_string(),
+            permissions: vec!["*".to_string()],
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("test-token"));
+        assert!(json.contains("*"));
+    }
+
+    #[test]
+    fn test_session_info_serialization() {
+        let user = UserResponse {
+            id: 1,
+            username: "admin".to_string(),
+            email: "admin@test.com".to_string(),
+            full_name: "Admin User".to_string(),
+            role_id: Some(1),
+            role_name: Some("Admin".to_string()),
+            is_active: true,
+            last_login_at: None,
+            created_at: "2025-01-01T00:00:00Z".to_string(),
+        };
+        let info = SessionInfo {
+            user,
+            permissions: vec!["read".to_string(), "write".to_string()],
+            expires_at: "2099-12-31 23:59:59".to_string(),
+        };
+        let json = serde_json::to_string(&info).unwrap();
+        assert!(json.contains("expiresAt"));
+        assert!(json.contains("read"));
+        assert!(json.contains("write"));
+    }
+
+    #[test]
+    fn test_permission_info_defaults() {
+        let perm = PermissionInfo {
+            key: "inventory.read".to_string(),
+            name: "Read Inventory".to_string(),
+            group_name: "Inventory".to_string(),
+        };
+        assert_eq!(perm.key, "inventory.read");
+        assert_eq!(perm.group_name, "Inventory");
+    }
+}
