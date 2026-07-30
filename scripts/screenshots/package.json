@@ -1,0 +1,16 @@
+{
+  "name": "inventory-gear-screenshots",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "npx playwright test --config playwright.config.ts --reporter=list",
+    "generate:light": "THEME=light npx playwright test --config playwright.config.ts --reporter=list",
+    "generate:dark": "THEME=dark npx playwright test --config playwright.config.ts --reporter=list",
+    "generate:all": "THEME=all npx playwright test --config playwright.config.ts --reporter=list",
+    "show-report": "npx playwright show-report"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.52.0",
+    "playwright": "^1.52.0"
+  }
+}

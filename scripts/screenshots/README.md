@@ -2,7 +2,7 @@
 
 > **Last updated:** 2026-07-29
 
-This directory contains Playwright-based scripts for programmatically capturing screenshots of every Inventory Gear screen. The scripts automate navigation, login, data seeding, and screenshot capture for documentation and QA purposes.
+This directory contains Playwright-based scripts for programmatically capturing screenshots of every Inventory Gear screen. The scripts automate login, navigation, and screenshot capture for documentation and QA purposes.
 
 ---
 
@@ -10,13 +10,14 @@ This directory contains Playwright-based scripts for programmatically capturing 
 
 The screenshot generation uses **Playwright** (Node.js) to:
 
-1. **Launch** a headless Chromium browser pointing at the dev server
-2. **Seed** demo data via the app's built-in seed function (or direct DB calls)
-3. **Login** using the test role quick-login feature
-4. **Navigate** to each route defined in `SCREENSHOT_LIST.md`
-5. **Wait** for the page to fully render (data loaded, charts drawn)
-6. **Capture** a full-page or viewport screenshot
-7. **Save** to `docs/screenshots/generated/` with consistent naming
+1. **Mock** all Tauri IPC invoke calls with realistic demo data (no backend needed)
+2. **Login** using the login form (credentials: admin / admin123)
+3. **Navigate** to each route
+4. **Wait** for the page to fully render (data loaded, charts drawn)
+5. **Capture** a viewport screenshot at 1920×1080
+6. **Save** to `docs/screenshots/{theme}/` with zero-padded numbering
+
+Two theme variants are generated: `light` and `dark`. All UI text in Spanish.
 
 ---
 
@@ -26,30 +27,35 @@ The screenshot generation uses **Playwright** (Node.js) to:
 scripts/screenshots/
 ├── README.md                   # This file
 ├── playwright.config.ts        # Playwright configuration
-├── screenshots.spec.ts         # Main screenshot generation spec
+├── package.json                # Dependencies
+├── tsconfig.json               # TypeScript config
+├── generate_all.ts             # Master runner script
 ├── helpers/
-│   ├── login.ts                # Login helper (role-based or credential)
-│   ├── seed.ts                 # Seed data helper
-│   ├── navigation.ts           # Route navigation + wait utilities
-│   └── screenshots.ts          # Screenshot capture + naming utilities
-├── fixtures/
-│   └── test-data.json          # Expected data for verification
-└── output/
-    └── (generated screenshots go here)
+│   ├── invoke-mock.ts          # Tauri IPC mock (2000+ lines, all 290+ commands)
+│   ├── login.ts                # Login helper (admin/admin123)
+│   ├── navigation.ts           # Route map + navigate and wait utility
+│   ├── screenshot.ts           # Screenshot capture + thumbnail + wait helpers
+│   └── theme.ts                # Light/dark theme switching
+└── suites/
+    ├── 01-auth.spec.ts         # Login + Dashboard
+    ├── 02-inventory.spec.ts    # Products, categories, brands, warehouses, movements
+    ├── 03-sales.spec.ts        # POS, sales, quotes, returns, register, receipts, closeout
+    ├── 04-purchasing.spec.ts   # POs, requests, receipts, returns, cost history
+    ├── 05-crm.spec.ts          # Customers, vehicles, compatibility, reminders, warranties
+    ├── 06-reports.spec.ts      # 12 report types
+    └── 07-admin.spec.ts        # Users, roles, settings, backups, audit, diagnostics, etc.
 ```
 
-Generated screenshots are saved to:
+Screenshots are saved to:
 
 ```
-docs/screenshots/generated/
-├── auth-login.png
-├── auth-login-dark.png
-├── dashboard-main.png
-├── dashboard-main-dark.png
-├── inventory-products.png
-├── sales-pos.png
-└── ...
-```
+docs/screenshots/
+├── SCREENSHOTS.md              # Metadata catalog
+├── light/                      # 66 light theme screenshots
+├── dark/                       # 66 dark theme screenshots
+├── thumbnails/                 # Scaled 0.25× copies
+├── marketing/                  # Key screenshots for presentations
+└── github/                     # README-optimized copies (~1400px)
 
 ---
 
