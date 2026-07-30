@@ -26,7 +26,7 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 5. Added `as unknown as Record<string, unknown>[]` casts to match component prop types (consistent with other report pages).
 6. Removed unused `Users` import flagged by TypeScript.
 
-**Commit:** TBD (not yet committed)
+**Commit:** `d0bf1b8`
 
 **Files:** `src/features/reports/pages/reports-page.tsx`
 
@@ -49,7 +49,7 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 1. Added `#[serde(rename_all = "camelCase")]` to every struct deriving `Serialize` or `Deserialize` across all 34 files in `src-tauri/src/commands/` (including all subdirectories: `reports/`, `admin/`). Each mismatch that previously produced `undefined` now correctly maps to the expected camelCase key.
 2. Changed `DbState.conn` from `Mutex<Connection>` to `Arc<Mutex<Connection>>` so the same DB connection can be shared between the global `DB_STATE` (used by reports) and Tauri's managed state (used by inventory commands). Added `.manage(tauri_state)` to the Tauri builder in `lib.rs`.
 
-**Commit:** TBD
+**Commit:** `d0bf1b8`
 
 **Files:**
 - `src-tauri/src/commands/` — 34 files (all structs gained `#[serde(rename_all = "camelCase")]`)
