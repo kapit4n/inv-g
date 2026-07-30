@@ -174,10 +174,24 @@
 - [x] TypeScript interfaces for all admin entities
 - [x] Tauri invoke wrappers for ~90 admin backend commands
 
-## Milestone 12: Administration & System Configuration
-**Status:** Pending
+## Milestone 12: Automated Screenshot Framework & Artifacts ✅
+**Status:** Complete
 **Complexity:** Medium
 **Dependencies:** Milestone 11
+
+### Tasks
+- [x] Playwright-based screenshot generation with 66 screens across 7 modules
+- [x] Tauri IPC mock serving 290+ commands with realistic demo data
+- [x] Light/dark theme variants for every screen
+- [x] 7 test suites: Auth, Inventory, Sales, Purchasing, CRM, Reports, Admin
+- [x] Helper modules: navigation, login, theme switching, screenshot capture
+- [x] Documentation: SCREENSHOTS.md catalog, README with usage guide
+- [x] Generated screenshot artifacts (dark/light 66 each, thumbnails, report)
+
+## Milestone 13: Administration & System Configuration
+**Status:** Pending
+**Complexity:** Medium
+**Dependencies:** Milestone 12
 
 ### Tasks
 - [ ] Store information settings
@@ -188,6 +202,33 @@
 - [ ] Appearance settings
 - [ ] Printing system
 - [ ] Deployment packaging
+
+## Milestone 14: Polish & Optimization
+**Status:** Pending
+**Complexity:** Medium
+**Dependencies:** All previous milestones
+
+### Tasks
+- [ ] Performance optimization
+- [ ] Keyboard shortcuts
+- [ ] Accessibility audit
+- [ ] Error handling improvements
+- [ ] Loading states and animations
+- [ ] Offline mode refinement
+- [ ] Auto-updates
+
+## Milestone 15: Advanced Features
+**Status:** Pending
+**Complexity:** High
+**Dependencies:** Milestone 14
+
+### Tasks
+- [ ] Multi-warehouse support
+- [ ] Barcode/QR scanning
+- [ ] Receipt printing
+- [ ] Cloud sync (optional)
+- [ ] Plugin system
+- [ ] Multi-currency support
 
 ## Milestone 13: Polish & Optimization
 **Status:** Pending
