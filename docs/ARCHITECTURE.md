@@ -51,6 +51,16 @@ import { invoke } from "@tauri-apps/api/core"
 const result = await invoke<string>("command_name", { arg: value })
 ```
 
+## Forms Layer
+
+`src/components/forms/` contains reusable form field wrappers (TextField, SelectField, TextareaField, DateField, etc.) that standardize label/error/description layout for all forms.
+
+### Composed Components
+
+Some form components encapsulate data-fetching and business logic:
+
+- **CustomerSearchField** (`customer-search-field.tsx`) — Searchable customer combobox used in POS and Quote forms. Fetches customers server-side via `getCustomers(search)`, debounced. Includes a built-in "Quick Add Customer" dialog that calls `createCustomer` on submission and auto-selects the new customer.
+
 ## Design Principles
 
 1. **Feature-first organization** — each module is self-contained

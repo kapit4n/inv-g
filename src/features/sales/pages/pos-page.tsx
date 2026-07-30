@@ -9,8 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { SelectField, TextareaField } from "@/components/forms"
-import { searchProductsForPos, getCustomers, processCheckout } from "@/lib/tauri"
+import { CustomerSearchField, TextareaField } from "@/components/forms"
+import { searchProductsForPos, processCheckout } from "@/lib/tauri"
 import { useNotification } from "@/hooks/use-notification"
 import type { ProductForPos, PaymentInput } from "@/types"
 
@@ -55,11 +55,6 @@ export function PosPage() {
     queryKey: ["pos-search", debouncedSearch],
     queryFn: () => searchProductsForPos(debouncedSearch),
     enabled: debouncedSearch.length >= 0,
-  })
-
-  const { data: customers = [] } = useQuery({
-    queryKey: ["customers"],
-    queryFn: getCustomers,
   })
 
   const filteredProducts = useMemo(() => {
@@ -190,11 +185,6 @@ export function PosPage() {
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [])
-
-  const customerOptions = useMemo(
-    () => customers.map((c) => ({ label: c.name, value: c.id })),
-    [customers]
-  )
 
   const paymentMethods = useMemo(
     () => [
@@ -370,12 +360,10 @@ export function PosPage() {
               <Separator />
 
               <div className="space-y-3">
-                <SelectField
+                <CustomerSearchField
                   label={t("sales.customer")}
-                  options={customerOptions}
                   value={customerId}
-                  onChange={(v) => setCustomerId(v ? Number(v) : undefined)}
-                  placeholder={t("common.selectOptional")}
+                  onChange={setCustomerId}
                 />
 
                 <div className="space-y-2">

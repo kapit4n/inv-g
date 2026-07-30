@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate, useParams } from "react-router-dom"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Plus, Trash2, Search } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { SelectField, TextField, TextareaField } from "@/components/forms"
-import { getCustomers, getQuote, getQuoteItems, createQuote, updateQuote, searchProductsForPos } from "@/lib/tauri"
+import { CustomerSearchField, TextField, TextareaField } from "@/components/forms"
+import { getQuote, getQuoteItems, createQuote, updateQuote, searchProductsForPos } from "@/lib/tauri"
 import { useNotification } from "@/hooks/use-notification"
 import type { SaleItemInput } from "@/types"
 
@@ -24,8 +24,6 @@ export function QuoteFormPage() {
   const isEditing = !!id
   const queryClient = useQueryClient()
   const notification = useNotification()
-
-  const { data: customers = [] } = useQuery({ queryKey: ["customers"], queryFn: getCustomers })
 
   const [customerId, setCustomerId] = useState<number | undefined>()
   const [items, setItems] = useState<LineItem[]>([])
@@ -164,7 +162,7 @@ export function QuoteFormPage() {
 
         <div className="space-y-4">
           <Card><CardContent className="p-4 space-y-3">
-            <SelectField label={t("sales.customer")} options={customers.map((c) => ({ label: c.name, value: c.id }))} value={customerId} onChange={(v) => setCustomerId(v ? Number(v) : undefined)} placeholder="Select customer" />
+            <CustomerSearchField label={t("sales.customer")} value={customerId} onChange={setCustomerId} />
             <TextField label="Tax Rate (%)" type="number" value={taxRate * 100} onChange={(v) => setTaxRate(Number(v) / 100)} />
             <TextField label="Discount" type="number" value={discountAmount} onChange={(v) => setDiscountAmount(Number(v))} />
             <TextField label="Valid Until" type="date" value={validUntil} onChange={(v) => setValidUntil(v)} />
