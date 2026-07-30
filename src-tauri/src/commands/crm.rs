@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::DB_STATE;
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CrmDashboard {
     pub total_customers: i64,
     pub new_customers_month: i64,

@@ -2,6 +2,7 @@ use serde::Serialize;
 use crate::DB_STATE;
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AdminDashboard {
     pub active_users: i64,
     pub total_users: i64,
@@ -21,12 +22,14 @@ pub struct AdminDashboard {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UserActivityPoint {
     pub date: String,
     pub count: i64,
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DbGrowthPoint {
     pub date: String,
     pub size_bytes: i64,

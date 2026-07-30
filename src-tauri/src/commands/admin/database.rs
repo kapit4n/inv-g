@@ -2,6 +2,7 @@ use serde::Serialize;
 use crate::DB_STATE;
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TableInfo {
     pub name: String,
     pub row_count: i64,
@@ -9,6 +10,7 @@ pub struct TableInfo {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DatabaseStats {
     pub page_size: i64,
     pub page_count: i64,
@@ -21,6 +23,7 @@ pub struct DatabaseStats {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MigrationInfo {
     pub version: i64,
     pub applied_at: Option<String>,

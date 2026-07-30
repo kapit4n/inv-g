@@ -10,6 +10,7 @@ fn get_conn<'r>(state: &'r State<'r, DbState>) -> Result<std::sync::MutexGuard<'
 // ── Data Structures ──
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Sale {
     pub id: i64,
     pub sale_number: String,
@@ -32,6 +33,7 @@ pub struct Sale {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SaleItem {
     pub id: i64,
     pub sale_id: i64,
@@ -47,6 +49,7 @@ pub struct SaleItem {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SaleItemInput {
     pub product_id: i64,
     pub quantity: i64,
@@ -56,6 +59,7 @@ pub struct SaleItemInput {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SalePayment {
     pub id: i64,
     pub sale_id: i64,
@@ -67,6 +71,7 @@ pub struct SalePayment {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PaymentInput {
     pub method: String,
     pub amount: f64,
@@ -75,6 +80,7 @@ pub struct PaymentInput {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CheckoutInput {
     pub customer_id: Option<i64>,
     pub user_id: Option<i64>,
@@ -85,6 +91,7 @@ pub struct CheckoutInput {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CheckoutResult {
     pub sale: Sale,
     pub items: Vec<SaleItem>,
@@ -93,6 +100,7 @@ pub struct CheckoutResult {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProductForPos {
     pub id: i64,
     pub name: String,
@@ -109,6 +117,7 @@ pub struct ProductForPos {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DailyCloseout {
     pub total_sales: i64,
     pub total_revenue: f64,
@@ -126,6 +135,7 @@ pub struct DailyCloseout {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Quote {
     pub id: i64,
     pub quote_number: String,
@@ -147,6 +157,7 @@ pub struct Quote {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct QuoteItem {
     pub id: i64,
     pub quote_id: i64,
@@ -161,6 +172,7 @@ pub struct QuoteItem {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct QuoteInput {
     pub customer_id: Option<i64>,
     pub user_id: Option<i64>,
@@ -173,6 +185,7 @@ pub struct QuoteInput {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CashRegisterSession {
     pub id: i64,
     pub user_id: i64,
@@ -188,6 +201,7 @@ pub struct CashRegisterSession {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DailyClosing {
     pub id: i64,
     pub closed_by: i64,
@@ -211,6 +225,7 @@ pub struct DailyClosing {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Receipt {
     pub id: i64,
     pub sale_id: i64,
@@ -222,6 +237,7 @@ pub struct Receipt {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SalesSummary {
     pub total_sales_today: i64,
     pub revenue_today: f64,
@@ -234,6 +250,7 @@ pub struct SalesSummary {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProductSalesStat {
     pub product_id: i64,
     pub product_name: String,
@@ -242,6 +259,7 @@ pub struct ProductSalesStat {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SalesChartData {
     pub labels: Vec<String>,
     pub revenue: Vec<f64>,

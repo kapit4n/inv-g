@@ -2,6 +2,7 @@ use serde::Serialize;
 use crate::DB_STATE;
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DiagnosticCheck {
     pub name: String,
     pub status: String,
@@ -10,6 +11,7 @@ pub struct DiagnosticCheck {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DiagnosticReport {
     pub id: i64,
     pub report_type: String,

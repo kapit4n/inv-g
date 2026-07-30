@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use crate::DB_STATE;
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SystemUpdate {
     pub id: i64,
     pub version: String,

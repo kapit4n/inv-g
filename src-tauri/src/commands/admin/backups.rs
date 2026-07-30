@@ -2,6 +2,7 @@ use serde::Serialize;
 use crate::DB_STATE;
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BackupRecord {
     pub id: i64,
     pub file_name: String,
@@ -19,6 +20,7 @@ pub struct BackupRecord {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RestoreRecord {
     pub id: i64,
     pub backup_id: Option<i64>,

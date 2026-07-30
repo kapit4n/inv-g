@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/page-header"
 import { StatCard } from "@/components/stat-card"
 import { getDashboardWidgets, getChartData } from "@/lib/tauri"
 import type { DashboardWidgets, ChartData } from "@/types"
-import { DollarSign, TrendingUp, Package, ShoppingBag, Receipt, AlertTriangle, Users, BarChart3 } from "lucide-react"
+import { DollarSign, TrendingUp, Package, ShoppingBag, Receipt, AlertTriangle, BarChart3 } from "lucide-react"
 import { LineChartCard, BarChartCard, AreaChartCard, PieChartCard, StackedBarChartCard } from "../components/report-charts"
 import { ReportTable } from "../components/report-table"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -33,8 +33,8 @@ export function ReportsPage() {
     fetchData()
   }, [])
 
-  const fmt = (v: number) =>
-    v.toLocaleString("en-US", { style: "currency", currency: "USD" })
+  const fmt = (v: number | null | undefined) =>
+    v == null ? "$0.00" : v.toLocaleString("en-US", { style: "currency", currency: "USD" })
 
   if (error) {
     return (
@@ -99,16 +99,16 @@ export function ReportsPage() {
           </>
         ) : (
           <>
-            <AreaChartCard title={t("revenueByMonth")} data={chartData!.revenueByMonth} />
-            <PieChartCard title={t("salesByCategory")} data={chartData!.salesByCategory} />
-            <BarChartCard title={t("salesByBrand")} data={chartData!.salesByBrand} />
-            <LineChartCard title={t("profitTrend")} data={chartData!.profitTrend} />
-            <AreaChartCard title={t("inventoryTrend")} data={chartData!.inventoryTrend} />
-            <BarChartCard title={t("customerGrowth")} data={chartData!.customerGrowth} />
-            <PieChartCard title={t("warehouseDistribution")} data={chartData!.warehouseDistribution} />
-            <BarChartCard title={t("topProducts")} data={chartData!.topProductsChart} horizontal />
-            <BarChartCard title={t("topSuppliers")} data={chartData!.topSuppliersChart} />
-            <StackedBarChartCard title={t("purchasesVsSales")} data={chartData!.purchasesVsSales} />
+            <AreaChartCard title={t("revenueByMonth")} data={chartData!.revenueByMonth as unknown as Record<string, unknown>[]} dataKeys={{ xKey: "month", areas: [{ key: "revenue", name: t("revenue") }, { key: "profit", name: t("profit") }] }} />
+            <PieChartCard title={t("salesByCategory")} data={chartData!.salesByCategory as unknown as Record<string, unknown>[]} dataKey="value" nameKey="category" />
+            <BarChartCard title={t("salesByBrand")} data={chartData!.salesByBrand as unknown as Record<string, unknown>[]} dataKeys={{ xKey: "category", bars: [{ key: "value", name: t("sales") }] }} />
+            <LineChartCard title={t("profitTrend")} data={chartData!.profitTrend as unknown as Record<string, unknown>[]} dataKeys={{ xKey: "month", lines: [{ key: "profit", name: t("profit") }] }} />
+            <AreaChartCard title={t("inventoryTrend")} data={chartData!.inventoryTrend as unknown as Record<string, unknown>[]} dataKeys={{ xKey: "month", areas: [{ key: "revenue", name: t("value") }] }} />
+            <BarChartCard title={t("customerGrowth")} data={chartData!.customerGrowth as unknown as Record<string, unknown>[]} dataKeys={{ xKey: "month", bars: [{ key: "count", name: t("customers") }] }} />
+            <PieChartCard title={t("warehouseDistribution")} data={chartData!.warehouseDistribution as unknown as Record<string, unknown>[]} dataKey="stockValue" nameKey="warehouse" />
+            <BarChartCard title={t("topProducts")} data={chartData!.topProductsChart as unknown as Record<string, unknown>[]} dataKeys={{ xKey: "productName", bars: [{ key: "revenue", name: t("revenue") }] }} />
+            <BarChartCard title={t("topSuppliers")} data={chartData!.topSuppliersChart as unknown as Record<string, unknown>[]} dataKeys={{ xKey: "supplierName", bars: [{ key: "totalPurchases", name: t("purchases") }] }} />
+            <StackedBarChartCard title={t("purchasesVsSales")} data={chartData!.purchasesVsSales as unknown as Record<string, unknown>[]} dataKeys={{ xKey: "month", bars: [{ key: "purchases", name: t("purchases") }, { key: "sales", name: t("sales") }] }} />
           </>
         )}
       </div>
@@ -124,11 +124,11 @@ export function ReportsPage() {
         ) : (
           <ReportTable
             columns={[
-              { header: t("customerName"), accessorKey: "customerName" },
-              { header: t("totalSpent"), accessorKey: "totalSpent", cell: (v: number) => fmt(v) },
-              { header: t("orderCount"), accessorKey: "orderCount" },
+              { key: "customerName", label: t("customerName") },
+              { key: "totalSpent", label: t("totalSpent"), renderCell: (v) => (v == null ? "-" : fmt(Number(v))) },
+              { key: "orderCount", label: t("orderCount") },
             ]}
-            data={widgets!.topCustomers}
+            data={widgets!.topCustomers as unknown as Record<string, unknown>[]}
           />
         )}
       </div>

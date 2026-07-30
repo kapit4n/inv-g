@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::DB_STATE;
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Warranty {
     pub id: i64,
     pub warranty_number: String,

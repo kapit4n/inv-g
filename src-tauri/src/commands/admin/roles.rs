@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use crate::DB_STATE;
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AdminRole {
     pub id: i64,
     pub name: String,
@@ -15,6 +16,7 @@ pub struct AdminRole {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AdminPermission {
     pub id: i64,
     pub key: String,
@@ -24,12 +26,14 @@ pub struct AdminPermission {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RoleWithPermissions {
     pub role: AdminRole,
     pub permissions: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateRoleInput {
     pub name: String,
     pub description: Option<String>,
@@ -37,6 +41,7 @@ pub struct CreateRoleInput {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdateRoleInput {
     pub id: i64,
     pub name: Option<String>,

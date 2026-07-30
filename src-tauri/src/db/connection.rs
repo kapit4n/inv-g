@@ -1,17 +1,17 @@
 use rusqlite::{Connection, Result};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use crate::db::schema;
 use crate::db::seed;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DbState {
-    pub conn: Mutex<Connection>,
+    pub conn: Arc<Mutex<Connection>>,
 }
 
 impl DbState {
     pub fn new(conn: Connection) -> Self {
         Self {
-            conn: Mutex::new(conn),
+            conn: Arc::new(Mutex::new(conn)),
         }
     }
 }

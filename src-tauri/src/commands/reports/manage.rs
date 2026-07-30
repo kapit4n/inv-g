@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use crate::DB_STATE;
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SavedReport {
     pub id: i64,
     pub name: String,
@@ -19,6 +20,7 @@ pub struct SavedReport {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SavedReportInput {
     pub name: String,
     pub description: Option<String>,
@@ -31,6 +33,7 @@ pub struct SavedReportInput {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ScheduledReport {
     pub id: i64,
     pub saved_report_id: Option<i64>,
@@ -49,6 +52,7 @@ pub struct ScheduledReport {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ReportHistoryEntry {
     pub id: i64,
     pub report_name: String,
@@ -64,6 +68,7 @@ pub struct ReportHistoryEntry {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ReportTemplate {
     pub id: i64,
     pub name: String,
@@ -74,6 +79,7 @@ pub struct ReportTemplate {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CostHistoryEntry {
     pub id: i64,
     pub product_id: i64,

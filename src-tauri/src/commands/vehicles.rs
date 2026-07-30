@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::DB_STATE;
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct VehicleBrand {
     pub id: i64,
     pub name: String,
@@ -14,6 +15,7 @@ pub struct VehicleBrand {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct VehicleModel {
     pub id: i64,
     pub brand_id: i64,
@@ -25,6 +27,7 @@ pub struct VehicleModel {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct VehicleGeneration {
     pub id: i64,
     pub model_id: i64,
@@ -35,6 +38,7 @@ pub struct VehicleGeneration {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct VehicleEngine {
     pub id: i64,
     pub name: String,
@@ -45,6 +49,7 @@ pub struct VehicleEngine {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct VehicleTransmission {
     pub id: i64,
     pub name: String,
@@ -55,6 +60,7 @@ pub struct VehicleTransmission {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct VehicleFuel {
     pub id: i64,
     pub name: String,
@@ -62,6 +68,7 @@ pub struct VehicleFuel {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CustomerVehicle {
     pub id: i64,
     pub customer_id: i64,

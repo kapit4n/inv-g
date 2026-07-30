@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use crate::DB_STATE;
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LicenseInfo {
     pub id: i64,
     pub license_key: String,
@@ -20,6 +21,7 @@ pub struct LicenseInfo {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LicenseInput {
     pub license_key: String,
     pub license_type: String,

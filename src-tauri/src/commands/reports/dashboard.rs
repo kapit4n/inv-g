@@ -2,6 +2,7 @@ use serde::Serialize;
 use crate::DB_STATE;
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ExecutiveDashboard {
     pub today_revenue: f64,
     pub monthly_revenue: f64,
@@ -16,6 +17,7 @@ pub struct ExecutiveDashboard {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RevenueByMonth {
     pub month: String,
     pub revenue: f64,
@@ -25,6 +27,7 @@ pub struct RevenueByMonth {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CategoryBreakdown {
     pub category: String,
     pub value: f64,
@@ -32,6 +35,7 @@ pub struct CategoryBreakdown {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TopProduct {
     pub product_id: i64,
     pub product_name: String,
@@ -41,6 +45,7 @@ pub struct TopProduct {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TopCustomer {
     pub customer_id: i64,
     pub customer_name: String,
@@ -49,6 +54,7 @@ pub struct TopCustomer {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TopSupplier {
     pub supplier_id: i64,
     pub supplier_name: String,
@@ -57,6 +63,7 @@ pub struct TopSupplier {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WarehouseDistribution {
     pub warehouse: String,
     pub product_count: i64,
@@ -64,6 +71,7 @@ pub struct WarehouseDistribution {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PurchaseVsSale {
     pub month: String,
     pub purchases: f64,
@@ -71,12 +79,14 @@ pub struct PurchaseVsSale {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CustomerGrowthPoint {
     pub month: String,
     pub count: i64,
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DashboardWidgets {
     pub today_revenue: f64,
     pub monthly_revenue: f64,
@@ -97,6 +107,7 @@ pub struct DashboardWidgets {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CashRegisterSummary {
     pub open_sessions: i64,
     pub today_cash: f64,
@@ -105,6 +116,7 @@ pub struct CashRegisterSummary {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ChartData {
     pub revenue_by_month: Vec<RevenueByMonth>,
     pub sales_by_category: Vec<CategoryBreakdown>,

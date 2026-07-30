@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::DB_STATE;
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ServiceReminder {
     pub id: i64,
     pub customer_id: i64,

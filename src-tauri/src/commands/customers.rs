@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::DB_STATE;
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Customer {
     pub id: i64,
     pub name: String,
@@ -20,6 +21,7 @@ pub struct Customer {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CustomerSale {
     pub id: i64,
     pub sale_number: String,
@@ -31,6 +33,7 @@ pub struct CustomerSale {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CustomerDetail {
     pub customer: Customer,
     pub total_sales: i64,
@@ -43,6 +46,7 @@ pub struct CustomerDetail {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreditAccount {
     pub id: i64,
     pub customer_id: i64,
@@ -55,6 +59,7 @@ pub struct CreditAccount {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreditTransaction {
     pub id: i64,
     pub account_id: i64,
@@ -69,6 +74,7 @@ pub struct CreditTransaction {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CommunicationEntry {
     pub id: i64,
     pub customer_id: i64,
@@ -82,6 +88,7 @@ pub struct CommunicationEntry {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CustomerNote {
     pub id: i64,
     pub customer_id: i64,
@@ -96,6 +103,7 @@ pub struct CustomerNote {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TimelineEntry {
     pub id: i64,
     pub customer_id: i64,
@@ -110,6 +118,7 @@ pub struct TimelineEntry {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CommunicationInput {
     pub customer_id: i64,
     #[serde(rename = "type")]

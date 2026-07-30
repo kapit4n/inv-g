@@ -5,6 +5,7 @@ use bcrypt::verify;
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UserResponse {
     pub id: i64,
     pub username: String,
@@ -18,6 +19,7 @@ pub struct UserResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LoginResponse {
     pub user: UserResponse,
     pub token: String,
@@ -25,6 +27,7 @@ pub struct LoginResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PermissionInfo {
     pub key: String,
     pub name: String,
@@ -32,6 +35,7 @@ pub struct PermissionInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SessionInfo {
     pub user: UserResponse,
     pub permissions: Vec<String>,

@@ -2,6 +2,7 @@ use serde::Serialize;
 use crate::DB_STATE;
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SupplierRanking {
     pub supplier_id: i64,
     pub supplier_name: String,
@@ -15,6 +16,7 @@ pub struct SupplierRanking {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LeadTimeAnalysis {
     pub supplier_id: i64,
     pub supplier_name: String,

@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use crate::DB_STATE;
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct InventoryReportRow {
     pub product_id: i64,
     pub product_name: String,
@@ -20,6 +21,7 @@ pub struct InventoryReportRow {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct InventoryValuation {
     pub category: Option<String>,
     pub product_count: i64,
@@ -31,6 +33,7 @@ pub struct InventoryValuation {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MovementSummary {
     pub period: String,
     pub inbound: i64,
@@ -40,6 +43,7 @@ pub struct MovementSummary {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StockStatusItem {
     pub product_id: i64,
     pub product_name: String,
@@ -51,6 +55,7 @@ pub struct StockStatusItem {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AgingItem {
     pub product_id: i64,
     pub product_name: String,
@@ -61,6 +66,7 @@ pub struct AgingItem {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct InventoryReportFilter {
     pub warehouse_id: Option<i64>,
     pub category_id: Option<i64>,

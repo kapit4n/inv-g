@@ -22,10 +22,12 @@ pub fn run() {
     let conn = init_database(&db_path).expect("Failed to initialize database");
 
     let db_state = DbState::new(conn);
+    let tauri_state = db_state.clone();
     DB_STATE.set(db_state).expect("Failed to set database state");
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .manage(tauri_state)
         .invoke_handler(tauri::generate_handler![
             commands::app::get_app_version,
             commands::app::health_check,

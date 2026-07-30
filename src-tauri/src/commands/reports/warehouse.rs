@@ -2,6 +2,7 @@ use serde::Serialize;
 use crate::DB_STATE;
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WarehouseUtilization {
     pub warehouse_id: i64,
     pub warehouse_name: String,
@@ -13,6 +14,7 @@ pub struct WarehouseUtilization {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WarehouseTransferSummary {
     pub period: String,
     pub transfers_in: i64,
@@ -21,6 +23,7 @@ pub struct WarehouseTransferSummary {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WarehouseAdjustmentSummary {
     pub warehouse_id: i64,
     pub warehouse_name: String,

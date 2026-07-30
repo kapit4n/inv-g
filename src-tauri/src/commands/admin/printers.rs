@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use crate::DB_STATE;
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PrinterSetting {
     pub id: i64,
     pub name: String,
@@ -23,6 +24,7 @@ pub struct PrinterSetting {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PrinterInput {
     pub name: String,
     pub printer_type: String,

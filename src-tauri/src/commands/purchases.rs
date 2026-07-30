@@ -19,6 +19,7 @@ fn generate_number(conn: &rusqlite::Connection, prefix: &str, table: &str, colum
 // ── Data Structures ──
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PurchaseOrderResponse {
     pub id: i64,
     pub po_number: String,
@@ -53,6 +54,7 @@ pub struct PurchaseOrderResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PurchaseOrderItemResponse {
     pub id: i64,
     pub purchase_order_id: i64,
@@ -72,6 +74,7 @@ pub struct PurchaseOrderItemResponse {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PurchaseOrderInput {
     pub supplier_id: Option<i64>,
     pub warehouse_id: Option<i64>,
@@ -85,6 +88,7 @@ pub struct PurchaseOrderInput {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PurchaseOrderItemInput {
     pub product_id: i64,
     pub supplier_sku: Option<String>,
@@ -96,6 +100,7 @@ pub struct PurchaseOrderItemInput {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PurchaseRequestResponse {
     pub id: i64,
     pub request_number: String,
@@ -113,6 +118,7 @@ pub struct PurchaseRequestResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PurchaseRequestItemResponse {
     pub id: i64,
     pub request_id: i64,
@@ -127,6 +133,7 @@ pub struct PurchaseRequestItemResponse {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PurchaseRequestInput {
     pub priority: String,
     pub reason: String,
@@ -135,12 +142,14 @@ pub struct PurchaseRequestInput {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PurchaseRequestItemInput {
     pub product_id: i64,
     pub requested_quantity: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PurchaseReceiptResponse {
     pub id: i64,
     pub receipt_number: String,
@@ -158,6 +167,7 @@ pub struct PurchaseReceiptResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PurchaseReceiptItemResponse {
     pub id: i64,
     pub receipt_id: i64,
@@ -173,6 +183,7 @@ pub struct PurchaseReceiptItemResponse {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ReceiveItemInput {
     pub po_item_id: i64,
     pub product_id: i64,
@@ -181,6 +192,7 @@ pub struct ReceiveItemInput {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PurchaseReturnResponse {
     pub id: i64,
     pub return_number: String,
@@ -198,6 +210,7 @@ pub struct PurchaseReturnResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PurchaseReturnItemResponse {
     pub id: i64,
     pub return_id: i64,
@@ -211,6 +224,7 @@ pub struct PurchaseReturnItemResponse {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PurchaseReturnInput {
     pub po_id: Option<i64>,
     pub supplier_id: i64,
@@ -219,6 +233,7 @@ pub struct PurchaseReturnInput {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PurchaseReturnItemInput {
     pub product_id: i64,
     pub quantity: i64,
@@ -227,6 +242,7 @@ pub struct PurchaseReturnItemInput {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SupplierProductResponse {
     pub id: i64,
     pub supplier_id: i64,
@@ -246,6 +262,7 @@ pub struct SupplierProductResponse {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SupplierProductInput {
     pub supplier_id: i64,
     pub product_id: i64,
@@ -259,6 +276,7 @@ pub struct SupplierProductInput {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CostHistoryResponse {
     pub id: i64,
     pub product_id: i64,
@@ -277,6 +295,7 @@ pub struct CostHistoryResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ReorderSuggestion {
     pub product_id: i64,
     pub product_name: String,
@@ -295,6 +314,7 @@ pub struct ReorderSuggestion {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SupplierPerformance {
     pub supplier_id: i64,
     pub supplier_name: String,
@@ -310,6 +330,7 @@ pub struct SupplierPerformance {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PurchaseDashboard {
     pub pending_orders: i64,
     pub awaiting_approval: i64,

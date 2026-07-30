@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use crate::DB_STATE;
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SalesReportRow {
     pub period: String,
     pub transaction_count: i64,
@@ -14,6 +15,7 @@ pub struct SalesReportRow {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SalesByCashier {
     pub user_id: i64,
     pub cashier_name: String,
@@ -22,6 +24,7 @@ pub struct SalesByCashier {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SalesByPaymentMethod {
     pub method: String,
     pub count: i64,
@@ -29,6 +32,7 @@ pub struct SalesByPaymentMethod {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DiscountAnalysis {
     pub total_discounts: f64,
     pub avg_discount_per_sale: f64,
@@ -38,6 +42,7 @@ pub struct DiscountAnalysis {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ReturnsSummary {
     pub total_returns: i64,
     pub total_refunded: f64,
@@ -45,6 +50,7 @@ pub struct ReturnsSummary {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TaxSummary {
     pub total_tax: f64,
     pub avg_tax_per_sale: f64,
@@ -52,6 +58,7 @@ pub struct TaxSummary {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SalesReportFilter {
     pub date_from: Option<String>,
     pub date_to: Option<String>,

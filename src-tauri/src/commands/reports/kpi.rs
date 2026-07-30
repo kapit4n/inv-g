@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use crate::DB_STATE;
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KpiValue {
     pub key: String,
     pub name: String,
@@ -14,6 +15,7 @@ pub struct KpiValue {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KpiDefinition {
     pub id: i64,
     pub name: String,

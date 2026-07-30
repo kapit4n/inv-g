@@ -3,6 +3,7 @@ use crate::DB_STATE;
 use bcrypt::{hash, DEFAULT_COST};
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AdminUser {
     pub id: i64,
     pub username: String,
@@ -26,6 +27,7 @@ pub struct AdminUser {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateUserInput {
     pub username: String,
     pub email: String,
@@ -37,6 +39,7 @@ pub struct CreateUserInput {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdateUserInput {
     pub id: i64,
     pub username: Option<String>,

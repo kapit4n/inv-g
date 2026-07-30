@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use crate::DB_STATE;
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AppSetting {
     pub id: i64,
     pub category: String,
@@ -18,12 +19,14 @@ pub struct AppSetting {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdateAppSettingInput {
     pub key: String,
     pub value: String,
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SettingCategory {
     pub category: String,
     pub count: i64,

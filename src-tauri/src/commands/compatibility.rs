@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::DB_STATE;
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CompatibilityEntry {
     pub id: i64,
     pub product_id: i64,
@@ -25,6 +26,7 @@ pub struct CompatibilityEntry {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProductRecommendation {
     pub product_id: i64,
     pub product_name: String,

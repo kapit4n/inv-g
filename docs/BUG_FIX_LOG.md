@@ -6,21 +6,55 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
-### 2026-07-29 — Product list shows empty despite 144 products in database
+### 2026-07-29 — Reports page crashes with `v.toLocaleString` error; charts and table render empty
 
-**Symptom:** Products page rendered "No hay datos" (empty state). No error message displayed.
+**Symptom:** Navigation to the Reports (dashboard) page threw a runtime error `v.toLocaleString` where `v` is undefined. Stack: `fmt@reports-page.tsx:36`. All charts (revenue, sales, etc.) rendered as empty skeletons with "No data". The top-customers table showed hyphens for all columns.
 
 **Investigation:**
-- Database had 144 products (confirmed via seed validation).
-- `get_products` Tauri command compiled and ran without Rust errors.
-- DataTable `error` prop checked `error instanceof Error` — Tauri invoke rejects with an `Error`, so if the backend failed, the error UI would have appeared.
-- The only scenario where the table stays empty without errors: React Query is not making the call, or the response comes back but `data?.data` is `[]/null`.
+- `fmt()` called `v.toLocaleString()` without null guard — if `v` is `null`/`undefined`, it throws.
+- The `ReportTable` columns used wrong property names (`header`/`accessorKey`/`cell` instead of `key`/`label`/`renderCell`). The `Column` interface expects `key` + `label` + optional `format`/`renderCell`. Because `col.key` was `undefined`, `row[undefined]` resolved to `undefined`, and `formatValue` returned `"-"` — no crash, but no data either.
+- Chart components (`AreaChartCard`, `BarChartCard`, `LineChartCard`, `PieChartCard`, `StackedBarChartCard`) were called without the required `dataKeys` (or `dataKey`/`nameKey`) props. These props define which fields map to axes. Without them, recharts renders nothing.
+- `BarChartCard` had an unsupported `horizontal` boolean prop that TypeScript rejected at strict mode.
 
-**Root Cause:** (TBD — diagnosed in next session)
+**Root Cause:** The `reports-page.tsx` was written against a different API than the actual `report-charts.tsx` and `report-table.tsx` components expose. Chart components require `dataKeys`/`dataKey`/`nameKey` props that were never provided; `ReportTable.Column` uses `key`/`label`/`renderCell` but the code used `header`/`accessorKey`/`cell`.
 
-**Fix:** (TBD)
+**Fix:**
+1. Added `dataKeys` (or `dataKey`/`nameKey` for pie charts) to all 10 chart component calls, mapping the correct data fields for each chart type.
+2. Changed `ReportTable` column definitions to use `key`/`label`/`renderCell` matching the `Column` interface.
+3. Added null guard to `fmt()`: `v == null ? "$0.00" : v.toLocaleString(...)`.
+4. Removed unsupported `horizontal` prop from `BarChartCard`.
+5. Added `as unknown as Record<string, unknown>[]` casts to match component prop types (consistent with other report pages).
+6. Removed unused `Users` import flagged by TypeScript.
 
-**Commit:** `b5ea0cb`
+**Commit:** TBD (not yet committed)
+
+**Files:** `src/features/reports/pages/reports-page.tsx`
+
+---
+
+### 2026-07-29 — All listing pages show "No hay datos" (inventory, sales, purchases, CRM, reports, admin)
+
+**Symptom:** Every listing page across the entire app (inventory: brands, suppliers, products, categories, warehouses, storage locations; plus sales, purchases, CRM, reports, admin pages) renders "No hay datos" (empty state) despite database containing data. DataTable shows header labels but every cell value is undefined. Some pages appear to partially work (e.g., "New Sale" shows product names) but numeric fields are blank.
+
+**Investigation:**
+- All Rust structs throughout every module (`inventory.rs`, `sales.rs`, `purchases.rs`, `customers.rs`, `vehicles.rs`, `crm.rs`, `auth.rs`, `reports/*.rs`, `admin/*.rs`, etc.) derived `Serialize` without `#[serde(rename_all = "camelCase")]`.
+- Serde serialized field names as-is (Rust convention: `snake_case`): `is_active`, `cost_price`, `stock_quantity`, `created_at`, `company_name`, `page_size`.
+- The frontend TypeScript interfaces all use `camelCase`: `isActive`, `costPrice`, `stockQuantity`, `createdAt`, `companyName`, `pageSize`.
+- The DataTable's `accessorKey` and cell renderers access `row["isActive"]` → `undefined` because the actual JavaScript key is `is_active`.
+- "New Sale" partially worked because `ProductForPos` fields `id`, `name`, `sku`, `barcode`, `unit` happen to be identical in both conventions — those rendered, but `salePrice`, `stockQuantity` etc. were undefined.
+
+**Root Cause:** A systematic `snake_case` vs `camelCase` mismatch: all ~100+ Rust structs across 34 files in the `commands/` directory lacked `#[serde(rename_all = "camelCase")]`. The frontend TypeScript interfaces consistently use camelCase, but serde serialized with snake_case.
+
+**Fix:**
+1. Added `#[serde(rename_all = "camelCase")]` to every struct deriving `Serialize` or `Deserialize` across all 34 files in `src-tauri/src/commands/` (including all subdirectories: `reports/`, `admin/`). Each mismatch that previously produced `undefined` now correctly maps to the expected camelCase key.
+2. Changed `DbState.conn` from `Mutex<Connection>` to `Arc<Mutex<Connection>>` so the same DB connection can be shared between the global `DB_STATE` (used by reports) and Tauri's managed state (used by inventory commands). Added `.manage(tauri_state)` to the Tauri builder in `lib.rs`.
+
+**Commit:** TBD
+
+**Files:**
+- `src-tauri/src/commands/` — 34 files (all structs gained `#[serde(rename_all = "camelCase")]`)
+- `src-tauri/src/db/connection.rs` — `DbState.conn` changed to `Arc<Mutex<Connection>>`
+- `src-tauri/src/lib.rs` — added `.manage(tauri_state)` call
 
 ---
 

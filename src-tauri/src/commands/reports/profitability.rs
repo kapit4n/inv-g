@@ -2,6 +2,7 @@ use serde::Serialize;
 use crate::DB_STATE;
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProfitSummary {
     pub gross_revenue: f64,
     pub estimated_cost: f64,
@@ -11,6 +12,7 @@ pub struct ProfitSummary {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProfitByEntity {
     pub entity_id: i64,
     pub entity_name: String,

@@ -8,6 +8,7 @@ fn get_conn<'r>(state: &'r State<'r, DbState>) -> Result<std::sync::MutexGuard<'
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Category {
     pub id: i64,
     pub name: String,
@@ -20,6 +21,7 @@ pub struct Category {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Brand {
     pub id: i64,
     pub name: String,
@@ -33,6 +35,7 @@ pub struct Brand {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Manufacturer {
     pub id: i64,
     pub name: String,
@@ -47,6 +50,7 @@ pub struct Manufacturer {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Supplier {
     pub id: i64,
     pub company_name: String,
@@ -68,6 +72,7 @@ pub struct Supplier {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Warehouse {
     pub id: i64,
     pub name: String,
@@ -84,6 +89,7 @@ pub struct Warehouse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StorageLocation {
     pub id: i64,
     pub warehouse_id: i64,
@@ -99,6 +105,7 @@ pub struct StorageLocation {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Product {
     pub id: i64,
     pub name: String,
@@ -132,6 +139,7 @@ pub struct Product {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProductImage {
     pub id: i64,
     pub product_id: i64,
@@ -142,6 +150,7 @@ pub struct ProductImage {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DashboardStats {
     pub total_products: i64,
     pub active_products: i64,
@@ -156,6 +165,7 @@ pub struct DashboardStats {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PaginatedResult<T> {
     pub data: Vec<T>,
     pub total: i64,
@@ -730,6 +740,7 @@ pub fn delete_product_image(state: State<DbState>, id: i64) -> Result<(), String
 // ── Inventory Movements ──
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct InventoryMovement {
     pub id: i64,
     pub product_id: i64,

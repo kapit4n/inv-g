@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use crate::DB_STATE;
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AuditEvent {
     pub id: i64,
     pub user_id: Option<i64>,
@@ -16,6 +17,7 @@ pub struct AuditEvent {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AuditFilter {
     pub action: Option<String>,
     pub entity_type: Option<String>,

@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use crate::DB_STATE;
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DeviceSetting {
     pub id: i64,
     pub name: String,
@@ -15,6 +16,7 @@ pub struct DeviceSetting {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DeviceInput {
     pub name: String,
     pub device_type: String,
