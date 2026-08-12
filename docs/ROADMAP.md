@@ -1,7 +1,35 @@
 # Development Roadmap
 
+> **Note:** Milestones 1–13 below are **completed** and documented with their
+> commits. The active forward-looking plan (Phases 0–10, Tasks 00–25) lives in
+> **[docs/development/DEVELOPMENT_PLAN.md](./development/DEVELOPMENT_PLAN.md)**.
+> Long-term vision is maintained in **[docs/progress/SUMMARI.md](./progress/SUMMARI.md)**.
+> Per-milestone detail is in **[docs/progress/](./progress/)**.
+
+---
+
+## Completed Milestones
+
+| Milestone | Title | Status | Commits |
+|-----------|-------|--------|---------|
+| 1 | Project Foundation | ✅ | `4b25372` |
+| 2 | Authentication & Users | ✅ (delivered with M3) | `8dd4e17` |
+| 3 | Core Infrastructure | ✅ | `8dd4e17` |
+| 4 | CRUD Framework & Data Management | ✅ | `4bdbeb1` |
+| 5 | Inventory Management | ✅ | `2029fb9` |
+| 6 | Sales & Point of Sale | ✅ | `8f19e53` |
+| 7 | Purchasing | ✅ | `46ebd23` |
+| 8 | Customers & Suppliers | ✅ | `46ebd23` |
+| 9 | CRM & Vehicles | ✅ | `d5b1e9e` |
+| 10 | Reporting, Analytics & BI | ✅ | `af90a61` |
+| 11 | Administration Frontend | ✅ | `174da30`, `55a6252`, `d331084` |
+| 12 | Automated Screenshot Framework & Artifacts | ✅ | `1e60da7` … `3b6484e` |
+| 13 | Enterprise Quality Assurance & Testing | ✅ | `f2d9495` |
+
+---
+
 ## Milestone 1: Project Foundation ✅
-**Status:** Complete
+**Status:** Complete (`4b25372`)
 - Project scaffolding (Tauri v2 + React + TypeScript)
 - Folder structure and architecture
 - UI component library (shadcn/ui)
@@ -13,7 +41,7 @@
 - Documentation foundation
 
 ## Milestone 2: Authentication & Users ✅
-**Status:** Complete (delivered with Milestone 3)
+**Status:** Complete (delivered with Milestone 3, commit `8dd4e17`)
 - User login/logout flow
 - Role-based access control (RBAC)
 - Session management
@@ -21,7 +49,7 @@
 - Protected routes (AuthenticatedRoute, GuestRoute, PermissionRoute)
 
 ## Milestone 3: Core Infrastructure ✅
-**Status:** Complete (commit 8dd4e17)
+**Status:** Complete (commit `8dd4e17`)
 - Authentication & authorization
 - RBAC with role/permission management
 - Settings management (key-value)
@@ -32,7 +60,7 @@
 - Seed data for default roles and admin user
 
 ## Milestone 4: CRUD Framework ✅
-**Status:** Complete (commit 4bdbeb1)
+**Status:** Complete (commit `4bdbeb1`)
 - Generic CRUD types (CrudEntity, PaginatedResult, TableColumn, etc.)
 - Zod validation system (schema factories, validators)
 - Repository pattern (interface + abstract base class)
@@ -46,7 +74,7 @@
 - Full documentation (docs/CRUD_FRAMEWORK.md)
 
 ## Milestone 5: Inventory Management ✅
-**Status:** Complete
+**Status:** Complete (commit `2029fb9`)
 - Database schema v2 (brands, manufacturers, warehouses, storage_locations, product_images, product_compatibility, inventory_movements)
 - Expanded products and suppliers tables
 - Rust CRUD commands for all inventory entities
@@ -59,7 +87,7 @@
 - i18n keys for all sub-modules (es/en)
 
 ## Milestone 6: Sales & Point of Sale ✅
-**Status:** Complete
+**Status:** Complete (commit `8f19e53`)
 **Complexity:** High
 **Dependencies:** Milestone 5
 - ✅ Create and manage sales
@@ -71,7 +99,7 @@
 - ✅ Daily close-out
 
 ## Milestone 7: Purchasing ✅
-**Status:** Complete
+**Status:** Complete (commit `46ebd23`)
 **Complexity:** High
 **Dependencies:** Milestone 5
 
@@ -94,7 +122,7 @@
 - [x] 12 purchase sub-routes + sidebar navigation
 
 ## Milestone 8: Customers & Suppliers
-**Status:** Complete
+**Status:** Complete (commit `46ebd23`)
 **Complexity:** Medium
 **Dependencies:** Milestone 6
 
@@ -107,7 +135,7 @@
 - [x] Communication log
 
 ## Milestone 9: CRM & Vehicles ✅
-**Status:** Complete
+**Status:** Complete (commit `d5b1e9e`)
 **Complexity:** High
 **Dependencies:** Milestone 6, 7, 8
 
@@ -124,7 +152,7 @@
 - [x] Seed data permissions for new modules across 6 roles
 
 ## Milestone 10: Reporting, Analytics & Business Intelligence ✅
-**Status:** Complete
+**Status:** Complete (commit `af90a61`)
 **Complexity:** High
 **Dependencies:** Milestone 6, 7, 8, 9
 
@@ -151,7 +179,7 @@
 - [x] RBAC integration for all report features
 
 ## Milestone 11: Administration Frontend ✅
-**Status:** Complete
+**Status:** Complete (commits `174da30`, `55a6252`, `d331084`)
 **Complexity:** Medium
 **Dependencies:** Milestone 3, 10
 
@@ -175,7 +203,7 @@
 - [x] Tauri invoke wrappers for ~90 admin backend commands
 
 ## Milestone 12: Automated Screenshot Framework & Artifacts ✅
-**Status:** Complete
+**Status:** Complete (commits `1e60da7` → `3b6484e`)
 **Complexity:** Medium
 **Dependencies:** Milestone 11
 
@@ -188,71 +216,60 @@
 - [x] Documentation: SCREENSHOTS.md catalog, README with usage guide
 - [x] Generated screenshot artifacts (dark/light 66 each, thumbnails, report)
 
-## Milestone 13: Administration & System Configuration
-**Status:** Pending
+## Milestone 13: Enterprise Quality Assurance & Testing Framework ✅
+**Status:** Complete (commit `f2d9495`)
 **Complexity:** Medium
 **Dependencies:** Milestone 12
 
 ### Tasks
-- [ ] Store information settings
-- [ ] Tax configuration
-- [ ] Receipt templates
-- [ ] Notification preferences
-- [ ] Backup and restore
-- [ ] Appearance settings
-- [ ] Printing system
-- [ ] Deployment packaging
+- [x] Vitest configured: 26 suites — 177 frontend tests + 20 Rust tests
+- [x] Unit tests (utils, stores, hooks, services, components)
+- [x] Integration workflow tests (product, sales, purchasing, inventory)
+- [x] Regression tests for BUG-001/002/003
+- [x] Smoke tests and Tauri command contract tests
+- [x] Test factories, mock repository, render helpers, test setup
+- [x] ESLint 9 flat config migration
+- [x] GitHub Actions CI pipeline
+- [x] Quality dashboard at `quality/dashboard.md`
+- [x] `npm run verify` quality gate (typecheck → lint → vitest → coverage → cargo test)
 
-## Milestone 14: Polish & Optimization
-**Status:** Pending
-**Complexity:** Medium
-**Dependencies:** All previous milestones
+---
 
-### Tasks
-- [ ] Performance optimization
-- [ ] Keyboard shortcuts
-- [ ] Accessibility audit
-- [ ] Error handling improvements
-- [ ] Loading states and animations
-- [ ] Offline mode refinement
-- [ ] Auto-updates
+## Current & Planned Work
 
-## Milestone 15: Advanced Features
-**Status:** Pending
-**Complexity:** High
-**Dependencies:** Milestone 14
+The active roadmap is the **[Development Plan](./development/DEVELOPMENT_PLAN.md)**.
+It is organized around **usability and operational efficiency** rather than new
+CRUD modules, with phases executed incrementally one task at a time.
 
-### Tasks
-- [ ] Multi-warehouse support
-- [ ] Barcode/QR scanning
-- [ ] Receipt printing
-- [ ] Cloud sync (optional)
-- [ ] Plugin system
-- [ ] Multi-currency support
+| Phase | Focus | Priority | Status |
+|-------|-------|----------|--------|
+| 0 | Project cleanup + baseline | 🔴 Critical | ✅ TASK 00 complete (commit `11296e4`) |
+| 1 | Production configuration | 🔴 Critical | ⏳ TASK 01 in progress |
+| 2 | POS UX foundation | 🔴 Critical | Planned |
+| 3 | Global search + command palette | 🔴 Critical | Planned |
+| 4 | Keyboard-first workflows | 🟠 High | Planned |
+| 5 | Product 360° view | 🟠 High | Planned |
+| 6 | Automotive Part Finder | 🟠 High | Planned |
+| 7 | Barcode workflows | 🟠 High | Planned |
+| 8 | Warehouse workflows | 🟠 High | Planned |
+| 9 | Printing & labels | 🟠 High | Planned |
+| 10 | Customer + vehicle workflow | 🟡 Medium | Planned |
+| 11 | Attention Center & operational dashboard | 🟡 Medium | Planned |
+| 12 | Multi-branch foundation | 🟡 Medium | Planned |
+| 13 | Automation / AI | 🟢 Later | Deferred — do not start yet |
 
-## Milestone 13: Polish & Optimization
-**Status:** Pending
-**Complexity:** Medium
-**Dependencies:** All previous milestones
+The particularly important sequence once Phase 1 lands:
 
-### Tasks
-- [ ] Performance optimization
-- [ ] Keyboard shortcuts
-- [ ] Accessibility audit
-- [ ] Error handling improvements
-- [ ] Loading states and animations
-- [ ] Offline mode refinement
-- [ ] Auto-updates
+**POS → Search → Command Palette → Keyboard → Product 360 → Part Finder → Barcode → Warehouse**
 
-## Milestone 14: Advanced Features
-**Status:** Pending
-**Complexity:** High
-**Dependencies:** Milestone 13
+These features reinforce each other and will make the ERP feel substantially
+different while the underlying infrastructure remains unchanged.
 
-### Tasks
-- [ ] Multi-warehouse support
-- [ ] Barcode/QR scanning
-- [ ] Receipt printing
-- [ ] Cloud sync (optional)
-- [ ] Plugin system
-- [ ] Multi-currency support
+---
+
+## Long-Term Vision
+
+Milestones 14+ (AI assistant, workshop/service center, accounting,
+multi-branch/company, import/export & integrations, mobile companion, cloud
+sync, enterprise features, commercial polish) are tracked in
+**[docs/progress/SUMMARI.md](./progress/SUMMARI.md)**.

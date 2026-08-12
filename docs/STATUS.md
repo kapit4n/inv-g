@@ -2,8 +2,8 @@
 
 **Date:** 2026-08-12
 **Branch:** master
-**Latest commit:** `f2d9495` — Milestone 13: Enterprise quality assurance & testing framework (2026-07-30)
-**Working tree:** Clean (one untracked dir: `scripts/screenshots/test-results/`)
+**Latest commit:** `11296e4` — Phase 0 baseline: development plan, project status, and implementation progress journal (2026-08-12)
+**Working tree:** Clean
 
 ---
 
@@ -53,30 +53,29 @@ operations, i18n in es/en.
 - Static analysis: TS strict, ESLint, Prettier, Clippy, Oxlint all clean
 - Open issues from visual QA: 2 critical (reports null guard, mock backend
   dependency), 12 major, 8 medium, 4 minor
-- Version in `package.json`/`CHANGELOG.md`: 0.11.0
+- Version in `package.json`/`tauri.conf.json`/`Cargo.toml`/seed: **0.1.0**
+  (milestones are the authoritative history — see `docs/ROADMAP.md`)
 
 ---
 
 ## What is planned next
 
-### Immediate — Milestone 13 (per ROADMAP, still listed as Pending)
-"Administration & System Configuration":
-- Store information settings
-- Tax configuration
-- Receipt templates
-- Notification preferences
-- Backup and restore (hardening)
-- Appearance settings
-- Printing system
-- Deployment packaging
+The active roadmap is `docs/development/DEVELOPMENT_PLAN.md` (Phases 0–10,
+Tasks 00–25), focused on usability and operational efficiency rather than new
+CRUD modules.
 
-### Milestone 14 — Polish & Optimization
-- Performance, keyboard shortcuts, accessibility audit, error handling,
-  loading states/animations, offline mode, auto-updates
+### In progress — Phase 1: Production readiness (per DEVELOPMENT_PLAN)
+- TASK 01: Synchronize project documentation ✅ (committed)
+- TASK 02: Administration & business configuration (store info, tax, receipts,
+  notifications, appearance, business defaults)
+- TASK 03: Backup and restore hardening
+- TASK 04: Printing foundation
 
-### Milestone 15 — Advanced Features
-- Multi-warehouse, barcode/QR scanning, cloud sync, plugin system,
-  multi-currency
+### Then — Phase 2+: POS UX, desktop productivity
+- POS redesign, fast global product search, hold/resume sales, faster checkout
+- Command palette (Ctrl+K), keyboard shortcuts, quick actions
+- Product 360°, Automotive Part Finder, barcode workflows, warehouse workflows,
+  customer + vehicle workflow, Attention Center, multi-branch foundation
 
 ### Long-term vision (see `docs/progress/SUMMARI.md`)
 - AI assistant & workflow automation, workshop/service center, accounting,
@@ -85,18 +84,21 @@ operations, i18n in es/en.
 
 ---
 
-## Documentation inconsistencies to resolve
+## Documentation state (as of TASK 01)
 
-- **ROADMAP.md** lists Milestone 13 as "Administration & System Configuration"
-  (Pending), but the actual Milestone 13 commit was the QA & testing
-  framework. The roadmap is one milestone behind the code.
-- **ROADMAP.md** has duplicate/out-of-order Milestone 13/14 blocks near the end
-  (lines ~233–258) that conflict with the numbered sections above them.
-- **SUMMARI.md** uses a different numbering (M12 = AI, M13 = Workshop) that
-  predates the actual screenshot/QA milestones 12–13.
-- **docs/KNOWN_ISSUES.md** is stale (still says "no real CRUD", "no
-  authentication") — all of that is long since implemented.
+The documentation inconsistencies previously listed here are **resolved**:
 
-Suggested cleanup: renumber/consolidate the ROADMAP milestones to match the
-committed milestone history, and refresh KNOWN_ISSUES.md with the current
-visual QA findings.
+- **ROADMAP.md** — renumbered; Milestone 13 is now correctly "Enterprise QA &
+  Testing Framework" (Complete), duplicate M13/14 blocks removed, and a
+  completed/current/planned/long-term structure added.
+- **SUMMARI.md** — milestone numbering updated to match committed history
+  (completed M1–13, remaining M14–22).
+- **KNOWN_ISSUES.md** — refreshed with the current visual QA findings
+  (`quality/visual_analysis/BUG_LIST.md`); stale placeholder-era entries removed.
+- **CHANGELOG.md** — expanded with Milestones 2–13 entries; version aligned.
+- **Version** — aligned to 0.1.0 across `package.json`, `Cargo.toml`,
+  `tauri.conf.json`, and seed data (was mismatched 0.0.0/0.1.0/0.11.0).
+
+Residual technical debt (stale Drizzle schema, two settings backends,
+placeholder command palette, LIKE-only POS search, mixed Rust DB state) is
+tracked in `docs/KNOWN_ISSUES.md` and the development plan.

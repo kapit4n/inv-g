@@ -163,3 +163,77 @@ duplicates, update SUMMARI, refresh KNOWN_ISSUES against BUG_LIST.md, update
 CHANGELOG, align package.json version with STATUS.md, and commit the baseline
 docs (STATUS.md, DEVELOPMENT_PLAN.md, this file). Then establish the
 IMPLEMENTATION_PROGRESS as the live journal going forward.
+
+---
+
+## TASK 01 — Synchronize project documentation ✅
+
+**Status:** Complete
+**Date:** 2026-08-12
+**Branch/commit:** master
+
+### Current status
+- **Phase:** 1 — Production readiness
+- **Task:** 01 — Synchronize project documentation
+- **Next recommended task:** **TASK 02 — Administration & business configuration**
+
+### What this task was
+Bring the project documentation into agreement with the implementation:
+resolve incorrect/duplicate milestone numbering, obsolete descriptions and
+stale claims; create one coherent roadmap separating completed / current /
+planned / long-term; align the version; update this journal.
+
+### Files changed
+- `docs/ROADMAP.md` — rewritten: completed milestones 1–13 with commit hashes,
+  removed duplicate/out-of-order Milestone 13/14 blocks at the end, added
+  current & planned work (Development Plan Phases 0–10) and long-term vision.
+- `docs/progress/SUMMARI.md` — completed table now matches committed history
+  (M1–13); remaining milestones renumbered M14–M22 (was M12–M20, offset by the
+  screenshot/QA milestones 12–13).
+- `docs/KNOWN_ISSUES.md` — replaced stale placeholder-era entries ("no real
+  CRUD", "no authentication") with current findings: 2 critical, 12 major,
+  8 medium, 4 minor from `quality/visual_analysis/BUG_LIST.md`, plus
+  non-visual project issues (schema source of truth, dual settings backends,
+  placeholder command palette, LIKE-only POS search, mixed Rust DB state).
+- `docs/CHANGELOG.md` — expanded from a single 0.1.0 entry to full milestone
+  history (M1 through M13), with a version note.
+- `package.json` — version aligned 0.0.0 → 0.1.0 (matches `Cargo.toml`,
+  `tauri.conf.json`, and the `app_version` seed setting).
+- `docs/STATUS.md` — latest commit/version updated, "documentation
+  inconsistencies" section replaced with a resolved summary, planned work now
+  reflects the Development Plan.
+- `docs/development/IMPLEMENTATION_PROGRESS.md` — this TASK 01 entry appended.
+
+### Tests executed
+- `npm run typecheck` — ✅ passed.
+- `npm run lint` — ✅ 0 errors (141 pre-existing warnings, unchanged).
+- `npm test` — ✅ 26 files / 174 tests passed.
+- No runtime code changed (documentation + package.json version only).
+
+### Verification status
+- **GREEN.** No behavior change; typecheck/lint/vitest all pass.
+
+### Architectural decisions
+- **Milestone numbering is the authoritative history.** Version 0.1.0 is kept
+  across all config files and is *not* bumped per milestone; milestones 1–13
+  are the release history. Prevents repeated 0.0.0/0.1.0/0.11.0 drift.
+- **Single forward-looking roadmap.** `docs/development/DEVELOPMENT_PLAN.md`
+  is the working plan (Phases 0–10, tasks 00–25); `docs/ROADMAP.md` is a
+  status summary pointing to it; `docs/progress/SUMMARI.md` holds long-term
+  vision (M14+). No more duplicate milestone blocks.
+
+### Known issues discovered
+- `scripts/screenshots/test-results/` still appears as an untracked/empty dir;
+  consider a `.gitignore` entry when it produces artifacts.
+- `docs/README.md` "Project Management" section still links fine but does not
+  yet reference the Development Plan or the implementation journal — minor
+  follow-up if desired.
+
+### Next recommended task
+**TASK 02 — Administration and business configuration.** Company/store
+information, tax configuration, receipt/business defaults, notification
+preferences, appearance settings, business configuration — reusing the existing
+settings infrastructure (`src-tauri/src/commands/settings.rs` +
+`admin/settings.rs`, `src/features/admin`). Note the duplication between the
+two settings backends found in TASK 00; consolidate or clearly delegate before
+adding new keys.

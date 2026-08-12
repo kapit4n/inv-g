@@ -31,3 +31,6 @@ npm-debug.log*
 # Temporary
 tmp/
 temp/
+
+# Test artifacts
+scripts/screenshots/test-results/

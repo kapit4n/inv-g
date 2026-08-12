@@ -1,21 +1,27 @@
 At this point, you've designed a roadmap that is much closer to a commercial ERP than a simple inventory application. The architecture is also well ordered, where each milestone builds on the previous one.
 
-# ✅ Completed Roadmap (Planned)
+# ✅ Completed Roadmap (Implemented)
+
+> Milestone numbering below matches the committed history. See
+> `docs/ROADMAP.md` for commit hashes and `docs/progress/` for per-milestone
+> detail. The active forward plan (Phases 0–10) is
+> `docs/development/DEVELOPMENT_PLAN.md`.
 
 | Milestone | Module                                                                     | Status  |
 | --------- | -------------------------------------------------------------------------- | ------- |
-| ✅ 1       | Project Foundation, Architecture, Documentation, CRUD Framework            | Planned |
-| ✅ 2       | Authentication, RBAC, Users, Settings, Localization                        | Planned |
-| ✅ 3       | Shared UI Components, Forms, Tables, Notifications, Validation             | Planned |
-| ✅ 4       | Dashboard & Core Infrastructure                                            | Planned |
-| ✅ 5       | Inventory Management (Products, Categories, Brands, Suppliers, Warehouses) | Planned |
-| ✅ 6       | Inventory Operations (Movements, Transfers, Reservations, Adjustments)     | Planned |
-| ✅ 7       | Sales & POS                                                                | Planned |
-| ✅ 7.5     | Demo Seed Data & Simulated Business Operations                             | Planned |
-| ✅ 8       | Purchasing & Procurement                                                   | Planned |
-| ✅ 9       | CRM, Customers, Vehicles & Compatibility                                   | Planned |
-| ✅ 10      | Reports, Analytics & BI                                                    | Planned |
-| ✅ 11      | Administration, Backup, Printing, Updates & Deployment                     | Planned |
+| ✅ 1       | Project Foundation, Architecture, Documentation                            | Done |
+| ✅ 2       | Authentication, RBAC, Users, Settings, Localization (delivered with M3)    | Done |
+| ✅ 3       | Core Infrastructure (Settings, Notifications, Dialogs, Error Handling)     | Done |
+| ✅ 4       | CRUD Framework & Data Management Foundation                                | Done |
+| ✅ 5       | Inventory Management (Products, Categories, Brands, Suppliers, Warehouses) | Done |
+| ✅ 6       | Sales & Point of Sale                                                      | Done |
+| ✅ 7       | Purchasing & Procurement                                                   | Done |
+| ✅ 8       | Customers & Suppliers (Credit, Communication)                              | Done |
+| ✅ 9       | CRM, Vehicles & Compatibility                                              | Done |
+| ✅ 10      | Reports, Analytics & BI                                                    | Done |
+| ✅ 11      | Administration Frontend (Backup, Printing, Updates, Diagnostics)           | Done |
+| ✅ 12      | Automated Screenshot Framework & Artifacts                                 | Done |
+| ✅ 13      | Enterprise Quality Assurance & Testing Framework                           | Done |
 
 ---
 
@@ -120,9 +126,13 @@ By the end of Milestone 11, Inventory Gear includes nearly everything expected f
 
 These are the modules that would elevate Inventory Gear from a solid ERP to a premium commercial product.
 
+> Numbering continues from the completed Milestones 1–13 (see table above).
+> Before any of these, the active plan is `docs/development/DEVELOPMENT_PLAN.md`
+> (Phases 0–10, tasks 00–25) which is the current working roadmap.
+
 ---
 
-# Milestone 12
+# Milestone 14
 
 ## AI Assistant & Workflow Automation
 
@@ -155,7 +165,7 @@ Also
 
 ---
 
-# Milestone 13
+# Milestone 15
 
 ## Workshop / Service Center
 
@@ -177,7 +187,7 @@ This alone could become another product.
 
 ---
 
-# Milestone 14
+# Milestone 16
 
 ## Accounting
 
@@ -200,7 +210,7 @@ implement
 
 ---
 
-# Milestone 15
+# Milestone 17
 
 ## Multi-Branch / Multi-Company
 
@@ -215,7 +225,7 @@ Support
 
 ---
 
-# Milestone 16
+# Milestone 18
 
 ## Import / Export & Integrations
 
@@ -244,7 +254,7 @@ Integrations
 
 ---
 
-# Milestone 17
+# Milestone 19
 
 ## Mobile Companion
 
@@ -265,7 +275,7 @@ QR scanning
 
 ---
 
-# Milestone 18
+# Milestone 20
 
 ## Cloud Synchronization
 
@@ -282,7 +292,7 @@ This would allow customers to keep working without internet while synchronizing 
 
 ---
 
-# Milestone 19
+# Milestone 21
 
 ## Enterprise Features
 
@@ -300,7 +310,7 @@ This would allow customers to keep working without internet while synchronizing 
 
 ---
 
-# Milestone 20
+# Milestone 22
 
 ## Commercial Product Polish
 
