@@ -37,7 +37,7 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 2. `paperWidth` case label corrected to `"A4"` (`src/lib/print/config.ts`).
 3. Added the missing `sales.*` keys to `src/i18n/locales/{en,es}/sales.json`.
 
-**Commit:** uncommitted (TASK 04 printing foundation — to be committed together)
+**Commit:** `6142477`
 
 **Files:** `src/hooks/use-print.ts`, `src/lib/print/config.ts`,
 `src/i18n/locales/en/sales.json`, `src/i18n/locales/es/sales.json`

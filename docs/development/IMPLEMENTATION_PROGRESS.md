@@ -455,7 +455,7 @@ with preview, printer selection, error handling and testable rendering logic.
 
 **Status:** Complete
 **Date:** 2026-08-13
-**Branch/commit:** uncommitted (working tree; pending single commit)
+**Branch/commit:** master (`6142477`)
 
 ### Current status
 - **Phase:** 1 — Production readiness

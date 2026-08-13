@@ -244,7 +244,7 @@ CRUD modules, with phases executed incrementally one task at a time.
 | Phase | Focus | Priority | Status |
 |-------|-------|----------|--------|
 | 0 | Project cleanup + baseline | 🔴 Critical | ✅ TASK 00 complete (commit `11296e4`) |
-| 1 | Production configuration | 🔴 Critical | ✅ TASK 01 (commit `14b8d92`), ✅ TASK 02 (commit `09e723b`), ✅ TASK 03 (commit `8cfc9fb`), ✅ TASK 04 (uncommitted), ⏳ TASK 05 next |
+| 1 | Production configuration | 🔴 Critical | ✅ TASK 01 (commit `14b8d92`), ✅ TASK 02 (commit `09e723b`), ✅ TASK 03 (commit `8cfc9fb`), ✅ TASK 04 (commit `6142477`), ⏳ TASK 05 next |
 | 2 | POS UX foundation | 🔴 Critical | Planned |
 | 3 | Global search + command palette | 🔴 Critical | Planned |
 | 4 | Keyboard-first workflows | 🟠 High | Planned |
