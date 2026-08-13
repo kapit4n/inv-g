@@ -1,0 +1,11 @@
+{
+  "title": "Print",
+  "printer": "Printer",
+  "paperSize": "Paper",
+  "copies": "Copies",
+  "noPrinters": "No printers configured",
+  "noPrintersHint": "Add a printer in Admin → Printers to use device-specific settings. Printing will use your system print dialog.",
+  "configurePrinters": "Configure printers",
+  "printError": "Print failed. Try again or check your system printer settings.",
+  "printed": "Document sent to print"
+}

@@ -1,0 +1,11 @@
+{
+  "title": "Imprimir",
+  "printer": "Impresora",
+  "paperSize": "Papel",
+  "copies": "Copias",
+  "noPrinters": "No hay impresoras configuradas",
+  "noPrintersHint": "Agregue una impresora en Administración → Impresoras para usar configuración específica. La impresión usará el diálogo de impresión del sistema.",
+  "configurePrinters": "Configurar impresoras",
+  "printError": "Error al imprimir. Intente nuevamente o revise la configuración de impresora del sistema.",
+  "printed": "Documento enviado a imprimir"
+}

@@ -450,3 +450,106 @@ invoices, quotations, purchase orders, customer statements, inventory reports
 and barcode/product labels. Inspect `src-tauri/src/commands/admin/printers.rs`
 and the printer admin pages first; build reusable print/template abstractions
 with preview, printer selection, error handling and testable rendering logic.
+
+## TASK 04 — Printing foundation ✅
+
+**Status:** Complete
+**Date:** 2026-08-13
+**Branch/commit:** uncommitted (working tree; pending single commit)
+
+### Current status
+- **Phase:** 1 — Production readiness
+- **Task:** 04 — Printing foundation
+- **Next recommended task:** **TASK 05 — Analyze and redesign the POS workflow**
+
+### What this task was
+Build a reusable printing foundation on top of the existing printer
+configuration (`src-tauri/src/commands/admin/printers.rs`, admin printer pages):
+a document model, pure print-config/model builders, a shared print dialog with
+live preview and printer selection, and wiring for the receipt (sale detail),
+closeout report, and quote pages. The printing foundation is covered by unit
+tests for config mapping, formatting, document-model building, printer
+resolution, the dialog component, and page-level print flows.
+
+### Architecture
+- **`src/lib/print/`** — pure, framework-free core (unit-tested):
+  - `types.ts`: `PrintDocumentModel`, `PrintConfig`, `PrintStoreInfo`,
+    `PrintRequest`, kind/paper-size constants.
+  - `config.ts`: `buildPrintConfig` maps the app-settings store into a
+    `PrintConfig` (store name/address/phone/tax id, currency, footer, flag
+    booleans, per-kind printer names, default paper size); `isThermalPaper`,
+    `paperWidth`, `paperSizeForKind` normalize sizes (thermal vs A4/letter).
+  - `format.ts`: `formatCurrency`/`formatNumber`/`formatDate`/`formatDateTime`
+    with null/NaN-safe fallbacks.
+  - `models.ts`: `buildSaleReceiptModel`, `buildQuoteDocumentModel`,
+    `buildCloseoutDocumentModel` produce `PrintDocumentModel`s (totals with
+    bold total, line items, payments, meta lines, footer, notes).
+  - `printer.ts`: `sortPrinters` (default first), `activePrinters`,
+    `resolveDefaultPrinter` (configured printer → `is_default` → first),
+    `printerLabel`.
+- **`src/components/print/`** — UI:
+  - `print-dialog.tsx`: Radix dialog with live preview (`PrintTemplate`),
+    printer select (default pre-selected via `resolveDefaultPrinter`), a
+    `@media print` stylesheet that isolates `#print-preview-root`, warning
+    state when no printers are configured (link to Admin → Printers), and
+    `window.print()` + best-effort `onPrinted` callback.
+  - `print-host.tsx`: renders the dialog from `usePrintStore.request`.
+  - `templates.tsx`: `PrintTemplate` renders per-kind documents (receipt,
+    quote, report, etc.) with meta/summary/totals sections.
+- **`src/stores/print.store.ts`** — zustand store holding the active
+  `PrintRequest`; `src/hooks/use-print.ts` exposes `usePrint()` (returns the
+  open function), `src/hooks/use-print-config.ts` derives `PrintConfig` from
+  the app-settings store.
+- **Wiring:** `PrintHost` mounted in `App.tsx`; pages call
+  `usePrint()` + `build*Model(...)` (sale-detail, closeout, quote-detail);
+  `print` i18n namespace registered in `src/i18n/config.ts`
+  (`en|es/print.json`); `get_printers(printer_type)` Rust command so the
+  dialog lists configured printers.
+
+### Tests executed
+- New Vitest suites (39 tests):
+  - `tests/unit/lib/print-format.test.ts` — currency/number/date formatting.
+  - `tests/unit/lib/print-config.test.ts` — setting mapping, thermal/paper
+    size normalization, kind-specific fallbacks.
+  - `tests/unit/lib/print-models.test.ts` — receipt/quote/closeout model
+    building, tax-row and customer-meta conditionals, bold total, fallbacks.
+  - `tests/unit/lib/print-printer.test.ts` — sorting, active filtering,
+    default-printer resolution order, label formatting.
+  - `tests/unit/components/print-dialog.test.tsx` — live preview, printer
+    select pre-selection, print + close flow, no-printers warning state.
+  - `tests/unit/components/sale-detail-page.test.tsx` — sale details render
+    and the full print flow marks the receipt printed after `window.print`.
+  - `tests/unit/components/closeout-page.test.tsx` — closeout stats render
+    and the print dialog opens with the report document.
+- `npm run verify` — ✅ full gate green (typecheck, lint 0 errors, 249
+  frontend tests in 39 files, 46 Rust tests).
+
+### Bug fixes surfaced by the new tests
+See `docs/BUG_FIX_LOG.md` top entry:
+1. `usePrint()` returned `{ print }` while all three call sites invoked it as
+   a function → runtime crash on every Print click. Fixed to return the open
+   function directly.
+2. `paperWidth("A4")` fell through to the 80mm default because
+   `normalizePaperSize` returns uppercase `A4` but the switch matched lowercase
+   `a4`. Fixed the case label.
+3. `sales.receipt` (and 12 sibling keys used by the sale-detail/closeout
+   pages) were missing from `en|es/sales.json`, so the receipt document title
+   rendered the raw key (`receipt`). Added the keys in both locales.
+
+### Verification status
+- **GREEN.** `npm run verify` passes end to end; no new lint errors; Rust
+  suite unchanged (46 passed).
+
+### Known issues discovered
+- Printing relies on the browser print dialog (`window.print`) with an
+  isolated preview; there is no native/CUPS direct-print path yet (out of
+  scope for the foundation).
+- `sales.receipt` document title is now translated, but invoice/statement/
+  label builders from the foundation are not yet wired to pages — those are
+  follow-on tasks.
+
+### Next recommended task
+**TASK 05 — Analyze and redesign the POS workflow.** Reuse the printing
+foundation (`usePrint` + `build*Model`) for receipt printing in the POS, then
+work the search → identify → stock → cart → customer → vehicle → payment →
+receipt flow. Add regression tests for the print path.

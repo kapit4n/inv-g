@@ -6,6 +6,44 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-08-13 — Print feature: `usePrint()` crash, A4 paper width misreport, and missing sales locale keys
+
+**Symptom:**
+1. Clicking Print on the sale-detail, closeout, or quote pages threw
+   `TypeError: print is not a function` (window never opened).
+2. `paperWidth("A4")` returned `80mm` instead of `210mm` (A4 documents were
+   sized as thermal).
+3. The receipt print document title rendered the raw key `receipt` (lowercase)
+   instead of a translated label.
+
+**Investigation:**
+- `src/hooks/use-print.ts` returned `{ print: fn }` but all three call sites
+  (`sale-detail-page.tsx:108`, `closeout-page.tsx:68`, `quote-detail-page.tsx`)
+  destructure-free `const print = usePrint()` then invoke `print(document)` —
+  so `print` was an object, not a function. This was only surfaced when page
+  tests started exercising the print flow.
+- `src/lib/print/config.ts` `normalizePaperSize` uppercases `A4` but
+  `paperWidth`'s switch had a lowercase `case "a4":`, so the `A4` input fell
+  through to the `default` (80mm).
+- `t("sales.receipt")` (plus `receiptNumber`, `receiptType`, `printedAt`,
+  `receiptPrinted`, `noReceipts`, `details`, `notes`, `payments`, `method`,
+  `reference`, `change`, `refundReasonPlaceholder`) were not defined in
+  `en|es/sales.json`, so i18n fell back to raw keys in the print dialog and the
+  sale-detail page.
+
+**Fix:**
+1. `usePrint()` now returns the open function directly (`src/hooks/use-print.ts`),
+   matching the call sites; verified by the sale-detail/closeout page tests.
+2. `paperWidth` case label corrected to `"A4"` (`src/lib/print/config.ts`).
+3. Added the missing `sales.*` keys to `src/i18n/locales/{en,es}/sales.json`.
+
+**Commit:** uncommitted (TASK 04 printing foundation — to be committed together)
+
+**Files:** `src/hooks/use-print.ts`, `src/lib/print/config.ts`,
+`src/i18n/locales/en/sales.json`, `src/i18n/locales/es/sales.json`
+
+---
+
 ### 2026-08-13 — Backups were never actually created; restore/verify did not exist
 
 **Symptom:** `create_backup` only inserted a row into `backup_history` with a fake checksum (`pending_<timestamp>`) and an estimated size — **no backup file was ever written**. `delete_backup` only removed the DB record, leaving orphan files on disk. There was no `restore_backup` command at all (the frontend called nothing), no validation of files (corrupt/empty/missing files were indistinguishable), and the restore UI's Restore button was a disabled placeholder.

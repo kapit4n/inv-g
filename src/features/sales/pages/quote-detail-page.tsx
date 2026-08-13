@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { getQuote, getQuoteItems, updateQuoteStatus, convertQuoteToSale } from "@/lib/tauri"
 import { useNotification } from "@/hooks/use-notification"
+import { usePrint, usePrintConfig } from "@/hooks"
+import { buildQuoteDocumentModel, type QuoteLabels } from "@/lib/print"
 
 const statusColors: Record<string, string> = {
   draft: "bg-gray-500", sent: "bg-blue-500", accepted: "bg-green-500",
@@ -21,6 +23,8 @@ export function QuoteDetailPage() {
   const { id } = useParams()
   const queryClient = useQueryClient()
   const notification = useNotification()
+  const print = usePrint()
+  const config = usePrintConfig()
 
   const { data: quote } = useQuery({
     queryKey: ["quote", Number(id)],
@@ -58,6 +62,20 @@ export function QuoteDetailPage() {
   const subtotal = items.reduce((s, i) => s + i.total, 0)
   const total = subtotal + quote.taxAmount - quote.discountAmount
 
+  const handlePrint = () => {
+    const labels: QuoteLabels = {
+      title: t("sales.quote"),
+      subtotal: t("sales.subtotal"),
+      tax: t("sales.tax"),
+      discount: t("sales.discount"),
+      total: t("sales.total"),
+      customer: t("sales.customer"),
+      validUntil: t("sales.validUntil"),
+    }
+    const document = buildQuoteDocumentModel(quote, items, config, labels)
+    print(document)
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -92,7 +110,7 @@ export function QuoteDetailPage() {
             <ShoppingCart className="h-4 w-4 mr-1" /> Convert to Sale
           </Button>
         )}
-        <Button size="sm" variant="outline" onClick={() => window.print()}>
+        <Button size="sm" variant="outline" onClick={handlePrint}>
           <Printer className="h-4 w-4 mr-1" /> Print
         </Button>
       </div>

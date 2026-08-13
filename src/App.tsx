@@ -8,6 +8,7 @@ import { useAuthStore, useAppSettingsStore } from "@/stores"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { NotificationCenter } from "@/components/notification-center"
 import { DialogHost } from "@/components/dialog-host"
+import { PrintHost } from "@/components/print/print-host"
 
 export default function App() {
   const initialize = useAuthStore((s) => s.initialize)
@@ -25,6 +26,7 @@ export default function App() {
           <RouterProvider router={router} />
           <NotificationCenter />
           <DialogHost />
+          <PrintHost />
         </ErrorBoundary>
       </QueryClientProvider>
     </ThemeProvider>

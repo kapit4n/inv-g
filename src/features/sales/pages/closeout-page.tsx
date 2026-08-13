@@ -11,6 +11,8 @@ import { StatCard } from "@/components/stat-card"
 import { getDailyCloseout, closeDailyShift, getDailyClosings } from "@/lib/tauri"
 import { useNotification } from "@/hooks/use-notification"
 import { useCurrentUser } from "@/hooks/use-auth"
+import { usePrint, usePrintConfig } from "@/hooks"
+import { buildCloseoutDocumentModel, type CloseoutLabels } from "@/lib/print"
 import type { DailyClosing } from "@/types"
 
 export function CloseoutPage() {
@@ -19,6 +21,8 @@ export function CloseoutPage() {
   const queryClient = useQueryClient()
   const notification = useNotification()
   const { user } = useCurrentUser()
+  const print = usePrint()
+  const config = usePrintConfig()
 
   const { data, isLoading } = useQuery({
     queryKey: ["daily-closeout"],
@@ -46,72 +50,28 @@ export function CloseoutPage() {
   const formatCurrency = (value: number) =>
     value.toLocaleString("en-US", { style: "currency", currency: "USD" })
 
-  const handlePrint = () => window.print()
+  const handlePrint = () => {
+    if (!data) return
+    const labels: CloseoutLabels = {
+      title: t("sales.dailyCloseout"),
+      totalSales: t("sales.totalSales"),
+      totalRevenue: t("sales.totalRevenue"),
+      totalTax: t("sales.totalTax"),
+      totalDiscount: t("sales.totalDiscount"),
+      cash: t("sales.cash"),
+      card: t("sales.card"),
+      transfer: t("sales.transfer"),
+      refunds: t("sales.refunds"),
+      netRevenue: t("sales.netRevenue"),
+    }
+    const document = buildCloseoutDocumentModel(data, config, labels)
+    print(document)
+  }
 
   if (isLoading) return <div className="p-8 text-center text-muted-foreground">{t("common.loading")}</div>
 
   return (
     <div className="space-y-6">
-      <style>{`
-        @media print {
-          body * { visibility: hidden; }
-          #closeout-area, #closeout-area * { visibility: visible; }
-          #closeout-area { position: absolute; left: 0; top: 0; width: 80mm; padding: 10px; font-size: 12px; font-family: monospace; }
-          #closeout-area .no-print { display: none !important; }
-        }
-      `}</style>
-
-      <div id="closeout-area" className="hidden print:block">
-        <div style={{ textAlign: "center", marginBottom: 10 }}>
-          <strong style={{ fontSize: 16 }}>{t("common.appName")}</strong>
-          <div>{t("sales.dailyCloseout")}</div>
-          <div style={{ fontSize: 10 }}>{new Date().toLocaleDateString()}</div>
-        </div>
-        <div style={{ borderTop: "1px dashed #000", borderBottom: "1px dashed #000", padding: "5px 0", marginBottom: 10 }}>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span>{t("sales.totalSales")}</span>
-            <span>{data?.totalSales ?? 0}</span>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span>{t("sales.totalRevenue")}</span>
-            <span>{formatCurrency(data?.totalRevenue ?? 0)}</span>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span>{t("sales.totalTax")}</span>
-            <span>{formatCurrency(data?.totalTax ?? 0)}</span>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span>{t("sales.totalDiscount")}</span>
-            <span>{formatCurrency(data?.totalDiscount ?? 0)}</span>
-          </div>
-        </div>
-        <div style={{ marginBottom: 10 }}>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span>{t("sales.cash")}</span>
-            <span>{formatCurrency(data?.cashTotal ?? 0)} ({data?.cashCount ?? 0}x)</span>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span>{t("sales.card")}</span>
-            <span>{formatCurrency(data?.cardTotal ?? 0)} ({data?.cardCount ?? 0}x)</span>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span>{t("sales.transfer")}</span>
-            <span>{formatCurrency(data?.transferTotal ?? 0)} ({data?.transferCount ?? 0}x)</span>
-          </div>
-        </div>
-        {(data?.refundedCount ?? 0) > 0 && (
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-            <span>{t("sales.refunds")}</span>
-            <span>-{formatCurrency(data?.refundedTotal ?? 0)} ({data?.refundedCount}x)</span>
-          </div>
-        )}
-        <div style={{ borderTop: "1px solid #000", padding: "5px 0", display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: 14 }}>
-          <span>{t("sales.netRevenue")}</span>
-          <span>{formatCurrency((data?.totalRevenue ?? 0) - (data?.refundedTotal ?? 0))}</span>
-        </div>
-        <div style={{ textAlign: "center", fontSize: 10, marginTop: 15 }}>{t("common.print")}: {new Date().toLocaleString()}</div>
-      </div>
-
       <PageHeader
         title={t("sales.dailyCloseout")}
         description={new Date().toLocaleDateString()}

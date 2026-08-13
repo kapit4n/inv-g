@@ -12,6 +12,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { getSale, getSaleItems, getSalePayments, getReceiptsForSale, refundSale, markReceiptPrinted } from "@/lib/tauri"
 import type { SaleItem, SalePayment, Receipt as ReceiptType } from "@/types"
 import { useNotification } from "@/hooks/use-notification"
+import { usePrint, usePrintConfig } from "@/hooks"
+import { buildSaleReceiptModel, type ReceiptLabels } from "@/lib/print"
 
 export function SaleDetailPage() {
   const { t } = useTranslation()
@@ -22,6 +24,8 @@ export function SaleDetailPage() {
 
   const [refundMode, setRefundMode] = useState(false)
   const [refundReason, setRefundReason] = useState("")
+  const print = usePrint()
+  const config = usePrintConfig()
 
   const saleId = Number(id)
 
@@ -86,50 +90,34 @@ export function SaleDetailPage() {
   const formatCurrency = (value: number) =>
     value.toLocaleString("en-US", { style: "currency", currency: "USD" })
 
+  const handlePrint = () => {
+    const labels: ReceiptLabels = {
+      title: t("sales.receipt"),
+      subtotal: t("sales.subtotal"),
+      tax: t("sales.tax"),
+      discount: t("sales.discount"),
+      total: t("sales.total"),
+      customer: t("sales.customer"),
+      methods: {
+        cash: t("sales.cash"),
+        card: t("sales.card"),
+        transfer: t("sales.transfer"),
+      },
+    }
+    const document = buildSaleReceiptModel(sale, items, payments, config, labels)
+    print(document, {
+      onPrinted: () => {
+        const first = receipts.find((r) => !r.isPrinted)
+        if (first) printReceiptMutation.mutate(first.id)
+      },
+    })
+  }
+
   if (isLoading) return <div className="p-8 text-center text-muted-foreground">{t("common.loading")}</div>
   if (!sale) return <div className="p-8 text-center text-muted-foreground">{t("common.notFound")}</div>
 
   return (
     <div className="space-y-6">
-      <style>{`
-        @media print {
-          body * { visibility: hidden; }
-          #receipt-area, #receipt-area * { visibility: visible; }
-          #receipt-area { position: absolute; left: 0; top: 0; width: 80mm; padding: 10px; font-size: 12px; font-family: monospace; }
-          #receipt-area .no-print { display: none !important; }
-        }
-      `}</style>
-
-      <div id="receipt-area" className="hidden print:block">
-        <div style={{ textAlign: "center", marginBottom: 10 }}>
-          <strong style={{ fontSize: 16 }}>{t("common.appName")}</strong>
-          <div>{sale.saleNumber}</div>
-          {sale.receiptNumber && <div style={{ fontSize: 10 }}>{t("sales.receipt")}: {sale.receiptNumber}</div>}
-          <div style={{ fontSize: 10 }}>{new Date(sale.createdAt).toLocaleString()}</div>
-        </div>
-        <div style={{ borderTop: "1px dashed #000", borderBottom: "1px dashed #000", padding: "5px 0", marginBottom: 10 }}>
-          {items.map((item: SaleItem) => (
-            <div key={item.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
-              <span>{item.quantity}x {item.productName || `#${item.productId}`}</span>
-              <span>{formatCurrency(item.total)}</span>
-            </div>
-          ))}
-        </div>
-        <div style={{ textAlign: "right", marginBottom: 5 }}>
-          <div>{t("sales.subtotal")}: {formatCurrency(sale.subtotal)}</div>
-          <div>{t("sales.tax")}: {formatCurrency(sale.taxAmount)}</div>
-          {sale.discountAmount > 0 && <div>{t("sales.discount")}: -{formatCurrency(sale.discountAmount)}</div>}
-          <div style={{ fontWeight: "bold", fontSize: 14 }}>{t("sales.total")}: {formatCurrency(sale.total)}</div>
-        </div>
-        <div style={{ textAlign: "center", fontSize: 10, marginTop: 10 }}>
-          {payments.map((p, i) => (
-            <div key={p.id}>{t(`sales.${p.method}`)}: {formatCurrency(p.amount)}{p.changeAmount > 0 && ` (${t("sales.change")}: ${formatCurrency(p.changeAmount)})`}</div>
-          ))}
-        </div>
-        {sale.customerName && <div style={{ textAlign: "center", fontSize: 10 }}>{t("sales.customer")}: {sale.customerName}</div>}
-        <div style={{ textAlign: "center", fontSize: 10, marginTop: 15 }}>{t("common.print")}: {new Date().toLocaleString()}</div>
-      </div>
-
       <div className="flex items-center gap-4 no-print">
         <Button variant="ghost" size="icon" onClick={() => navigate("/sales")}>
           <ArrowLeft className="h-4 w-4" />
@@ -144,7 +132,7 @@ export function SaleDetailPage() {
         <div className="ml-auto flex items-center gap-2">
           {sale.paymentStatus !== "refunded" && (
             <>
-              <Button variant="outline" size="sm" onClick={() => window.print()}>
+              <Button variant="outline" size="sm" onClick={handlePrint}>
                 <Printer className="h-4 w-4 mr-1" /> {t("common.print")}
               </Button>
               <Button variant="destructive" size="sm" onClick={() => setRefundMode(true)}>
