@@ -1878,19 +1878,43 @@ function buildMockData(theme: string): DataMap {
   ]
   d["create_backup"] = (a: any) => ({
     id: Math.floor(Math.random() * 900) + 100,
-    fileName: `inventory_gear_${new Date().toISOString().replace(/[T:]/g, "_").slice(0, 19)}.sqlite`,
-    filePath: `/backups/inventory_gear_${new Date().toISOString().replace(/[T:]/g, "_").slice(0, 19)}.sqlite`,
+    fileName: `inventory_gear_${new Date().toISOString().replace(/[T:]/g, "_").slice(0, 19)}.db`,
+    filePath: `/backups/inventory_gear_${new Date().toISOString().replace(/[T:]/g, "_").slice(0, 19)}.db`,
     fileSize: 12582912,
     backupType: a?.backupType ?? "manual",
-    compression: "gzip",
-    encryption: "aes256",
+    compression: "none",
+    encryption: "none",
     status: "completed",
+    checksum: "a3f1c2e9b7d8456f9e0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e",
     notes: a?.notes,
     createdBy: a?.createdBy,
     createdByName: "Administrador",
     createdAt: new Date().toISOString(),
   })
   d["delete_backup"] = undefined
+  d["verify_backup"] = (a: any) => ({
+    fileName: "inventory_gear_2026-07-30_020000.sqlite",
+    filePath: `/backups/inventory_gear_2026-07-30_020000.sqlite`,
+    fileSize: 12582912,
+    valid: true,
+    sqliteValid: true,
+    integrityOk: true,
+    checksum: "a3f1c2e9b7d8456f9e0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e",
+    checksumMatch: true,
+    message: "Backup is valid",
+  })
+  d["restore_backup"] = (a: any) => ({
+    id: Math.floor(Math.random() * 900) + 100,
+    backupId: a?.input?.backupId,
+    fileName: "inventory_gear_2026-07-30_020000.sqlite",
+    filePath: `/backups/inventory_gear_2026-07-30_020000.sqlite`,
+    restoreType: a?.input?.restoreType ?? "complete",
+    status: "completed",
+    tablesRestored: "all",
+    createdBy: a?.input?.createdBy,
+    createdByName: "Administrador",
+    createdAt: new Date().toISOString(),
+  })
   d["get_scheduled_backup_config"] = () => JSON.stringify({ enabled: true, intervalHours: 24, time: "02:00", retentionDays: 30, compression: "gzip", encryption: "aes256" })
   d["save_scheduled_backup_config"] = undefined
   d["get_backup_stats"] = { total_backups: 45, total_size_bytes: 570425344, total_size_mb: "544 MB", last_backup: "2026-07-30T02:00:00Z" }

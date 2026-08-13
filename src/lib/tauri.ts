@@ -3,7 +3,7 @@ import type {
   LoginResponse, SessionInfo, AppSetting,
   AdminUser, AdminRole, AdminPermission, RoleWithPermissions,
   AdminDashboard, UserActivityPoint, DbGrowthPoint,
-  BackupRecord, RestoreRecord,
+  BackupRecord, RestoreRecord, BackupValidation, RestoreBackupInput,
   PrinterSetting, PrinterInput, DeviceSetting, DeviceInput,
   AdminAppSetting, SettingCategory,
   DatabaseStats, TableInfo, MigrationInfo,
@@ -1124,8 +1124,16 @@ export async function createBackup(backupType: string, notes?: string, createdBy
   return invoke<BackupRecord>("create_backup", { backupType, notes, createdBy })
 }
 
-export async function deleteBackup(id: number): Promise<void> {
-  return invoke<void>("delete_backup", { id })
+export async function deleteBackup(id: number, createdBy?: number): Promise<void> {
+  return invoke<void>("delete_backup", { id, createdBy })
+}
+
+export async function verifyBackup(backupId?: number, filePath?: string): Promise<BackupValidation> {
+  return invoke<BackupValidation>("verify_backup", { backupId, filePath })
+}
+
+export async function restoreBackup(input: RestoreBackupInput): Promise<RestoreRecord> {
+  return invoke<RestoreRecord>("restore_backup", { input })
 }
 
 export async function getRestoreHistory(limit?: number): Promise<RestoreRecord[]> {

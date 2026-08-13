@@ -1554,6 +1554,25 @@ export interface RestoreRecord {
   createdAt: string
 }
 
+export interface BackupValidation {
+  fileName: string
+  filePath: string
+  fileSize: number
+  valid: boolean
+  sqliteValid: boolean
+  integrityOk: boolean
+  checksum: string
+  checksumMatch?: boolean
+  message: string
+}
+
+export interface RestoreBackupInput {
+  backupId?: number
+  filePath?: string
+  restoreType?: string
+  createdBy: number
+}
+
 export interface PrinterSetting {
   id: number
   name: string

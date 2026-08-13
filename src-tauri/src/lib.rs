@@ -21,7 +21,7 @@ pub fn run() {
 
     let conn = init_database(&db_path).expect("Failed to initialize database");
 
-    let db_state = DbState::new(conn);
+    let db_state = DbState::new(conn, app_config.db_path);
     let tauri_state = db_state.clone();
     DB_STATE.set(db_state).expect("Failed to set database state");
 
@@ -291,6 +291,8 @@ pub fn run() {
             commands::admin::get_backup_history,
             commands::admin::create_backup,
             commands::admin::delete_backup,
+            commands::admin::verify_backup,
+            commands::admin::restore_backup,
             commands::admin::get_restore_history,
             commands::admin::get_scheduled_backup_config,
             commands::admin::save_scheduled_backup_config,

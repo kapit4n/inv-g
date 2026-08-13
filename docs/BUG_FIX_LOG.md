@@ -6,7 +6,32 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
-### 2026-08-13 — Admin settings editor renders option selects as a single garbled option
+### 2026-08-13 — Backups were never actually created; restore/verify did not exist
+
+**Symptom:** `create_backup` only inserted a row into `backup_history` with a fake checksum (`pending_<timestamp>`) and an estimated size — **no backup file was ever written**. `delete_backup` only removed the DB record, leaving orphan files on disk. There was no `restore_backup` command at all (the frontend called nothing), no validation of files (corrupt/empty/missing files were indistinguishable), and the restore UI's Restore button was a disabled placeholder.
+
+**Investigation:**
+- `src-tauri/src/commands/admin/backups.rs` computed `checksum = format!("pending_{}", ...)` and `file_size` as a constant/estimate; nothing wrote to disk.
+- `delete_backup` never touched the filesystem.
+- No restore command existed in `lib.rs` or the command module; `verify_backup` was a stub.
+- rusqlite 0.31 exposes the SQLite online backup API via `rusqlite::backup::Backup::new(from: &Connection, to: &mut Connection)` + `run_to_completion(...)`, but only when the `backup` feature is enabled — it was not in `Cargo.toml`.
+- No checksum crate was present; `DbState` had no knowledge of the database path, so a real file location could not be resolved.
+
+**Root Cause:** The backup feature was implemented as a data-model placeholder (history row only) without a filesystem artifact, an integrity check, or a restore path. Any user relying on it would have discovered their "backups" were empty rows.
+
+**Fix:**
+1. Real file backup: `write_backup` uses the rusqlite backup API to a temp file, then atomically renames; `checksum_file` streams SHA-256 (`sha2` added to Cargo.toml); real `file_size` recorded; failures recorded with status `failed` + error in `notes` and the partial temp file removed.
+2. New `verify_backup` command (by `backup_id` or `file_path`) returning `BackupValidation` (SQLite header, `PRAGMA quick_check`, checksum match vs history).
+3. New `restore_backup` command: validate-then-restore into the live connection, post-restore integrity check, `restore_history` success/failure record with `error_message`.
+4. `delete_backup` now removes the physical file and records `created_by`.
+5. `DbState` gained `db_path` so backups resolve next to the database file (`<db dir>/backups`).
+6. Frontend: admin-backups-page + admin-restore-page rewritten (verify action, validate-gated restore, confirm dialogs, notifications); `tauri.ts` wrappers `verifyBackup`/`restoreBackup`; mock synced.
+
+**Commit:** `(TASK 03 — see commit below)`
+
+**Files:** `src-tauri/src/commands/admin/backups.rs`, `src-tauri/src/db/connection.rs`, `src-tauri/src/lib.rs`, `src-tauri/Cargo.toml`, `src/lib/tauri.ts`, `src/types/index.ts`, `src/features/admin/pages/admin-backups-page.tsx`, `src/features/admin/pages/admin-restore-page.tsx`, `src/i18n/locales/{en,es}/admin.json`, `scripts/screenshots/helpers/invoke-mock.ts`
+
+---
 
 **Symptom:** In the admin settings editor (`/admin/settings`), any setting with `options` (e.g. `language`, `barcode_format`, `backup_destination`, `business_type`) rendered as a `<select>` with exactly one broken `<option>` whose label looked like `{ options: ["es","en"] }` — the raw JSON string. Selecting the seeded value was impossible because the value string did not match any real option.
 

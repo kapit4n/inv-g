@@ -342,3 +342,111 @@ implementation so users can safely create/see status/restore/validate backups,
 handle corrupt files and errors, confirm destructive restores, and get clear
 messages. Reuse `src-tauri/src/commands/admin/backups.rs` and the admin backup
 pages; add tests for failure cases.
+
+---
+
+## TASK 03 — Backup and restore hardening ✅
+
+**Status:** Complete
+**Date:** 2026-08-13
+**Branch/commit:** master (see commit at time of writing)
+
+### Current status
+- **Phase:** 1 — Production readiness
+- **Task:** 03 — Backup and restore hardening
+- **Next recommended task:** **TASK 04 — Printing foundation**
+
+### What this task was
+Make backup/restore safe and trustworthy. Previously `create_backup` only
+inserted a history row with a *fake* `pending_` checksum and an estimated size —
+**no backup file was ever written**, delete did not remove the physical file,
+there was no restore command at all, no validation, and the restore UI was a
+disabled button. This task implemented a real, validated, confirmed backup and
+restore workflow.
+
+### Backend (`src-tauri/src/commands/admin/backups.rs`)
+- **Real backups.** `create_backup` now snapshots the live database with the
+  SQLite **online backup API** (`rusqlite::backup`, WAL-aware), writes to a
+  temp file first and atomically renames on success, computes a real **SHA-256
+  checksum** and real file size, and stores them in `backup_history`
+  (`compression`/`encryption` = `none`; no cloud sync per plan). Failed backups
+  are recorded with status `failed` and the error in `notes`, and the partial
+  temp file is removed.
+- **Restore.** New `restore_backup` command: resolves the source (by
+  `backup_id` from history, or an explicit `file_path`), refuses to restore
+  non-`completed` records, **validates the file first** (existence, non-empty,
+  SQLite header, `PRAGMA quick_check`, checksum match), then restores into the
+  live connection via the backup API and runs a **post-restore integrity
+  check**. History/audit rows are written *after* a successful restore so the
+  restore itself never rolls them back; failures are recorded in
+  `restore_history` with `error_message`.
+- **Verify.** New `verify_backup` command returns a `BackupValidation`
+  (file name/size, `valid`, `sqlite_valid`, `integrity_ok`, checksum,
+  `checksum_match`, human-readable `message`) for any backup, by id or by path.
+- **Delete.** `delete_backup` now also removes the physical file (missing file
+  is tolerated) and takes a `created_by` for the audit trail.
+- `DbState` now carries `db_path` so backups resolve to
+  `<database dir>/backups`; `get_scheduled_backup_config` / `save_scheduled_backup_config`
+  still read/write the `backup` settings category.
+
+### Frontend
+- `src/features/admin/pages/admin-backups-page.tsx` — per-row **Verify**
+  (ShieldCheck) and **Restore** actions; **confirm dialogs before restore and
+  delete**; restore disabled for failed backups; toast notifications
+  (created/verified/restored/deleted + backend error messages); loading /
+  empty / error states; `common.delete`/`common.cancel` labels to avoid
+  ambiguous dialog text.
+- `src/features/admin/pages/admin-restore-page.tsx` — real flow: pick a
+  completed backup, see metadata (date/size), **validate before restore**
+  (Restore stays disabled until validation passes), destructive confirmation
+  dialog, then restore; restore-history table shows failures with
+  `error_message`.
+- `src/lib/tauri.ts` + `src/types/index.ts` — `verifyBackup`, `restoreBackup`
+  wrappers; `BackupValidation`, `RestoreBackupInput` types; `deleteBackup`
+  passes `createdBy`.
+- i18n: new es/en keys (`backups.verify/verifySuccess/verifyFailed/restore/…`,
+  `backups.status.*`, `restore.validation/historyTitle/noBackupsAvailable/…`).
+- Screenshot mock (`scripts/screenshots/helpers/invoke-mock.ts`) — added
+  `verify_backup` + `restore_backup` handlers, realistic checksum in
+  `create_backup`, `none` compression/encryption.
+
+### Tests executed
+- `npm run verify` — ✅ full gate green.
+- Vitest: **32 files / 210 tests passed** (12 new: 7 `admin-backups-page`,
+  5 `admin-restore-page`).
+- `cargo test` — ✅ 39 passed (was 29; +10 backup tests: snapshot contains
+  data, valid sqlite file, checksum changes on tamper, missing file, corrupt
+  file, empty file, restore roundtrip, restore-from-missing fails,
+  restore-from-corrupt fails and keeps DB usable, backup dir resolution).
+
+### Verification status
+- **GREEN.** Typecheck clean, lint 0 errors (140 pre-existing warnings),
+  210 frontend + 39 Rust tests pass.
+
+### Architectural decisions
+- **Restore uses the SQLite online backup API into the live connection** (not
+  a file swap) — the single global connection stays valid and WAL is handled;
+  the backup file itself is the validated, tamper-evident artifact.
+- **Validate-then-restore with a post-restore integrity check**; a failed
+  restore leaves a `restore_history` failure record with the error message
+  instead of silently corrupting state.
+- **Backups are real files, written to a temp name and renamed atomically** —
+  a failed backup never appears under a valid backup name in history.
+- **Checksums are recorded at creation time** so a modified/corrupted file is
+  detected by `verify` and refuses to restore.
+
+### Known issues discovered
+- Restore replaces the whole database (full restore only, as scoped); there is
+  no partial/table-level restore (the old UI claimed one — now removed).
+- The "Download" backup action remains a disabled placeholder (no desktop file
+  dialog integration yet); backups live in `<data dir>/backups` and can be
+  copied manually.
+- `get_backup_history` re-queries the DB after a restore, which now reflects
+  the backup-time history — expected, but worth a UI note.
+
+### Next recommended task
+**TASK 04 — Printing foundation.** Architecture for thermal receipts, A4
+invoices, quotations, purchase orders, customer statements, inventory reports
+and barcode/product labels. Inspect `src-tauri/src/commands/admin/printers.rs`
+and the printer admin pages first; build reusable print/template abstractions
+with preview, printer selection, error handling and testable rendering logic.

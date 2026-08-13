@@ -1,4 +1,5 @@
 use rusqlite::{Connection, Result};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use crate::db::schema;
 use crate::db::seed;
@@ -6,12 +7,14 @@ use crate::db::seed;
 #[derive(Debug, Clone)]
 pub struct DbState {
     pub conn: Arc<Mutex<Connection>>,
+    pub db_path: PathBuf,
 }
 
 impl DbState {
-    pub fn new(conn: Connection) -> Self {
+    pub fn new(conn: Connection, db_path: PathBuf) -> Self {
         Self {
             conn: Arc::new(Mutex::new(conn)),
+            db_path,
         }
     }
 }
