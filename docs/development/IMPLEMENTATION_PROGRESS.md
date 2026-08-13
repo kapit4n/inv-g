@@ -237,3 +237,108 @@ settings infrastructure (`src-tauri/src/commands/settings.rs` +
 `admin/settings.rs`, `src/features/admin`). Note the duplication between the
 two settings backends found in TASK 00; consolidate or clearly delegate before
 adding new keys.
+
+---
+
+## TASK 02 — Administration and business configuration ✅
+
+**Status:** Complete
+**Date:** 2026-08-13
+**Branch/commit:** master
+
+### Current status
+- **Phase:** 1 — Production readiness
+- **Task:** 02 — Administration and business configuration
+- **Next recommended task:** **TASK 03 — Backup and restore hardening**
+
+### What this task was
+Company/store information, tax configuration, receipt/business defaults,
+notification preferences, appearance settings and business configuration —
+reusing the existing settings infrastructure. No second settings system was
+created; the richer `application_settings` backend was extended and made
+authoritative, the legacy `settings` table is kept in sync on writes, and the
+value is validated in Rust and in the UI. Settings are loaded on startup where
+appropriate.
+
+### Settings backends consolidation (the TASK 00 duplication)
+- `src-tauri/src/commands/admin/settings.rs` (`application_settings`) is now
+  the **authoritative** backend. `update_app_setting` / `update_app_settings_bulk`
+  now (a) reject unknown keys, (b) validate values against `setting_type`,
+  `options` and `validation` before writing, and (c) mirror each write into the
+  legacy `settings` table so `app_version` readers and legacy hooks stay
+  coherent. Validation runs for the whole bulk first, so an invalid entry never
+  causes a partial write.
+- Legacy `commands/settings.rs` remains for compatibility reads (app_version,
+  dashboard/updates/maintenance/diagnostics) and is kept equal via the write
+  mirror.
+
+### Seed data (business config, `src-tauri/src/db/seed.rs`)
+- `seed_application_settings` is now **idempotent per key** (`INSERT OR IGNORE`
+  every boot) so new keys appear on existing databases; legacy values are still
+  migrated and `tax_rate` is moved to the `tax` category.
+- New keys: **company** (`business_name`, `tax_id`, `address_line1/2`, `city`,
+  `state`, `postal_code`, `phone`, `email`, `website`, `business_type` select),
+  **tax** (`tax_rate` moved here, `prices_include_tax`, `tax_id_required`),
+  **sales/receipts** (`sale_prefix`, `quote_prefix`,
+  `receipt_show_tax_breakdown`, `receipt_show_barcode`,
+  `receipt_show_customer_info`, options for `default_payment_method`),
+  **notifications** (`notify_low_stock`, `notify_purchase_orders`,
+  `notify_warranty_expiry`, `notify_backup_failures`, `sound_enabled`),
+  **business** (`items_per_page`, `default_margin_percent`, `enable_sales`,
+  `enable_purchasing`, `enable_crm`), plus `validation` metadata on existing
+  numeric settings.
+
+### Frontend
+- `src/lib/settings-utils.ts` — shared `parseSettingOptions`,
+  `parseSettingValidation`, `validateSettingValue`.
+- `src/features/admin/pages/admin-settings-page.tsx` — rewritten: JSON options
+  correctly parsed, client-side validation with inline errors (Save disabled
+  while invalid), i18n for categories/UI strings, per-category descriptions,
+  success/error notifications, local app-settings store kept in sync after save.
+- `src/stores/app-settings.store.ts` — new zustand store (`hydrate`, `getValue`,
+  `setValue`), hydrated on startup in `App.tsx`.
+- `src/layouts/top-bar.tsx` — displays the configured `store_name`.
+- `src/features/settings/pages/settings-page.tsx` — quick toggles now persist
+  (`notify_low_stock`, `sound_enabled`, `auto_backup`, `theme`), Configure
+  buttons navigate to `/admin/settings` when the user has
+  `admin.settings.manage`, switches got accessible `aria-label`s.
+- i18n: new es/en `admin.settings` keys (company/tax/receipts/notifications/
+  business categories + descriptions, categories, noSettings, save/saving/
+  saved/saveError, fixErrors, errors.*).
+- Screenshot mock (`scripts/screenshots/helpers/invoke-mock.ts`) synced to the
+  new categories and keys, and `update_app_settings_bulk`/history kept usable.
+
+### Tests executed
+- `npm run verify` — ✅ full gate green.
+- Vitest: **30 files / 198 tests passed** (24 new: 11 `settings-utils`,
+  3 `app-settings.store`, 4 `admin-settings-page`, 3 `settings-page`, 9 Rust).
+- `cargo test` — ✅ 29 passed (was 20; +9 validation tests).
+
+### Verification status
+- **GREEN.** Typecheck clean, lint 0 errors (140 pre-existing warnings),
+  198 frontend + 29 Rust tests pass.
+
+### Architectural decisions
+- **`application_settings` is the single authoritative settings store**; the
+  legacy `settings` table is a compatibility mirror kept in sync on writes
+  rather than a second source of truth.
+- **Server-side validation is the enforcement point** (Rust validates every
+  write); client-side validation is a UX layer only.
+- **Seeding is per-key idempotent** so future key additions do not require a
+  schema migration or a wipe.
+
+### Known issues discovered
+- `reset_setting_to_default` **deletes** the row for non-system settings, which
+  only reappears on the next app start (seeding). The admin UI does not surface
+  this; consider `INSERT OR IGNORE` + value-restore semantics in TASK 03.
+- `update_setting` (legacy) has no validation and no mirror; nothing calls it,
+  but a future consumer could diverge the legacy table.
+- The seeded `currency` options list is illustrative; a full ISO-4217 list is
+  better served by a future picker.
+
+### Next recommended task
+**TASK 03 — Backup and restore hardening.** Review the existing backup
+implementation so users can safely create/see status/restore/validate backups,
+handle corrupt files and errors, confirm destructive restores, and get clear
+messages. Reuse `src-tauri/src/commands/admin/backups.rs` and the admin backup
+pages; add tests for failure cases.

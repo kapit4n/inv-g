@@ -333,12 +333,93 @@ fn seed_additional_permissions(conn: &Connection) -> Result<()> {
 }
 
 fn seed_application_settings(conn: &Connection) -> Result<()> {
-    let existing: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM application_settings", [], |row| row.get(0)
-    )?;
-    if existing > 0 { return Ok(()); }
+    // Idempotent per-key seeding: INSERT OR IGNORE adds any missing keys to
+    // existing databases without touching values that are already present.
+    let app_settings: &[(&str, &str, &str, &str, &str, Option<&str>, Option<&str>)] = &[
+        ("general", "store_name", "Inventory Gear", "string", "Store display name", None, None),
+        ("general", "store_logo", "", "string", "Store logo URL", None, None),
+        ("general", "currency", "USD", "string", "Default currency", Some("{\"options\":[\"USD\",\"MXN\",\"EUR\",\"GTQ\",\"CRC\",\"COP\"]}"), None),
+        ("general", "timezone", "America/Mexico_City", "string", "Timezone", None, None),
+        ("general", "language", "es", "string", "Default language", Some("{\"options\":[\"es\",\"en\"]}"), None),
+        ("theme", "theme", "system", "string", "Default theme", Some("{\"options\":[\"light\",\"dark\",\"system\"]}"), None),
+        ("localization", "date_format", "DD/MM/YYYY", "string", "Date format", None, None),
+        ("localization", "time_format", "HH:mm", "string", "Time format", None, None),
+        ("localization", "number_format", "1,234.56", "string", "Number format", None, None),
+        ("security", "auto_logout_minutes", "60", "number", "Auto logout after minutes of inactivity", None, Some("{\"min\":1,\"max\":1440}")),
+        ("security", "password_min_length", "6", "number", "Minimum password length", None, Some("{\"min\":4,\"max\":64}")),
+        ("security", "password_require_uppercase", "false", "boolean", "Require uppercase in password", None, None),
+        ("security", "password_require_numbers", "false", "boolean", "Require numbers in password", None, None),
+        ("security", "failed_login_lockout", "5", "number", "Failed login attempts before lockout", None, Some("{\"min\":1,\"max\":50}")),
+        ("security", "lockout_duration_minutes", "30", "number", "Lockout duration in minutes", None, Some("{\"min\":1,\"max\":1440}")),
+        ("security", "password_expiry_days", "0", "number", "Password expiry in days (0 = never)", None, Some("{\"min\":0,\"max\":365}")),
+        ("inventory", "low_stock_threshold", "10", "number", "Low stock alert threshold", None, Some("{\"min\":0,\"max\":100000}")),
+        ("inventory", "default_warehouse", "", "string", "Default warehouse", None, None),
+        ("inventory", "barcode_format", "CODE128", "string", "Barcode format", Some("{\"options\":[\"CODE128\",\"EAN13\",\"UPC\",\"QR\"]}"), None),
+        ("sales", "receipt_footer", "Thank you for your purchase!", "string", "Receipt footer text", None, None),
+        ("sales", "invoice_prefix", "INV-", "string", "Invoice number prefix", None, None),
+        ("sales", "sale_prefix", "SALE-", "string", "Sale number prefix", None, None),
+        ("sales", "quote_prefix", "QTE-", "string", "Quote number prefix", None, None),
+        ("sales", "default_payment_method", "cash", "string", "Default payment method", Some("{\"options\":[\"cash\",\"card\",\"transfer\",\"credit\"]}"), None),
+        ("sales", "receipt_show_tax_breakdown", "true", "boolean", "Show tax breakdown on receipts", None, None),
+        ("sales", "receipt_show_barcode", "false", "boolean", "Print barcode on receipts", None, None),
+        ("sales", "receipt_show_customer_info", "true", "boolean", "Show customer info on receipts", None, None),
+        ("purchasing", "po_prefix", "PO-", "string", "Purchase order prefix", None, None),
+        ("printing", "default_printer", "", "string", "Default printer name", None, None),
+        ("printing", "receipt_printer", "", "string", "Receipt printer name", None, None),
+        ("printing", "invoice_printer", "", "string", "Invoice printer name", None, None),
+        ("printing", "label_printer", "", "string", "Label printer name", None, None),
+        ("printing", "paper_size_default", "80mm", "string", "Default paper size", None, None),
+        ("database", "auto_vacuum", "false", "boolean", "Enable auto vacuum", None, None),
+        ("backup", "auto_backup", "true", "boolean", "Enable automatic backups", None, None),
+        ("backup", "backup_interval_hours", "24", "number", "Backup interval in hours", None, Some("{\"min\":1,\"max\":720}")),
+        ("backup", "backup_retention_days", "30", "number", "Backup retention in days", None, Some("{\"min\":1,\"max\":3650}")),
+        ("backup", "backup_compression", "true", "boolean", "Compress backups", None, None),
+        ("backup", "backup_encryption", "false", "boolean", "Encrypt backups", None, None),
+        ("backup", "backup_destination", "local", "string", "Backup destination", Some("{\"options\":[\"local\",\"external\",\"cloud\"]}"), None),
+        ("backup", "backup_path", "", "string", "Backup directory path", None, None),
+        ("updates", "auto_check_updates", "true", "boolean", "Automatically check for updates", None, None),
+        ("updates", "update_channel", "stable", "string", "Update channel", Some("{\"options\":[\"stable\",\"beta\",\"nightly\"]}"), None),
+        ("performance", "cache_enabled", "true", "boolean", "Enable caching", None, None),
+        ("performance", "cache_ttl_seconds", "300", "number", "Cache TTL in seconds", None, Some("{\"min\":0,\"max\":86400}")),
+        ("company", "business_name", "", "string", "Legal business name", None, None),
+        ("company", "tax_id", "", "string", "Tax identification number (RFC/NIT)", None, Some("{\"maxLength\":30}")),
+        ("company", "address_line1", "", "string", "Street address line 1", None, None),
+        ("company", "address_line2", "", "string", "Street address line 2", None, None),
+        ("company", "city", "", "string", "City", None, None),
+        ("company", "state", "", "string", "State / province", None, None),
+        ("company", "postal_code", "", "string", "Postal code", None, Some("{\"maxLength\":12}")),
+        ("company", "phone", "", "string", "Business phone", None, None),
+        ("company", "email", "", "string", "Business email", None, None),
+        ("company", "website", "", "string", "Business website", None, None),
+        ("company", "business_type", "auto_parts", "string", "Business type", Some("{\"options\":[\"auto_parts\",\"tire_shop\",\"general_store\",\"retail\"]}"), None),
+        ("tax", "tax_rate", "16", "number", "Default tax rate percentage", None, Some("{\"min\":0,\"max\":100}")),
+        ("tax", "prices_include_tax", "false", "boolean", "Prices already include tax", None, None),
+        ("tax", "tax_id_required", "false", "boolean", "Require tax ID on invoices", None, None),
+        ("notifications", "notify_low_stock", "true", "boolean", "Notify when stock is low", None, None),
+        ("notifications", "notify_purchase_orders", "true", "boolean", "Notify on purchase order events", None, None),
+        ("notifications", "notify_warranty_expiry", "true", "boolean", "Notify when warranties are expiring", None, None),
+        ("notifications", "notify_backup_failures", "true", "boolean", "Notify on backup failures", None, None),
+        ("notifications", "sound_enabled", "true", "boolean", "Play sound notifications", None, None),
+        ("business", "items_per_page", "25", "number", "Default items per page", None, Some("{\"min\":5,\"max\":200}")),
+        ("business", "default_margin_percent", "30", "number", "Default sale margin percentage", None, Some("{\"min\":0,\"max\":90}")),
+        ("business", "enable_sales", "true", "boolean", "Enable sales module", None, None),
+        ("business", "enable_purchasing", "true", "boolean", "Enable purchasing module", None, None),
+        ("business", "enable_crm", "true", "boolean", "Enable CRM module", None, None),
+    ];
 
-    // Migrate from legacy settings table
+    let mut sort_order: std::collections::HashMap<&str, i64> = std::collections::HashMap::new();
+    for (category, key, value, stype, description, options, validation) in app_settings {
+        let order = sort_order.entry(category).or_insert(0);
+        *order += 1;
+        conn.execute(
+            "INSERT OR IGNORE INTO application_settings (category, key, value, setting_type, description, options, validation, sort_order) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            rusqlite::params![category, key, value, stype, description, options.map(|o| o.to_string()), validation.map(|v| v.to_string()), *order],
+        )?;
+    }
+
+    // Keep application_settings in sync with any legacy settings values and
+    // place tax config under its dedicated category (idempotent; the admin
+    // write path mirrors both tables so they stay equal).
     let settings: Vec<(String, String)> = {
         let mut stmt = conn.prepare("SELECT key, value FROM settings WHERE value IS NOT NULL").ok();
         if let Some(mut s) = stmt {
@@ -348,60 +429,13 @@ fn seed_application_settings(conn: &Connection) -> Result<()> {
             } else { vec![] }
         } else { vec![] }
     };
-
-    let app_settings: &[(&str, &str, &str, &str, &str, Option<&str>)] = &[
-        ("general", "store_name", "Inventory Gear", "string", "Store name", None),
-        ("general", "store_logo", "", "string", "Store logo URL", None),
-        ("general", "currency", "USD", "string", "Default currency", None),
-        ("general", "timezone", "America/Mexico_City", "string", "Timezone", None),
-        ("general", "tax_rate", "16", "number", "Default tax rate percentage", None),
-        ("general", "language", "es", "string", "Default language", Some("{\"options\":[\"es\",\"en\"]}")),
-        ("theme", "theme", "system", "string", "Default theme", Some("{\"options\":[\"light\",\"dark\",\"system\"]}")),
-        ("localization", "date_format", "DD/MM/YYYY", "string", "Date format", None),
-        ("localization", "time_format", "HH:mm", "string", "Time format", None),
-        ("localization", "number_format", "1,234.56", "string", "Number format", None),
-        ("security", "auto_logout_minutes", "60", "number", "Auto logout after minutes of inactivity", None),
-        ("security", "password_min_length", "6", "number", "Minimum password length", None),
-        ("security", "password_require_uppercase", "false", "boolean", "Require uppercase in password", None),
-        ("security", "password_require_numbers", "false", "boolean", "Require numbers in password", None),
-        ("security", "failed_login_lockout", "5", "number", "Failed login attempts before lockout", None),
-        ("security", "lockout_duration_minutes", "30", "number", "Lockout duration in minutes", None),
-        ("security", "password_expiry_days", "0", "number", "Password expiry in days (0 = never)", None),
-        ("inventory", "low_stock_threshold", "10", "number", "Low stock alert threshold", None),
-        ("inventory", "default_warehouse", "", "string", "Default warehouse", None),
-        ("inventory", "barcode_format", "CODE128", "string", "Barcode format", Some("{\"options\":[\"CODE128\",\"EAN13\",\"UPC\",\"QR\"]}")),
-        ("sales", "receipt_footer", "Thank you for your purchase!", "string", "Receipt footer text", None),
-        ("sales", "invoice_prefix", "INV-", "string", "Invoice number prefix", None),
-        ("sales", "default_payment_method", "cash", "string", "Default payment method", None),
-        ("purchasing", "po_prefix", "PO-", "string", "Purchase order prefix", None),
-        ("printing", "default_printer", "", "string", "Default printer name", None),
-        ("printing", "receipt_printer", "", "string", "Receipt printer name", None),
-        ("printing", "invoice_printer", "", "string", "Invoice printer name", None),
-        ("printing", "label_printer", "", "string", "Label printer name", None),
-        ("printing", "paper_size_default", "80mm", "string", "Default paper size", None),
-        ("database", "auto_vacuum", "false", "boolean", "Enable auto vacuum", None),
-        ("backup", "auto_backup", "true", "boolean", "Enable automatic backups", None),
-        ("backup", "backup_interval_hours", "24", "number", "Backup interval in hours", None),
-        ("backup", "backup_retention_days", "30", "number", "Backup retention in days", None),
-        ("backup", "backup_compression", "true", "boolean", "Compress backups", None),
-        ("backup", "backup_encryption", "false", "boolean", "Encrypt backups", None),
-        ("backup", "backup_destination", "local", "string", "Backup destination", Some("{\"options\":[\"local\",\"external\",\"cloud\"]}")),
-        ("backup", "backup_path", "", "string", "Backup directory path", None),
-        ("updates", "auto_check_updates", "true", "boolean", "Automatically check for updates", None),
-        ("updates", "update_channel", "stable", "string", "Update channel", Some("{\"options\":[\"stable\",\"beta\",\"nightly\"]}")),
-        ("performance", "cache_enabled", "true", "boolean", "Enable caching", None),
-        ("performance", "cache_ttl_seconds", "300", "number", "Cache TTL in seconds", None),
-    ];
-    for (category, key, value, stype, description, options) in app_settings {
-        conn.execute(
-            "INSERT OR IGNORE INTO application_settings (category, key, value, setting_type, description, options, sort_order) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0)",
-            rusqlite::params![category, key, value, stype, description, options.map(|o| o.to_string())],
-        )?;
-    }
-    // Override with existing settings values
     for (key, value) in settings {
         conn.execute("UPDATE application_settings SET value = ?1 WHERE key = ?2", rusqlite::params![value, key]).ok();
     }
+    conn.execute(
+        "UPDATE application_settings SET category = 'tax' WHERE key = 'tax_rate' AND category = 'general'",
+        [],
+    ).ok();
     Ok(())
 }
 

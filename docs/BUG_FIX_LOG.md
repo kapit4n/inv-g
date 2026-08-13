@@ -6,6 +6,29 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-08-13 — Admin settings editor renders option selects as a single garbled option
+
+**Symptom:** In the admin settings editor (`/admin/settings`), any setting with `options` (e.g. `language`, `barcode_format`, `backup_destination`, `business_type`) rendered as a `<select>` with exactly one broken `<option>` whose label looked like `{ options: ["es","en"] }` — the raw JSON string. Selecting the seeded value was impossible because the value string did not match any real option.
+
+**Investigation:**
+- The seeder stores `options` as a JSON string, either `["a","b"]` or `{"options":["a","b"]}` (`src-tauri/src/db/seed.rs` `seed_application_settings`).
+- The page rendered options with `setting.options.split(",").map(o => o.trim())` (`src/features/admin/pages/admin-settings-page.tsx:70`), which does not parse JSON — it produced one token equal to the entire JSON blob.
+- The Rust backend already stored a `validation` column (min/max/length) but neither the backend (`update_app_setting(s)`) nor the page ever enforced it, so an admin could save `tax_rate = -5` or `150` and the value would persist.
+
+**Root Cause:** Frontend option parsing assumed a comma-separated string that the seeder never produced; and value validation was entirely absent on both the Rust write path and the admin UI.
+
+**Fix:**
+1. Added a shared `parseSettingOptions` util (`src/lib/settings-utils.ts`) that handles JSON arrays, `{"options":[...]}` objects, and comma-separated fallback; the page now uses it.
+2. Added Rust-side validation (`validate_value` in `src-tauri/src/commands/admin/settings.rs`) enforced on `update_app_setting` and `update_app_settings_bulk` (number parse, boolean true/false, allowed-options membership, min/max and length constraints), with full pre-validation so an invalid value never causes a partial bulk write.
+3. Added client-side validation with inline error messages; the Save button is disabled while any value is invalid.
+4. Added seed `validation` metadata to numeric/length-constrained settings.
+
+**Commit:** (TASK 02, see commit at time of writing)
+
+**Files:** `src/features/admin/pages/admin-settings-page.tsx`, `src/lib/settings-utils.ts`, `src-tauri/src/commands/admin/settings.rs`, `src-tauri/src/db/seed.rs`
+
+---
+
 ### 2026-07-29 — Reports page crashes with `v.toLocaleString` error; charts and table render empty
 
 **Symptom:** Navigation to the Reports (dashboard) page threw a runtime error `v.toLocaleString` where `v` is undefined. Stack: `fmt@reports-page.tsx:36`. All charts (revenue, sales, etc.) rendered as empty skeletons with "No data". The top-customers table showed hyphens for all columns.

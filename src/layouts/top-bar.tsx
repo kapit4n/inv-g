@@ -26,7 +26,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import type { Theme } from "@/types"
-import { useThemeStore, useSettingsStore, useAuthStore, useNotificationStore } from "@/stores"
+import { useThemeStore, useSettingsStore, useAuthStore, useNotificationStore, useAppSettingsStore } from "@/stores"
 import { useAuth } from "@/hooks"
 import { runSeeds } from "@/lib/tauri"
 import { NotificationPanel } from "@/components/notification-panel"
@@ -56,6 +56,7 @@ export function TopBar() {
   const { user } = useAuthStore()
   const { logout } = useAuth()
   const { unreadCount } = useNotificationStore()
+  const storeName = useAppSettingsStore((s) => s.getValue("store_name"))
   const [seeding, setSeeding] = useState(false)
 
   const themes = ["light", "dark", "system"] as const
@@ -73,6 +74,12 @@ export function TopBar() {
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background/80 backdrop-blur-sm px-6">
       <div className="flex items-center gap-2">
         <h2 className="text-sm font-semibold">{t(currentPageKey)}</h2>
+        {storeName && (
+          <>
+            <span className="text-muted-foreground/40">·</span>
+            <span className="text-xs text-muted-foreground">{storeName}</span>
+          </>
+        )}
       </div>
 
       <div className="flex items-center gap-1">
