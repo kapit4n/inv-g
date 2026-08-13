@@ -244,7 +244,7 @@ adding new keys.
 
 **Status:** Complete
 **Date:** 2026-08-13
-**Branch/commit:** master
+**Branch/commit:** master (`09e723b`)
 
 ### Current status
 - **Phase:** 1 — Production readiness

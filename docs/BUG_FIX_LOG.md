@@ -23,7 +23,7 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 3. Added client-side validation with inline error messages; the Save button is disabled while any value is invalid.
 4. Added seed `validation` metadata to numeric/length-constrained settings.
 
-**Commit:** (TASK 02, see commit at time of writing)
+**Commit:** `09e723b`
 
 **Files:** `src/features/admin/pages/admin-settings-page.tsx`, `src/lib/settings-utils.ts`, `src-tauri/src/commands/admin/settings.rs`, `src-tauri/src/db/seed.rs`
 
