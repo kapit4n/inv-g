@@ -349,7 +349,7 @@ pages; add tests for failure cases.
 
 **Status:** Complete
 **Date:** 2026-08-13
-**Branch/commit:** master (see commit at time of writing)
+**Branch/commit:** master (`8cfc9fb`)
 
 ### Current status
 - **Phase:** 1 — Production readiness

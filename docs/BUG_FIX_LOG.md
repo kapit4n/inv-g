@@ -27,7 +27,7 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 5. `DbState` gained `db_path` so backups resolve next to the database file (`<db dir>/backups`).
 6. Frontend: admin-backups-page + admin-restore-page rewritten (verify action, validate-gated restore, confirm dialogs, notifications); `tauri.ts` wrappers `verifyBackup`/`restoreBackup`; mock synced.
 
-**Commit:** `(TASK 03 — see commit below)`
+**Commit:** `8cfc9fb`
 
 **Files:** `src-tauri/src/commands/admin/backups.rs`, `src-tauri/src/db/connection.rs`, `src-tauri/src/lib.rs`, `src-tauri/Cargo.toml`, `src/lib/tauri.ts`, `src/types/index.ts`, `src/features/admin/pages/admin-backups-page.tsx`, `src/features/admin/pages/admin-restore-page.tsx`, `src/i18n/locales/{en,es}/admin.json`, `scripts/screenshots/helpers/invoke-mock.ts`
 
