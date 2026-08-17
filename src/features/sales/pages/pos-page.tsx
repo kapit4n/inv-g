@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Search, Plus, Minus, Trash2, ShoppingCart, X, Percent, DollarSign, CreditCard, Banknote, Landmark, Receipt, Pause, Play, Clock, Tag } from "lucide-react"
+import { Search, Plus, Minus, Trash2, ShoppingCart, X, Percent, DollarSign, CreditCard, Banknote, Landmark, Receipt, Pause, Play, Clock, Tag, CheckCircle, ChevronDown, ChevronUp } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -42,6 +42,7 @@ export function PosPage() {
   const queryClient = useQueryClient()
   const notification = useNotification()
   const searchRef = useRef<HTMLInputElement>(null)
+  const paymentRef = useRef<HTMLInputElement>(null)
   const print = usePrint()
   const config = usePrintConfig()
 
@@ -55,6 +56,8 @@ export function PosPage() {
   const [heldSalesOpen, setHeldSalesOpen] = useState(false)
   const [holdLabel, setHoldLabel] = useState("")
   const [holdDialogOpen, setHoldDialogOpen] = useState(false)
+  const [completedSale, setCompletedSale] = useState<CheckoutResult | null>(null)
+  const [notesExpanded, setNotesExpanded] = useState(false)
 
   const { data: heldSales = [], refetch: refetchHeld } = useQuery({
     queryKey: ["held-sales"],
@@ -285,7 +288,7 @@ export function PosPage() {
       queryClient.invalidateQueries({ queryKey: ["daily-closeout"] })
       notification.success(t("common.success"), t("sales.invoiceCreated"))
       void printReceiptForSale(result)
-      navigate(`/sales/${result.sale.id}`)
+      setCompletedSale(result)
     },
     onError: (err) => {
       notification.error(t("common.error"), String(err))
@@ -301,16 +304,43 @@ export function PosPage() {
     checkoutMutation.mutate({ customerId, items: cart, payments, notes })
   }, [cart, totalPaid, total, customerId, payments, notes, checkoutMutation, notification, t])
 
+  const resetNewSale = useCallback(() => {
+    setCart([])
+    setCustomerId(undefined)
+    setPayments([{ method: "cash", amount: 0, reference: "", changeAmount: 0 }])
+    setNotes("")
+    setDiscount(0)
+    setCompletedSale(null)
+    setNotesExpanded(false)
+    setTimeout(() => searchRef.current?.focus(), 0)
+  }, [])
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        if (completedSale) {
+          resetNewSale()
+          return
+        }
         setSearch("")
         searchRef.current?.focus()
+      }
+      if (completedSale) return
+      if (e.key === "F2") {
+        e.preventDefault()
+        const customerBtn = document.querySelector("[data-testid='customer-search'] button") as HTMLButtonElement | null
+        customerBtn?.click()
+      } else if (e.key === "F4") {
+        e.preventDefault()
+        paymentRef.current?.focus()
+      } else if (e.key === "F10") {
+        e.preventDefault()
+        handleCheckout()
       }
     }
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [])
+  }, [setSearch, completedSale, resetNewSale, handleCheckout])
 
   const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowDown") {
@@ -430,7 +460,29 @@ export function PosPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-4">
+      {completedSale && (
+        <Card data-testid="checkout-success" className="border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950">
+          <CardContent className="pt-6 space-y-4 text-center">
+            <CheckCircle className="h-12 w-12 mx-auto text-emerald-600" />
+            <div>
+              <h3 className="text-lg font-bold">{t("sales.saleComplete")}</h3>
+              <p className="text-sm text-muted-foreground">{t("sales.saleCompleteMsg", { number: completedSale.sale.saleNumber })}</p>
+              <p className="text-2xl font-bold mt-1">{formatCurrency(completedSale.sale.total)}</p>
+            </div>
+            <div className="flex items-center justify-center gap-2">
+              <Button onClick={resetNewSale} data-testid="new-sale-button">
+                {t("sales.newSaleButton")}
+              </Button>
+              <Button variant="outline" onClick={() => navigate(`/sales/${completedSale.sale.id}`)} data-testid="view-sale-button">
+                {t("sales.viewSale")}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {!completedSale && (
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-4">
         <div className="xl:col-span-2 space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -605,16 +657,18 @@ export function PosPage() {
               <Separator />
 
               <div className="space-y-3">
-                <CustomerSearchField
-                  label={t("sales.customer")}
-                  value={customerId}
-                  onChange={setCustomerId}
-                />
+                <div data-testid="customer-search">
+                  <CustomerSearchField
+                    label={t("sales.customer")}
+                    value={customerId}
+                    onChange={setCustomerId}
+                  />
+                </div>
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-medium">{t("sales.payments")}</label>
-                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={addPayment}>
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={addPayment} data-testid="add-payment">
                       <Plus className="h-3 w-3 mr-1" /> {t("common.add")}
                     </Button>
                   </div>
@@ -637,6 +691,7 @@ export function PosPage() {
                           <div className="relative flex-1">
                             <DollarSign className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
                             <Input
+                              ref={index === 0 ? paymentRef : undefined}
                               type="number"
                               min="0"
                               step="0.01"
@@ -658,6 +713,18 @@ export function PosPage() {
                             </Button>
                           )}
                         </div>
+                        {payment.method === "cash" && total > 0 && index === 0 && (
+                          <div className="flex items-center gap-1 mt-1" data-testid="quick-pay">
+                            <Button variant="outline" size="sm" className="h-6 text-[10px] px-2" onClick={() => updatePayment(0, "amount", Math.ceil(total))} data-testid="quick-pay-exact">
+                              {t("sales.exactAmount")}
+                            </Button>
+                            {[20, 50, 100].map((denom) => (
+                              <Button key={denom} variant="outline" size="sm" className="h-6 text-[10px] px-2" onClick={() => updatePayment(0, "amount", denom)} data-testid={`quick-pay-${denom}`}>
+                                ${denom}
+                              </Button>
+                            ))}
+                          </div>
+                        )}
                         {payment.method === "transfer" && (
                           <Input
                             placeholder={t("sales.reference")}
@@ -681,12 +748,27 @@ export function PosPage() {
                   )}
                 </div>
 
-                <TextareaField
-                  label={t("inventory.notes")}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="text-xs"
-                />
+                <div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs w-full justify-between"
+                    onClick={() => setNotesExpanded(!notesExpanded)}
+                    data-testid="toggle-notes"
+                  >
+                    <span>{notesExpanded ? t("sales.notesExpanded") : t("sales.notesCollapsed")}</span>
+                    {notesExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  </Button>
+                  {notesExpanded && (
+                    <TextareaField
+                      label=""
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      className="text-xs mt-1"
+                      data-testid="notes-textarea"
+                    />
+                  )}
+                </div>
               </div>
 
               <Button
@@ -722,6 +804,7 @@ export function PosPage() {
           </Card>
         </div>
       </div>
+      )}
     </div>
   )
 }

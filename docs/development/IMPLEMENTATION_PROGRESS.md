@@ -767,3 +767,59 @@ inventory or payment records are touched until checkout.
   the same product name).
 - Held sales do not expire — there is no automatic cleanup for old held sales.
   This could be added as a future enhancement.
+
+---
+
+## TASK 08 — Faster POS checkout ✅
+
+**Status:** Complete
+**Date:** 2026-08-17
+**Branch/commit:** master
+
+### What this task was
+TASK 08 streamlined the POS checkout flow to reduce clicks, navigation, and
+dialogs. The biggest change is that after checkout, the user stays on the POS
+page with an inline success card rather than being navigated to the sale detail
+page. Additional speed improvements include quick-pay buttons for cash, keyboard
+shortcuts for common actions, and collapsible notes.
+
+### Design decisions
+- **Stay on POS after checkout:** Replaced `navigate()` with a `completedSale`
+  state that renders an inline success card with "New Sale" and "View Sale"
+  buttons. The user can immediately start the next sale.
+- **Quick-pay cash buttons:** "Exact", $20, $50, $100 buttons appear when the
+  first payment method is cash and total > 0. Reduces typing for the most common
+  payment method.
+- **Keyboard shortcuts:** F2 = focus customer, F4 = focus payment, F10 = complete
+  sale, Escape = clear search (or dismiss success card).
+- **Collapsible notes:** Notes section starts collapsed ("Add note" button) and
+  can be expanded to show the textarea. Saves vertical space for the common case
+  where notes are not needed.
+- **No vehicle assignment** was added — deferred to a future task since it
+  requires vehicle selection logic tied to customers and is less critical for
+  checkout speed.
+
+### Files created/modified
+- `src/features/sales/pages/pos-page.tsx` — Post-checkout success card,
+  quick-pay buttons, keyboard shortcuts (F2/F4/F10), collapsible notes, refs for
+  focus management.
+- `src/i18n/locales/en/sales.json` — 10 new keys (saleComplete, quickPay, etc.)
+- `src/i18n/locales/es/sales.json` — 10 new Spanish keys
+- `tests/unit/components/pos-page.test.tsx` — 8 new tests (25 total):
+  inline success card, new sale resets, card payment, transfer with reference,
+  split payments, quick-pay exact/denomination, F10 shortcut, notes toggle.
+
+### Tests executed
+- `npm run verify` — ✅ full gate green.
+- Vitest: **42 files / 285 tests passed** (8 new POS checkout tests).
+- `cargo test` — ✅ 46 passed (unchanged).
+
+### Verification status
+- **GREEN.** Typecheck clean, lint 0 errors (pre-existing warnings),
+  285 frontend + 46 Rust tests pass.
+
+### Known issues discovered
+- The `combobox` role for `<select>` elements can be ambiguous when multiple
+  selects exist on the page — tests use `getAllByRole` with aria-label filtering
+  for split payment tests.
+- Vehicle assignment is not yet wired into POS — tracked for future work.

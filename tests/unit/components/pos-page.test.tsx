@@ -186,7 +186,7 @@ describe("PosPage", () => {
     expect(processCheckout).not.toHaveBeenCalled()
   })
 
-  it("completes a sale, opens the receipt print dialog and prints", async () => {
+  it("completes a sale and shows inline success card", async () => {
     const printSpy = vi.spyOn(window, "print").mockImplementation(() => {})
     renderPos()
     await addProduct()
@@ -203,13 +203,134 @@ describe("PosPage", () => {
       )
     }, { timeout: 3000 })
 
-    await waitFor(() => {
-      expect(screen.queryByText("Print — Receipt", {}, { timeout: 3000 })).toBeTruthy()
-    }, { timeout: 3000 })
-    const dialog = screen.getByRole("dialog")
-    fireEvent.click(within(dialog).getByRole("button", { name: "Print" }))
-    await waitFor(() => expect(printSpy).toHaveBeenCalled(), { timeout: 3000 })
+    expect(await screen.findByTestId("checkout-success", {}, { timeout: 3000 })).toBeDefined()
+    expect(screen.getByText("Sale Complete")).toBeDefined()
+    expect(screen.getAllByText("SALE-0005").length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByTestId("new-sale-button")).toBeDefined()
+    expect(screen.getByTestId("view-sale-button")).toBeDefined()
     printSpy.mockRestore()
+  })
+
+  it("new sale button resets cart after checkout", async () => {
+    renderPos()
+    await addProduct()
+
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Payment 1" }), { target: { value: "116" } })
+    fireEvent.click(screen.getByRole("button", { name: "Complete Sale - $116.00" }))
+
+    await screen.findByTestId("checkout-success", {}, { timeout: 3000 })
+    fireEvent.click(screen.getByTestId("new-sale-button"))
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("checkout-success")).toBeNull()
+      expect(screen.getByText("Cart (0)")).toBeDefined()
+    }, { timeout: 3000 })
+  })
+
+  it("completes a card payment sale", async () => {
+    renderPos()
+    await addProduct()
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Payment" }), { target: { value: "card" } })
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Payment 1" }), { target: { value: "116" } })
+    fireEvent.click(screen.getByRole("button", { name: "Complete Sale - $116.00" }))
+
+    await waitFor(() => {
+      expect(processCheckout).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payments: [{ method: "card", amount: 116, reference: undefined, changeAmount: 0 }],
+        })
+      )
+    }, { timeout: 3000 })
+  })
+
+  it("completes a transfer payment with reference", async () => {
+    renderPos()
+    await addProduct()
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Payment" }), { target: { value: "transfer" } })
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Payment 1" }), { target: { value: "116" } })
+    fireEvent.change(screen.getByPlaceholderText("Reference"), { target: { value: "REF-123" } })
+    fireEvent.click(screen.getByRole("button", { name: "Complete Sale - $116.00" }))
+
+    await waitFor(() => {
+      expect(processCheckout).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payments: [{ method: "transfer", amount: 116, reference: "REF-123", changeAmount: 0 }],
+        })
+      )
+    }, { timeout: 3000 })
+  })
+
+  it("completes a split payment (cash + card)", async () => {
+    renderPos()
+    await addProduct()
+
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Payment 1" }), { target: { value: "50" } })
+    fireEvent.click(screen.getByTestId("add-payment"))
+
+    const allSelects = screen.getAllByRole("combobox")
+    const paymentSelects = allSelects.filter((el) => el.getAttribute("aria-label") === "Payment")
+    fireEvent.change(paymentSelects[1], { target: { value: "card" } })
+
+    const allSpinbuttons = screen.getAllByRole("spinbutton")
+    const paymentAmounts = allSpinbuttons.filter((el) => el.getAttribute("aria-label")?.startsWith("Payment"))
+    fireEvent.change(paymentAmounts[1], { target: { value: "66" } })
+
+    fireEvent.click(screen.getByRole("button", { name: "Complete Sale - $116.00" }))
+
+    await waitFor(() => {
+      expect(processCheckout).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payments: [
+            { method: "cash", amount: 50, reference: undefined, changeAmount: 0 },
+            { method: "card", amount: 66, reference: undefined, changeAmount: 0 },
+          ],
+        })
+      )
+    }, { timeout: 3000 })
+  })
+
+  it("quick-pay exact button fills payment amount", async () => {
+    renderPos()
+    await addProduct()
+    fireEvent.click(screen.getByTestId("quick-pay-exact"))
+    await waitFor(() => {
+      expect((screen.getByRole("spinbutton", { name: "Payment 1" }) as HTMLInputElement).value).toBe("116")
+    }, { timeout: 2000 })
+  })
+
+  it("quick-pay denomination button fills payment amount", async () => {
+    renderPos()
+    await addProduct()
+    fireEvent.click(screen.getByTestId("quick-pay-100"))
+    await waitFor(() => {
+      expect((screen.getByRole("spinbutton", { name: "Payment 1" }) as HTMLInputElement).value).toBe("100")
+    }, { timeout: 2000 })
+  })
+
+  it("F10 keyboard shortcut triggers checkout when payment covers total", async () => {
+    renderPos()
+    await addProduct()
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Payment 1" }), { target: { value: "116" } })
+    fireEvent.keyDown(window, { key: "F10" })
+
+    await waitFor(() => {
+      expect(processCheckout).toHaveBeenCalled()
+    }, { timeout: 3000 })
+  })
+
+  it("toggles notes section open and closed", async () => {
+    renderPos()
+    await addProduct()
+    const toggle = screen.getByTestId("toggle-notes")
+    expect(screen.queryByTestId("notes-textarea")).toBeNull()
+    fireEvent.click(toggle)
+    expect(screen.getByTestId("notes-textarea")).toBeDefined()
+    fireEvent.click(toggle)
+    await waitFor(() => {
+      expect(screen.queryByTestId("notes-textarea")).toBeNull()
+    }, { timeout: 2000 })
   })
 
   it("shows hold button disabled when cart is empty", async () => {
