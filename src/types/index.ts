@@ -238,6 +238,59 @@ export interface CheckoutResult {
   receiptNumber: string
 }
 
+export interface HeldSale {
+  id: number
+  holdNumber: string
+  customerId?: number
+  userId?: number
+  subtotal: number
+  taxAmount: number
+  discountAmount: number
+  total: number
+  discountPercent: number
+  notes?: string
+  label?: string
+  createdAt: string
+  customerName?: string
+  itemCount?: number
+}
+
+export interface HeldSaleItem {
+  id: number
+  heldSaleId: number
+  productId: number
+  name: string
+  sku: string
+  quantity: number
+  unitPrice: number
+  taxRate: number
+  total: number
+  stockQuantity: number
+  unit: string
+  createdAt: string
+}
+
+export interface HoldSaleInput {
+  customerId?: number
+  userId?: number
+  items: HeldSaleItemInput[]
+  discountPercent?: number
+  notes?: string
+  label?: string
+}
+
+export interface HeldSaleItemInput {
+  productId: number
+  name: string
+  sku: string
+  quantity: number
+  unitPrice: number
+  taxRate: number
+  total: number
+  stockQuantity: number
+  unit: string
+}
+
 export interface ProductForPos {
   id: number
   name: string

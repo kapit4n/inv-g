@@ -1343,7 +1343,248 @@ pub fn mark_receipt_printed(state: State<DbState>, id: i64) -> Result<Receipt, S
     get_receipt(state.clone(), id)
 }
 
-// ── Search Sales (for POS history lookup) ──
+// ── Hold / Resume Sales (TASK 07) ──
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HeldSaleItem {
+    pub id: i64,
+    pub held_sale_id: i64,
+    pub product_id: i64,
+    pub name: String,
+    pub sku: String,
+    pub quantity: i64,
+    pub unit_price: f64,
+    pub tax_rate: f64,
+    pub total: f64,
+    pub stock_quantity: i64,
+    pub unit: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HeldSale {
+    pub id: i64,
+    pub hold_number: String,
+    pub customer_id: Option<i64>,
+    pub user_id: Option<i64>,
+    pub subtotal: f64,
+    pub tax_amount: f64,
+    pub discount_amount: f64,
+    pub total: f64,
+    pub discount_percent: f64,
+    pub notes: Option<String>,
+    pub label: Option<String>,
+    pub created_at: String,
+    pub customer_name: Option<String>,
+    pub item_count: Option<i64>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HoldSaleInput {
+    pub customer_id: Option<i64>,
+    pub user_id: Option<i64>,
+    pub items: Vec<HeldSaleItemInput>,
+    pub discount_percent: Option<f64>,
+    pub notes: Option<String>,
+    pub label: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HeldSaleItemInput {
+    pub product_id: i64,
+    pub name: String,
+    pub sku: String,
+    pub quantity: i64,
+    pub unit_price: f64,
+    pub tax_rate: f64,
+    pub total: f64,
+    pub stock_quantity: i64,
+    pub unit: String,
+}
+
+fn generate_hold_number(conn: &rusqlite::Connection) -> Result<String, String> {
+    let count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM held_sales", [], |r| r.get(0))
+        .map_err(|e| e.to_string())?;
+    Ok(format!("HOLD-{:05}", count + 1))
+}
+
+#[tauri::command]
+pub fn hold_sale(state: State<DbState>, input: HoldSaleInput) -> Result<HeldSale, String> {
+    let conn = get_conn(&state)?;
+    let hold_number = generate_hold_number(&conn)?;
+
+    let subtotal: f64 = input.items.iter().map(|i| i.total).sum();
+    let tax_amount: f64 = input.items.iter().map(|i| i.total * (i.tax_rate / 100.0)).sum();
+    let discount_percent = input.discount_percent.unwrap_or(0.0);
+    let discount_amount = if discount_percent > 0.0 { subtotal * (discount_percent / 100.0) } else { 0.0 };
+    let total = subtotal + tax_amount - discount_amount;
+
+    conn.execute(
+        "INSERT INTO held_sales (hold_number, customer_id, user_id, subtotal, tax_amount, discount_amount, total, discount_percent, notes, label)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        params![
+            hold_number,
+            input.customer_id,
+            input.user_id,
+            subtotal,
+            tax_amount,
+            discount_amount,
+            total,
+            discount_percent,
+            input.notes,
+            input.label,
+        ],
+    ).map_err(|e| e.to_string())?;
+
+    let held_sale_id: i64 = conn.last_insert_rowid();
+
+    for item in &input.items {
+        conn.execute(
+            "INSERT INTO held_sale_items (held_sale_id, product_id, name, sku, quantity, unit_price, tax_rate, total, stock_quantity, unit)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            params![
+                held_sale_id,
+                item.product_id,
+                item.name,
+                item.sku,
+                item.quantity,
+                item.unit_price,
+                item.tax_rate,
+                item.total,
+                item.stock_quantity,
+                item.unit,
+            ],
+        ).map_err(|e| e.to_string())?;
+    }
+
+    let customer_name = input.customer_id.and_then(|cid| {
+        conn.query_row("SELECT name FROM customers WHERE id=?1", params![cid], |r| r.get::<_, String>(0)).ok()
+    });
+
+    Ok(HeldSale {
+        id: held_sale_id,
+        hold_number,
+        customer_id: input.customer_id,
+        user_id: input.user_id,
+        subtotal,
+        tax_amount,
+        discount_amount,
+        total,
+        discount_percent,
+        notes: input.notes,
+        label: input.label,
+        created_at: chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+        customer_name,
+        item_count: Some(input.items.len() as i64),
+    })
+}
+
+#[tauri::command]
+pub fn get_held_sales(state: State<DbState>) -> Result<Vec<HeldSale>, String> {
+    let conn = get_conn(&state)?;
+    let mut stmt = conn.prepare(
+        "SELECT h.*, c.name as customer_name,
+                (SELECT COUNT(*) FROM held_sale_items hsi WHERE hsi.held_sale_id = h.id) as item_count
+         FROM held_sales h
+         LEFT JOIN customers c ON h.customer_id = c.id
+         ORDER BY h.created_at DESC"
+    ).map_err(|e| e.to_string())?;
+    let rows = stmt.query_map([], |row| {
+        Ok(HeldSale {
+            id: row.get(0)?,
+            hold_number: row.get(1)?,
+            customer_id: row.get(2)?,
+            user_id: row.get(3)?,
+            subtotal: row.get(4)?,
+            tax_amount: row.get(5)?,
+            discount_amount: row.get(6)?,
+            total: row.get(7)?,
+            discount_percent: row.get(8)?,
+            notes: row.get(9)?,
+            label: row.get(10)?,
+            created_at: row.get(11)?,
+            customer_name: row.get(12)?,
+            item_count: row.get(13)?,
+        })
+    }).map_err(|e| e.to_string())?;
+    let mut result = Vec::new();
+    for row in rows { result.push(row.map_err(|e| e.to_string())?); }
+    Ok(result)
+}
+
+#[tauri::command]
+pub fn get_held_sale_items(state: State<DbState>, held_sale_id: i64) -> Result<Vec<HeldSaleItem>, String> {
+    let conn = get_conn(&state)?;
+    let mut stmt = conn.prepare(
+        "SELECT * FROM held_sale_items WHERE held_sale_id = ?1 ORDER BY id"
+    ).map_err(|e| e.to_string())?;
+    let rows = stmt.query_map(params![held_sale_id], |row| {
+        Ok(HeldSaleItem {
+            id: row.get(0)?,
+            held_sale_id: row.get(1)?,
+            product_id: row.get(2)?,
+            name: row.get(3)?,
+            sku: row.get(4)?,
+            quantity: row.get(5)?,
+            unit_price: row.get(6)?,
+            tax_rate: row.get(7)?,
+            total: row.get(8)?,
+            stock_quantity: row.get(9)?,
+            unit: row.get(10)?,
+            created_at: row.get(11)?,
+        })
+    }).map_err(|e| e.to_string())?;
+    let mut result = Vec::new();
+    for row in rows { result.push(row.map_err(|e| e.to_string())?); }
+    Ok(result)
+}
+
+#[tauri::command]
+pub fn resume_held_sale(state: State<DbState>, held_sale_id: i64) -> Result<HeldSale, String> {
+    let conn = get_conn(&state)?;
+
+    let held = conn.query_row(
+        "SELECT * FROM held_sales WHERE id = ?1",
+        params![held_sale_id],
+        |row| {
+            Ok(HeldSale {
+                id: row.get(0)?,
+                hold_number: row.get(1)?,
+                customer_id: row.get(2)?,
+                user_id: row.get(3)?,
+                subtotal: row.get(4)?,
+                tax_amount: row.get(5)?,
+                discount_amount: row.get(6)?,
+                total: row.get(7)?,
+                discount_percent: row.get(8)?,
+                notes: row.get(9)?,
+                label: row.get(10)?,
+                created_at: row.get(11)?,
+                customer_name: None,
+                item_count: None,
+            })
+        },
+    ).map_err(|e| format!("Held sale not found: {}", e))?;
+
+    // Delete the held sale (cascade deletes items)
+    conn.execute("DELETE FROM held_sales WHERE id = ?1", params![held_sale_id])
+        .map_err(|e| e.to_string())?;
+
+    Ok(held)
+}
+
+#[tauri::command]
+pub fn delete_held_sale(state: State<DbState>, held_sale_id: i64) -> Result<(), String> {
+    let conn = get_conn(&state)?;
+    conn.execute("DELETE FROM held_sales WHERE id = ?1", params![held_sale_id])
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
 
 #[tauri::command]
 pub fn search_sales(state: State<DbState>, query: String) -> Result<Vec<Sale>, String> {

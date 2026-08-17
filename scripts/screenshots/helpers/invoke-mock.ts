@@ -973,6 +973,38 @@ function buildMockData(theme: string): DataMap {
     return all
   }
 
+  // --- Held Sales ---
+  d["get_held_sales"] = () => [
+    { id: 1, holdNumber: "HOLD-00001", customerId: 1, customerName: "Juan Pérez López", subtotal: 1250.00, taxAmount: 200.00, discountAmount: 0, total: 1450.00, discountPercent: 0, notes: "", label: "Cliente esperando refacciones", createdAt: "2026-08-16 09:30:00", itemCount: 3 },
+    { id: 2, holdNumber: "HOLD-00002", customerId: undefined, customerName: undefined, subtotal: 680.00, taxAmount: 108.80, discountAmount: 0, total: 788.80, discountPercent: 0, notes: "", label: "Revisar disponibilidad", createdAt: "2026-08-16 10:15:00", itemCount: 1 },
+  ]
+  d["get_held_sale_items"] = (a: any) => {
+    if (a?.heldSaleId === 1) {
+      return [
+        { id: 1, heldSaleId: 1, productId: 1, name: "Filtro de Aceite", sku: "FA-001", quantity: 2, unitPrice: 350.00, taxRate: 16, total: 700.00, stockQuantity: 25, unit: "pcs", createdAt: "2026-08-16 09:30:00" },
+        { id: 2, heldSaleId: 1, productId: 2, name: "Filtro de Aire", sku: "FA-002", quantity: 1, unitPrice: 550.00, taxRate: 16, total: 550.00, stockQuantity: 15, unit: "pcs", createdAt: "2026-08-16 09:30:00" },
+      ]
+    }
+    return []
+  }
+  d["hold_sale"] = (a: any) => ({
+    id: Date.now(),
+    holdNumber: `HOLD-${String(Math.floor(Math.random() * 99999)).padStart(5, "0")}`,
+    customerId: a?.input?.customerId,
+    customerName: undefined,
+    subtotal: 0, taxAmount: 0, discountAmount: 0, total: 0,
+    discountPercent: a?.input?.discountPercent || 0,
+    notes: a?.input?.notes,
+    label: a?.input?.label,
+    createdAt: new Date().toISOString().slice(0, 19).replace("T", " "),
+    itemCount: a?.input?.items?.length || 0,
+  })
+  d["resume_held_sale"] = (a: any) => {
+    const held = (d["get_held_sales"]() as any[]).find((h) => h.id === a?.heldSaleId)
+    return held || { id: 0, holdNumber: "" }
+  }
+  d["delete_held_sale"] = () => {}
+
   // --- Quotes ---
   d["get_quotes"] = () => [
     { id: 1, customerId: 1, customerName: "Juan Pérez López", subtotal: 1530.00, taxRate: 16, taxAmount: 244.80, total: 1774.80, status: "approved", validUntil: "2026-08-15", createdAt: "2026-07-25T10:00:00Z" },

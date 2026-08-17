@@ -7,8 +7,8 @@ import { PosPage } from "@/features/sales/pages/pos-page"
 import { PrintHost } from "@/components/print/print-host"
 import { NotificationCenter } from "@/components/notification-center"
 import { usePrintStore, useNotificationStore } from "@/stores"
-import { globalProductSearch, processCheckout, getSaleItems, getPrinters, getCustomers } from "@/lib/tauri"
-import type { ProductForPos, CheckoutResult } from "@/types"
+import { globalProductSearch, processCheckout, getSaleItems, getPrinters, getCustomers, getHeldSales, getHeldSaleItems, holdSale, resumeHeldSale, deleteHeldSale } from "@/lib/tauri"
+import type { ProductForPos, CheckoutResult, HeldSale, HeldSaleItem } from "@/types"
 
 const products: ProductForPos[] = [
   { id: 1, name: "Brake Pads", sku: "BRK-100", barcode: "750100", salePrice: 100, wholesalePrice: 70, stockQuantity: 10, unit: "set", taxRate: 16, isActive: true, brandName: "Bosch" },
@@ -33,12 +33,25 @@ const checkoutResult: CheckoutResult = {
   receiptNumber: "RCP-00005",
 }
 
+const heldSales: HeldSale[] = [
+  { id: 1, holdNumber: "HOLD-00001", customerId: 1, customerName: "Juan Pérez", subtotal: 100, taxAmount: 16, discountAmount: 0, total: 116, discountPercent: 0, createdAt: "2026-08-16 09:30:00", itemCount: 1, label: "Waiting for parts" },
+]
+
+const heldSaleItems: HeldSaleItem[] = [
+  { id: 1, heldSaleId: 1, productId: 1, name: "Brake Pads", sku: "BRK-100", quantity: 1, unitPrice: 100, taxRate: 16, total: 100, stockQuantity: 10, unit: "set", createdAt: "2026-08-16 09:30:00" },
+]
+
 vi.mock("@/lib/tauri", () => ({
   globalProductSearch: vi.fn(),
   processCheckout: vi.fn(),
   getSaleItems: vi.fn(),
   getPrinters: vi.fn(),
   getCustomers: vi.fn(),
+  getHeldSales: vi.fn(),
+  getHeldSaleItems: vi.fn(),
+  holdSale: vi.fn(),
+  resumeHeldSale: vi.fn(),
+  deleteHeldSale: vi.fn(),
 }))
 
 setupI18n("en")
@@ -68,6 +81,11 @@ describe("PosPage", () => {
     vi.mocked(getSaleItems).mockReset()
     vi.mocked(getPrinters).mockReset()
     vi.mocked(getCustomers).mockReset()
+    vi.mocked(getHeldSales).mockReset()
+    vi.mocked(getHeldSaleItems).mockReset()
+    vi.mocked(holdSale).mockReset()
+    vi.mocked(resumeHeldSale).mockReset()
+    vi.mocked(deleteHeldSale).mockReset()
 
     vi.mocked(globalProductSearch).mockImplementation(async (q: string) =>
       products.filter((p) => p.isActive && (!q || p.name.toLowerCase().includes(q.toLowerCase()) || p.sku.toLowerCase().includes(q.toLowerCase())))
@@ -76,6 +94,10 @@ describe("PosPage", () => {
     vi.mocked(getSaleItems).mockResolvedValue(checkoutResult.items)
     vi.mocked(getPrinters).mockResolvedValue([{ id: 1, name: "Thermal A", printerType: "receipt", interfaceType: "usb", paperSize: "80mm", margins: "{}", copies: 1, orientation: "portrait", isDefault: true, isActive: true, config: "{}", createdAt: "", updatedAt: "" }])
     vi.mocked(getCustomers).mockResolvedValue([])
+    vi.mocked(getHeldSales).mockResolvedValue([])
+    vi.mocked(getHeldSaleItems).mockResolvedValue([])
+    vi.mocked(holdSale).mockResolvedValue(heldSales[0])
+    vi.mocked(deleteHeldSale).mockResolvedValue(undefined)
   })
 
   it("shows active products and hides inactive ones", async () => {
@@ -181,10 +203,98 @@ describe("PosPage", () => {
       )
     }, { timeout: 3000 })
 
-    expect(await screen.findByText("Print — Receipt", {}, { timeout: 3000 })).toBeDefined()
+    await waitFor(() => {
+      expect(screen.queryByText("Print — Receipt", {}, { timeout: 3000 })).toBeTruthy()
+    }, { timeout: 3000 })
     const dialog = screen.getByRole("dialog")
     fireEvent.click(within(dialog).getByRole("button", { name: "Print" }))
     await waitFor(() => expect(printSpy).toHaveBeenCalled(), { timeout: 3000 })
     printSpy.mockRestore()
+  })
+
+  it("shows hold button disabled when cart is empty", async () => {
+    renderPos()
+    await screen.findByText("Brake Pads")
+    const holdBtn = screen.getByTestId("hold-sale-button")
+    expect((holdBtn as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it("opens hold dialog when hold button is clicked", async () => {
+    renderPos()
+    await addProduct()
+    fireEvent.click(screen.getByTestId("hold-sale-button"))
+    expect(await screen.findByTestId("hold-dialog")).toBeDefined()
+    expect(screen.getByTestId("hold-label-input")).toBeDefined()
+  })
+
+  it("holds a sale and clears the cart", async () => {
+    vi.mocked(getHeldSales).mockResolvedValue([heldSales[0]])
+    renderPos()
+    await addProduct()
+
+    fireEvent.click(screen.getByTestId("hold-sale-button"))
+    await screen.findByTestId("hold-dialog")
+
+    fireEvent.change(screen.getByTestId("hold-label-input"), { target: { value: "Waiting for parts" } })
+    fireEvent.click(screen.getByTestId("confirm-hold"))
+
+    await waitFor(() => {
+      expect(holdSale).toHaveBeenCalledWith(
+        expect.objectContaining({
+          items: [expect.objectContaining({ productId: 1 })],
+          label: "Waiting for parts",
+        })
+      )
+    }, { timeout: 3000 })
+
+    await waitFor(() => {
+      expect(screen.queryByText("Cart (1)")).toBeNull()
+    }, { timeout: 3000 })
+  })
+
+  it("shows held sales count badge when there are held sales", async () => {
+    vi.mocked(getHeldSales).mockResolvedValue(heldSales)
+    renderPos()
+    await screen.findByTestId("held-sales-toggle")
+    expect(screen.getByText("1 held")).toBeDefined()
+  })
+
+  it("toggles held sales panel open and closed", async () => {
+    vi.mocked(getHeldSales).mockResolvedValue(heldSales)
+    renderPos()
+    fireEvent.click(await screen.findByTestId("held-sales-toggle"))
+    expect(await screen.findByTestId("held-sales-panel")).toBeDefined()
+
+    fireEvent.click(screen.getByTestId("held-sales-toggle"))
+    await waitFor(() => {
+      expect(screen.queryByTestId("held-sales-panel")).toBeNull()
+    }, { timeout: 3000 })
+  })
+
+  it("resumes a held sale into the cart", async () => {
+    vi.mocked(getHeldSales).mockResolvedValue(heldSales)
+    vi.mocked(getHeldSaleItems).mockResolvedValue(heldSaleItems)
+    vi.mocked(resumeHeldSale).mockResolvedValue(heldSales[0])
+    renderPos()
+
+    fireEvent.click(await screen.findByTestId("held-sales-toggle"))
+    fireEvent.click(await screen.findByTestId("resume-held-1"))
+
+    await screen.findByText("Cart (1)", {}, { timeout: 5000 })
+    expect(screen.getAllByText("Brake Pads").length).toBeGreaterThanOrEqual(2)
+    expect(getHeldSaleItems).toHaveBeenCalledWith(1)
+    expect(deleteHeldSale).toHaveBeenCalledWith(1)
+  })
+
+  it("cancels a held sale", async () => {
+    vi.mocked(getHeldSales).mockResolvedValue(heldSales)
+    renderPos()
+
+    fireEvent.click(await screen.findByTestId("held-sales-toggle"))
+    fireEvent.click(await screen.findByTestId("cancel-held-1"))
+
+    await waitFor(() => {
+      expect(deleteHeldSale).toHaveBeenCalledWith(1)
+    }, { timeout: 3000 })
   })
 })

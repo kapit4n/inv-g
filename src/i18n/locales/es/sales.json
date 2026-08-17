@@ -98,5 +98,19 @@
   "refundReasonPlaceholder": "p. ej. El cliente devolvió una pieza dañada",
   "shiftClosed": "Turno cerrado correctamente",
   "closingHistory": "Historial de Cierres",
-  "closedBy": "Cerrado Por"
+  "closedBy": "Cerrado Por",
+  "holdSale": "Retener Venta",
+  "holdSaleTitle": "Retener Venta",
+  "holdSaleLabel": "Etiqueta (opcional)",
+  "holdSaleLabelPlaceholder": "p. ej. Esperando refacciones",
+  "heldSales": "Ventas Retenidas",
+  "heldSalesCount": "{{count}} retenida(s)",
+  "noHeldSales": "No hay ventas retenidas",
+  "resumeSale": "Reanudar",
+  "cancelHold": "Cancelar",
+  "confirmCancelHold": "¿Estás seguro de cancelar esta venta retenida? El carrito se perderá.",
+  "saleHeld": "Venta retenida correctamente",
+  "saleResumed": "Venta reanudada correctamente",
+  "saleHoldCancelled": "Venta retenida cancelada",
+  "items": "{{count}} artículos"
 }

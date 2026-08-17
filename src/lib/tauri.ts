@@ -22,6 +22,7 @@ import type {
   Sale, SaleItem, SalePayment, DailyCloseout, Quote, QuoteItem,
   CashRegisterSession, DailyClosing, Receipt, ProductForPos, CheckoutResult,
   CheckoutInput, SalesSummary, SalesChartData, QuoteInput,
+  HeldSale, HeldSaleItem, HoldSaleInput, HeldSaleItemInput,
   PurchaseOrder, PurchaseOrderItem, PurchaseOrderInput, PurchaseOrderItemInput,
   PurchaseRequest, PurchaseRequestItem, PurchaseRequestInput,
   PurchaseReceipt, PurchaseReceiptItem, ReceivePOInput,
@@ -432,6 +433,28 @@ export async function updateQuoteStatus(id: number, status: string): Promise<Quo
 
 export async function convertQuoteToSale(quoteId: number, userId?: number): Promise<CheckoutResult> {
   return invoke<CheckoutResult>("convert_quote_to_sale", { quoteId, userId })
+}
+
+// ── Held Sales (TASK 07) ──
+
+export async function getHeldSales(): Promise<HeldSale[]> {
+  return invoke<HeldSale[]>("get_held_sales")
+}
+
+export async function getHeldSaleItems(heldSaleId: number): Promise<HeldSaleItem[]> {
+  return invoke<HeldSaleItem[]>("get_held_sale_items", { heldSaleId })
+}
+
+export async function holdSale(input: HoldSaleInput): Promise<HeldSale> {
+  return invoke<HeldSale>("hold_sale", { input })
+}
+
+export async function resumeHeldSale(heldSaleId: number): Promise<HeldSale> {
+  return invoke<HeldSale>("resume_held_sale", { heldSaleId })
+}
+
+export async function deleteHeldSale(heldSaleId: number): Promise<void> {
+  return invoke<void>("delete_held_sale", { heldSaleId })
 }
 
 // ── Cash Register ──

@@ -699,3 +699,71 @@ performance, and create reusable frontend primitives (hook + combobox).
 **TASK 07 — POS hold and resume sales.** Hold a sale, name/identify it,
 continue another, view held, resume, cancel safely. Preserve inventory/payment
 correctness. Tests for full workflow.
+
+---
+
+## TASK 07 — POS hold and resume sales ✅
+
+**Status:** Complete
+**Date:** 2026-08-17
+**Branch/commit:** master
+
+### What this task was
+TASK 07 implemented hold and resume functionality for the POS. Operators can
+now temporarily park an incomplete sale (with a label), continue with a
+different sale, then return to any held sale to resume or cancel it. No
+inventory or payment records are touched until checkout.
+
+### Design decisions
+- **Separate `held_sales` / `held_sale_items` tables** (not extending the `sales`
+  table) — keeps held sales completely isolated from sales reports and analytics.
+- Hold creates a snapshot of the cart (items, customer, discount, notes) without
+  decrementing stock or creating payments.
+- Resume loads items back into the POS cart and deletes the held sale record.
+- Cancel simply deletes the held sale (cascade deletes items).
+- Schema bumped to version 10 (destructive migration).
+
+### Files created/modified
+
+#### Backend
+- `src-tauri/src/db/schema.rs` — Schema v10: added `held_sales` and
+  `held_sale_items` tables with indexes and foreign keys.
+- `src-tauri/src/commands/sales.rs` — Added `hold_sale`, `get_held_sales`,
+  `get_held_sale_items`, `resume_held_sale`, `delete_held_sale` commands with
+  `HeldSale`, `HeldSaleItem`, `HoldSaleInput`, `HeldSaleItemInput` structs.
+- `src-tauri/src/lib.rs` — Registered 5 new commands.
+
+#### Frontend
+- `src/types/index.ts` — Added `HeldSale`, `HeldSaleItem`, `HoldSaleInput`,
+  `HeldSaleItemInput` interfaces.
+- `src/lib/tauri.ts` — Added 5 wrappers: `getHeldSales`, `getHeldSaleItems`,
+  `holdSale`, `resumeHeldSale`, `deleteHeldSale`.
+- `src/features/sales/pages/pos-page.tsx` — Hold/resume UI: hold button in cart,
+  hold label dialog, held sales panel with count badge, resume/cancel per item.
+  Uses `useMutation` for hold/resume/cancel and `useQuery` for held sales list.
+- `src/i18n/locales/en/sales.json` — 12 new English keys for hold/resume.
+- `src/i18n/locales/es/sales.json` — 12 new Spanish keys for hold/resume.
+- `scripts/screenshots/helpers/invoke-mock.ts` — Added mocks for all 5 held
+  sale commands.
+
+#### Tests
+- `tests/unit/components/pos-page.test.tsx` — 7 new tests (17 total):
+  hold button disabled when cart empty, hold dialog opens, hold sale clears cart,
+  held sales count badge, toggle panel open/close, resume into cart, cancel held.
+
+### Tests executed
+- `npm run verify` — ✅ full gate green.
+- Vitest: **42 files / 277 tests passed** (7 new POS hold/resume tests).
+- `cargo test` — ✅ 46 passed (unchanged).
+
+### Verification status
+- **GREEN.** Typecheck clean, lint 0 errors (pre-existing warnings),
+  277 frontend + 46 Rust tests pass.
+
+### Known issues discovered
+- The Wrapper in `tests/helpers/render.tsx` creates a new QueryClient on every
+  render, which can cause test isolation issues with react-query. The resume test
+  requires checking for duplicate DOM elements (product grid + cart item both show
+  the same product name).
+- Held sales do not expire — there is no automatic cleanup for old held sales.
+  This could be added as a future enhancement.

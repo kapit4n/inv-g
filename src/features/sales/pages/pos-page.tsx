@@ -1,8 +1,8 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { Search, Plus, Minus, Trash2, ShoppingCart, X, Percent, DollarSign, CreditCard, Banknote, Landmark, Receipt } from "lucide-react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Search, Plus, Minus, Trash2, ShoppingCart, X, Percent, DollarSign, CreditCard, Banknote, Landmark, Receipt, Pause, Play, Clock, Tag } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,12 +10,12 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { CustomerSearchField, TextareaField } from "@/components/forms"
-import { processCheckout, getSaleItems } from "@/lib/tauri"
+import { processCheckout, getSaleItems, getHeldSales, getHeldSaleItems, holdSale, resumeHeldSale, deleteHeldSale } from "@/lib/tauri"
 import { useNotification } from "@/hooks/use-notification"
 import { usePrint, usePrintConfig, useProductSearch } from "@/hooks"
 import { buildSaleReceiptModel, type ReceiptLabels } from "@/lib/print"
 import { cn } from "@/lib/utils"
-import type { ProductForPos, PaymentInput, CheckoutResult } from "@/types"
+import type { ProductForPos, PaymentInput, CheckoutResult, HeldSale } from "@/types"
 
 interface CartItem {
   productId: number
@@ -52,6 +52,86 @@ export function PosPage() {
   const [payments, setPayments] = useState<PaymentRow[]>([{ method: "cash", amount: 0, reference: "", changeAmount: 0 }])
   const [notes, setNotes] = useState("")
   const [discount, setDiscount] = useState(0)
+  const [heldSalesOpen, setHeldSalesOpen] = useState(false)
+  const [holdLabel, setHoldLabel] = useState("")
+  const [holdDialogOpen, setHoldDialogOpen] = useState(false)
+
+  const { data: heldSales = [], refetch: refetchHeld } = useQuery({
+    queryKey: ["held-sales"],
+    queryFn: getHeldSales,
+  })
+
+  const holdMutation = useMutation({
+    mutationFn: () => {
+      const items = cart.map((item) => ({
+        productId: item.productId,
+        name: item.name,
+        sku: item.sku,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        taxRate: item.taxRate,
+        total: item.total,
+        stockQuantity: item.stockQuantity,
+        unit: item.unit,
+      }))
+      return holdSale({ customerId, items, discountPercent: discount, notes, label: holdLabel || undefined })
+    },
+    onSuccess: () => {
+      setCart([])
+      setCustomerId(undefined)
+      setPayments([{ method: "cash", amount: 0, reference: "", changeAmount: 0 }])
+      setNotes("")
+      setDiscount(0)
+      setHoldLabel("")
+      setHoldDialogOpen(false)
+      refetchHeld()
+      notification.success(t("common.success"), t("sales.saleHeld"))
+    },
+    onError: (err) => {
+      notification.error(t("common.error"), String(err))
+    },
+  })
+
+  const resumeMutation = useMutation({
+    mutationFn: (heldSaleId: number) => getHeldSaleItems(heldSaleId).then(async (items) => {
+      await deleteHeldSale(heldSaleId)
+      return items
+    }),
+    onSuccess: (items) => {
+      if (items.length === 0) {
+        refetchHeld()
+        return
+      }
+      const restored: CartItem[] = items.map((item) => ({
+        productId: item.productId,
+        name: item.name,
+        sku: item.sku,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        taxRate: item.taxRate,
+        total: item.total,
+        stockQuantity: item.stockQuantity,
+        unit: item.unit,
+      }))
+      setCart(restored)
+      refetchHeld()
+      notification.success(t("common.success"), t("sales.saleResumed"))
+    },
+    onError: (err) => {
+      notification.error(t("common.error"), String(err))
+    },
+  })
+
+  const cancelHoldMutation = useMutation({
+    mutationFn: (heldSaleId: number) => deleteHeldSale(heldSaleId),
+    onSuccess: () => {
+      refetchHeld()
+      notification.success(t("common.success"), t("sales.saleHoldCancelled"))
+    },
+    onError: (err) => {
+      notification.error(t("common.error"), String(err))
+    },
+  })
 
   const filteredProducts = useMemo(() => searchResults.filter((p) => p.isActive), [searchResults])
 
@@ -267,6 +347,12 @@ export function PosPage() {
         description={t("sales.description")}
         actions={
           <div className="flex items-center gap-2">
+            {heldSales.length > 0 && (
+              <Button variant="outline" size="sm" onClick={() => setHeldSalesOpen(!heldSalesOpen)} data-testid="held-sales-toggle">
+                <Clock className="h-4 w-4 mr-1" />
+                {t("sales.heldSalesCount", { count: heldSales.length })}
+              </Button>
+            )}
             <span className="text-xs text-muted-foreground hidden md:inline">{t("sales.posShortcuts")}</span>
             <Button variant="ghost" size="sm" onClick={() => navigate("/sales")}>
               <X className="h-4 w-4 mr-1" /> {t("common.cancel")}
@@ -274,6 +360,75 @@ export function PosPage() {
           </div>
         }
       />
+
+      {heldSalesOpen && (
+        <Card data-testid="held-sales-panel">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Clock className="h-4 w-4" /> {t("sales.heldSales")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {heldSales.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">{t("sales.noHeldSales")}</p>
+            ) : (
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {heldSales.map((held) => (
+                  <div key={held.id} className="flex items-center justify-between gap-2 rounded-lg border p-2" data-testid={`held-sale-${held.id}`}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{held.holdNumber}</span>
+                        {held.label && (
+                          <Badge variant="outline" className="text-xs">
+                            <Tag className="h-3 w-3 mr-1" />{held.label}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {held.customerName && <span>{held.customerName} · </span>}
+                        {t("sales.items", { count: held.itemCount ?? 0 })} · {formatCurrency(held.total)}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => resumeMutation.mutate(held.id)} disabled={resumeMutation.isPending} data-testid={`resume-held-${held.id}`}>
+                        <Play className="h-3 w-3 mr-1" /> {t("sales.resumeSale")}
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive" onClick={() => cancelHoldMutation.mutate(held.id)} disabled={cancelHoldMutation.isPending} data-testid={`cancel-held-${held.id}`}>
+                        <X className="h-3 w-3 mr-1" /> {t("sales.cancelHold")}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {holdDialogOpen && (
+        <Card data-testid="hold-dialog">
+          <CardContent className="pt-6 space-y-3">
+            <div>
+              <label className="text-sm font-medium">{t("sales.holdSaleLabel")}</label>
+              <Input
+                value={holdLabel}
+                onChange={(e) => setHoldLabel(e.target.value)}
+                placeholder={t("sales.holdSaleLabelPlaceholder")}
+                className="mt-1"
+                data-testid="hold-label-input"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={() => holdMutation.mutate()} disabled={holdMutation.isPending} data-testid="confirm-hold">
+                {holdMutation.isPending ? t("common.processing") : t("sales.holdSale")}
+              </Button>
+              <Button variant="ghost" onClick={() => { setHoldDialogOpen(false); setHoldLabel("") }} data-testid="cancel-hold-dialog">
+                {t("common.cancel")}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-4">
         <div className="xl:col-span-2 space-y-4">
@@ -533,6 +688,17 @@ export function PosPage() {
                   className="text-xs"
                 />
               </div>
+
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => setHoldDialogOpen(true)}
+                disabled={cart.length === 0}
+                data-testid="hold-sale-button"
+              >
+                <Pause className="h-4 w-4 mr-2" />
+                {t("sales.holdSale")}
+              </Button>
 
               <Button
                 className="w-full h-11 text-base"

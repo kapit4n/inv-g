@@ -98,5 +98,19 @@
   "refundReasonPlaceholder": "e.g. Customer returned a damaged part",
   "shiftClosed": "Shift closed successfully",
   "closingHistory": "Closing History",
-  "closedBy": "Closed By"
+  "closedBy": "Closed By",
+  "holdSale": "Hold Sale",
+  "holdSaleTitle": "Hold Sale",
+  "holdSaleLabel": "Label (optional)",
+  "holdSaleLabelPlaceholder": "e.g. Waiting for parts",
+  "heldSales": "Held Sales",
+  "heldSalesCount": "{{count}} held",
+  "noHeldSales": "No held sales",
+  "resumeSale": "Resume",
+  "cancelHold": "Cancel",
+  "confirmCancelHold": "Are you sure you want to cancel this held sale? The cart will be lost.",
+  "saleHeld": "Sale held successfully",
+  "saleResumed": "Sale resumed successfully",
+  "saleHoldCancelled": "Held sale cancelled",
+  "items": "{{count}} items"
 }

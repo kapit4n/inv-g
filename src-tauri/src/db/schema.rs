@@ -1,6 +1,6 @@
 use rusqlite::{Connection, Result};
 
-const SCHEMA_VERSION: i32 = 9;
+const SCHEMA_VERSION: i32 = 10;
 
 fn get_user_version(conn: &Connection) -> Result<i32> {
     let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
@@ -1107,6 +1107,41 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
         CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
         CREATE INDEX IF NOT EXISTS idx_products_brand ON products(brand_id);
         CREATE INDEX IF NOT EXISTS idx_products_active ON products(is_active);
+
+        -- Held sales (TASK 07)
+        CREATE TABLE IF NOT EXISTS held_sales (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            hold_number TEXT NOT NULL UNIQUE,
+            customer_id INTEGER,
+            user_id INTEGER,
+            subtotal REAL NOT NULL DEFAULT 0,
+            tax_amount REAL NOT NULL DEFAULT 0,
+            discount_amount REAL NOT NULL DEFAULT 0,
+            total REAL NOT NULL DEFAULT 0,
+            discount_percent REAL NOT NULL DEFAULT 0,
+            notes TEXT,
+            label TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (customer_id) REFERENCES customers(id),
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS held_sale_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            held_sale_id INTEGER NOT NULL,
+            product_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            sku TEXT NOT NULL,
+            quantity INTEGER NOT NULL DEFAULT 1,
+            unit_price REAL NOT NULL DEFAULT 0,
+            tax_rate REAL NOT NULL DEFAULT 0,
+            total REAL NOT NULL DEFAULT 0,
+            stock_quantity INTEGER NOT NULL DEFAULT 0,
+            unit TEXT NOT NULL DEFAULT 'pcs',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (held_sale_id) REFERENCES held_sales(id) ON DELETE CASCADE,
+            FOREIGN KEY (product_id) REFERENCES products(id)
+        );
         ",
     )?;
     set_user_version(conn, SCHEMA_VERSION)?;
