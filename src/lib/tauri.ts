@@ -380,6 +380,10 @@ export async function searchProductsForPos(search: string): Promise<ProductForPo
   return invoke<ProductForPos[]>("search_products_for_pos", { search })
 }
 
+export async function globalProductSearch(query: string, limit?: number): Promise<ProductForPos[]> {
+  return invoke<ProductForPos[]>("global_product_search", { query, limit })
+}
+
 export async function processCheckout(input: CheckoutInput): Promise<CheckoutResult> {
   return invoke<CheckoutResult>("process_checkout", { input })
 }

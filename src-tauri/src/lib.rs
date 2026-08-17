@@ -138,6 +138,7 @@ pub fn run() {
             commands::sales::refund_sale,
             commands::sales::get_daily_closeout,
             commands::sales::search_products_for_pos,
+            commands::sales::global_product_search,
             commands::sales::process_checkout,
             commands::sales::get_sale_payments,
             commands::sales::get_sales_summary,

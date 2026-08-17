@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Search, Plus, Minus, Trash2, ShoppingCart, X, Percent, DollarSign, CreditCard, Banknote, Landmark, Receipt } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
@@ -10,9 +10,9 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { CustomerSearchField, TextareaField } from "@/components/forms"
-import { searchProductsForPos, processCheckout, getSaleItems } from "@/lib/tauri"
+import { processCheckout, getSaleItems } from "@/lib/tauri"
 import { useNotification } from "@/hooks/use-notification"
-import { usePrint, usePrintConfig } from "@/hooks"
+import { usePrint, usePrintConfig, useProductSearch } from "@/hooks"
 import { buildSaleReceiptModel, type ReceiptLabels } from "@/lib/print"
 import { cn } from "@/lib/utils"
 import type { ProductForPos, PaymentInput, CheckoutResult } from "@/types"
@@ -45,8 +45,7 @@ export function PosPage() {
   const print = usePrint()
   const config = usePrintConfig()
 
-  const [search, setSearch] = useState("")
-  const [debouncedSearch, setDebouncedSearch] = useState("")
+  const { query: search, setQuery: setSearch, products: searchResults, isLoading: searchLoading } = useProductSearch({ debounceMs: 200, queryAllWhenEmpty: true })
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [cart, setCart] = useState<CartItem[]>([])
   const [customerId, setCustomerId] = useState<number | undefined>(undefined)
@@ -54,26 +53,15 @@ export function PosPage() {
   const [notes, setNotes] = useState("")
   const [discount, setDiscount] = useState(0)
 
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search), 300)
-    return () => clearTimeout(timer)
-  }, [search])
+  const filteredProducts = useMemo(() => searchResults.filter((p) => p.isActive), [searchResults])
 
   useEffect(() => {
     setSelectedIndex(0)
-  }, [debouncedSearch])
+  }, [search])
 
   useEffect(() => {
     searchRef.current?.focus()
   }, [])
-
-  const { data: products = [] } = useQuery({
-    queryKey: ["pos-search", debouncedSearch],
-    queryFn: () => searchProductsForPos(debouncedSearch),
-    enabled: true,
-  })
-
-  const filteredProducts = useMemo(() => products.filter((p) => p.isActive), [products])
 
   const addToCart = useCallback((product: ProductForPos) => {
     setCart((prev) => {
@@ -237,7 +225,6 @@ export function PosPage() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setSearch("")
-        setDebouncedSearch("")
         searchRef.current?.focus()
       }
     }

@@ -909,6 +909,11 @@ function buildMockData(theme: string): DataMap {
     }
     return products
   }
+  d["global_product_search"] = (a: any) => {
+    const products = d["search_products_for_pos"](a)
+    if (a?.limit) return products.slice(0, a.limit)
+    return products
+  }
   d["process_checkout"] = (a: any) => ({
     success: true,
     saleId: Math.floor(Math.random() * 900) + 100,

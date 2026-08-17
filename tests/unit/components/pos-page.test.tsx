@@ -7,12 +7,12 @@ import { PosPage } from "@/features/sales/pages/pos-page"
 import { PrintHost } from "@/components/print/print-host"
 import { NotificationCenter } from "@/components/notification-center"
 import { usePrintStore, useNotificationStore } from "@/stores"
-import { searchProductsForPos, processCheckout, getSaleItems, getPrinters, getCustomers } from "@/lib/tauri"
+import { globalProductSearch, processCheckout, getSaleItems, getPrinters, getCustomers } from "@/lib/tauri"
 import type { ProductForPos, CheckoutResult } from "@/types"
 
 const products: ProductForPos[] = [
-  { id: 1, name: "Brake Pads", sku: "BRK-100", barcode: "750100", salePrice: 100, wholesalePrice: 70, stockQuantity: 10, unit: "set", taxRate: 16, isActive: true },
-  { id: 2, name: "Oil Filter", sku: "OIL-200", barcode: "750200", salePrice: 50, wholesalePrice: 35, stockQuantity: 8, unit: "unit", taxRate: 16, isActive: true },
+  { id: 1, name: "Brake Pads", sku: "BRK-100", barcode: "750100", salePrice: 100, wholesalePrice: 70, stockQuantity: 10, unit: "set", taxRate: 16, isActive: true, brandName: "Bosch" },
+  { id: 2, name: "Oil Filter", sku: "OIL-200", barcode: "750200", salePrice: 50, wholesalePrice: 35, stockQuantity: 8, unit: "unit", taxRate: 16, isActive: true, brandName: "Mann" },
   { id: 3, name: "Spark Plug", sku: "SPK-300", barcode: "750300", salePrice: 20, wholesalePrice: 12, stockQuantity: 0, unit: "unit", taxRate: 16, isActive: true },
   { id: 4, name: "Discontinued Part", sku: "DISC-400", barcode: "750400", salePrice: 5, wholesalePrice: 2, stockQuantity: 100, unit: "unit", taxRate: 0, isActive: false },
 ]
@@ -34,7 +34,7 @@ const checkoutResult: CheckoutResult = {
 }
 
 vi.mock("@/lib/tauri", () => ({
-  searchProductsForPos: vi.fn(),
+  globalProductSearch: vi.fn(),
   processCheckout: vi.fn(),
   getSaleItems: vi.fn(),
   getPrinters: vi.fn(),
@@ -63,13 +63,13 @@ describe("PosPage", () => {
   beforeEach(() => {
     usePrintStore.setState({ request: null })
     useNotificationStore.setState({ notifications: [], unreadCount: 0 })
-    vi.mocked(searchProductsForPos).mockReset()
+    vi.mocked(globalProductSearch).mockReset()
     vi.mocked(processCheckout).mockReset()
     vi.mocked(getSaleItems).mockReset()
     vi.mocked(getPrinters).mockReset()
     vi.mocked(getCustomers).mockReset()
 
-    vi.mocked(searchProductsForPos).mockImplementation(async (q: string) =>
+    vi.mocked(globalProductSearch).mockImplementation(async (q: string) =>
       products.filter((p) => p.isActive && (!q || p.name.toLowerCase().includes(q.toLowerCase()) || p.sku.toLowerCase().includes(q.toLowerCase())))
     )
     vi.mocked(processCheckout).mockResolvedValue(checkoutResult)
@@ -111,7 +111,7 @@ describe("PosPage", () => {
   })
 
   it("caps quantity at available stock", async () => {
-    vi.mocked(searchProductsForPos).mockImplementation(async () => [
+    vi.mocked(globalProductSearch).mockImplementation(async () => [
       { ...products[0], stockQuantity: 2 },
     ])
     renderPos()

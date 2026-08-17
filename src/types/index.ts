@@ -250,6 +250,7 @@ export interface ProductForPos {
   imageUrl?: string
   taxRate: number
   categoryName?: string
+  brandName?: string
   isActive: boolean
 }
 

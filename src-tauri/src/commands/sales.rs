@@ -113,6 +113,7 @@ pub struct ProductForPos {
     pub image_url: Option<String>,
     pub tax_rate: f64,
     pub category_name: Option<String>,
+    pub brand_name: Option<String>,
     pub is_active: bool,
 }
 
@@ -362,9 +363,11 @@ pub fn search_products_for_pos(state: State<DbState>, search: String) -> Result<
     let pattern = format!("%{}%", search);
     let mut stmt = conn.prepare(
         "SELECT p.id, p.name, p.sku, p.barcode, p.sale_price, p.wholesale_price,
-                p.stock_quantity, p.unit, p.image_url, p.tax_rate, c.name as category_name, p.is_active
+                p.stock_quantity, p.unit, p.image_url, p.tax_rate,
+                c.name as category_name, b.name as brand_name, p.is_active
          FROM products p
          LEFT JOIN categories c ON p.category_id = c.id
+         LEFT JOIN brands b ON p.brand_id = b.id
          WHERE (p.name LIKE ?1 OR p.sku LIKE ?1 OR p.barcode LIKE ?1 OR p.internal_code LIKE ?1 OR p.oem_number LIKE ?1)
          AND p.is_active = 1
          ORDER BY p.name LIMIT 50"
@@ -375,7 +378,8 @@ pub fn search_products_for_pos(state: State<DbState>, search: String) -> Result<
             barcode: row.get(3)?, sale_price: row.get(4)?,
             wholesale_price: row.get(5)?, stock_quantity: row.get(6)?,
             unit: row.get(7)?, image_url: row.get(8)?, tax_rate: row.get(9)?,
-            category_name: row.get(10)?, is_active: row.get::<_, i64>(11)? != 0,
+            category_name: row.get(10)?, brand_name: row.get(11)?,
+            is_active: row.get::<_, i64>(12)? != 0,
         })
     }).map_err(|e| e.to_string())?;
     let mut result = Vec::new();
@@ -383,7 +387,52 @@ pub fn search_products_for_pos(state: State<DbState>, search: String) -> Result<
     Ok(result)
 }
 
-// ── Sales Queries ──
+// ── Global Product Search (TASK 06) ──
+
+#[tauri::command]
+pub fn global_product_search(state: State<DbState>, query: String, limit: Option<i64>) -> Result<Vec<ProductForPos>, String> {
+    let conn = get_conn(&state)?;
+    let max_results = limit.unwrap_or(20);
+    let pattern = format!("%{}%", query);
+    let exact = query.clone();
+    let prefix = format!("{}%", query);
+
+    let sql = "
+        SELECT p.id, p.name, p.sku, p.barcode, p.sale_price, p.wholesale_price,
+               p.stock_quantity, p.unit, p.image_url, p.tax_rate,
+               c.name as category_name, b.name as brand_name, p.is_active,
+               CASE
+                   WHEN p.name = ?1 OR p.sku = ?1 OR p.barcode = ?1 OR p.oem_number = ?1 THEN 0
+                   WHEN p.name LIKE ?2 OR p.sku LIKE ?2 OR p.barcode LIKE ?2 THEN 1
+                   WHEN p.name LIKE ?3 OR p.sku LIKE ?3 OR p.oem_number LIKE ?3 THEN 2
+                   ELSE 3
+               END as relevance
+        FROM products p
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN brands b ON p.brand_id = b.id
+        WHERE (p.name LIKE ?3 OR p.sku LIKE ?3 OR p.barcode LIKE ?3
+               OR p.internal_code LIKE ?3 OR p.oem_number LIKE ?3
+               OR b.name LIKE ?3)
+        AND p.is_active = 1
+        ORDER BY relevance ASC, p.name ASC
+        LIMIT ?4
+    ";
+
+    let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
+    let rows = stmt.query_map(params![exact, prefix, pattern, max_results], |row| {
+        Ok(ProductForPos {
+            id: row.get(0)?, name: row.get(1)?, sku: row.get(2)?,
+            barcode: row.get(3)?, sale_price: row.get(4)?,
+            wholesale_price: row.get(5)?, stock_quantity: row.get(6)?,
+            unit: row.get(7)?, image_url: row.get(8)?, tax_rate: row.get(9)?,
+            category_name: row.get(10)?, brand_name: row.get(11)?,
+            is_active: row.get::<_, i64>(12)? != 0,
+        })
+    }).map_err(|e| e.to_string())?;
+    let mut result = Vec::new();
+    for row in rows { result.push(row.map_err(|e| e.to_string())?); }
+    Ok(result)
+}
 
 #[tauri::command]
 pub fn get_sales(state: State<DbState>) -> Result<Vec<Sale>, String> {

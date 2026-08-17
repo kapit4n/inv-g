@@ -1,6 +1,6 @@
 use rusqlite::{Connection, Result};
 
-const SCHEMA_VERSION: i32 = 8;
+const SCHEMA_VERSION: i32 = 9;
 
 fn get_user_version(conn: &Connection) -> Result<i32> {
     let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
@@ -1097,6 +1097,16 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             FOREIGN KEY (installed_by) REFERENCES users(id) ON DELETE SET NULL
         );
+
+        -- Indexes for fast product search (TASK 06)
+        CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
+        CREATE INDEX IF NOT EXISTS idx_products_sku ON products(sku);
+        CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode);
+        CREATE INDEX IF NOT EXISTS idx_products_oem_number ON products(oem_number);
+        CREATE INDEX IF NOT EXISTS idx_products_internal_code ON products(internal_code);
+        CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
+        CREATE INDEX IF NOT EXISTS idx_products_brand ON products(brand_id);
+        CREATE INDEX IF NOT EXISTS idx_products_active ON products(is_active);
         ",
     )?;
     set_user_version(conn, SCHEMA_VERSION)?;
