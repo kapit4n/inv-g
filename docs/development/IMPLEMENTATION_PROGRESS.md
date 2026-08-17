@@ -553,3 +553,76 @@ See `docs/BUG_FIX_LOG.md` top entry:
 foundation (`usePrint` + `build*Model`) for receipt printing in the POS, then
 work the search → identify → stock → cart → customer → vehicle → payment →
 receipt flow. Add regression tests for the print path.
+
+---
+
+## TASK 05 — Analyze and redesign the POS workflow (partial)
+
+**Status:** In progress
+**Date:** 2026-08-17
+**Branch/commit:** master (`1496cdc`)
+
+### Current status
+- **Phase:** 2 — POS UX
+- **Task:** 05 — Analyze and redesign the POS workflow
+- **Next recommended task:** **TASK 05 continued** (customer/vehicle selection in POS, hold/resume sales)
+
+### What was done in this pass
+First UX improvement pass on the POS page targeting the search → stock → cart →
+payment → receipt flow. The POS page was analyzed, and the following were
+implemented:
+
+1. **Stock guards.** Adding out-of-stock products is blocked with a warning
+   notification. Quantity is capped at available stock in the cart (both
+   increment and direct input). Product cards show "Out of stock" badge for
+   zero-stock and a warning variant for ≤5.
+
+2. **Keyboard navigation.** ArrowDown/ArrowUp browse the product grid with
+   visual ring highlight. Enter adds the selected product. Escape clears the
+   search and refocuses. Debounced search always queries (empty string returns
+   all active products); client-side filtering is applied after the query.
+
+3. **Cart quantity input.** Replaced the static quantity display with a numeric
+   `<Input type="number">` spinbutton with min/max enforcement. Cart items show
+   remaining stock.
+
+4. **Receipt printing.** After checkout, the POS automatically calls
+   `printReceiptForSale` which fetches sale items, builds a `PrintDocumentModel`
+   via `buildSaleReceiptModel`, and opens the print dialog. Best-effort (errors
+   are swallowed since the sale is already complete).
+
+5. **Accessibility.** `aria-label` on quantity inputs, remove/add buttons,
+   payment method selector, discount input, payment amount inputs. `data-testid`
+   on product cards for reliable test targeting.
+
+6. **i18n.** New keys in `en/sales.json` and `es/sales.json`: `stockOut`,
+   `stockLeft`, `stockOnly`, `posShortcuts`, `insufficientPayment`, `totalPaid`,
+   `changeDue`, `discountAmount`.
+
+### Files changed
+- `src/features/sales/pages/pos-page.tsx` — stock guards, keyboard nav,
+  quantity input, print receipt, data-testids, aria-labels
+- `src/i18n/locales/en/sales.json` — new POS keys
+- `src/i18n/locales/es/sales.json` — new POS keys (Spanish)
+- `tests/unit/components/pos-page.test.tsx` — 10 unit tests (new file)
+
+### Tests executed
+- `npm test` — ✅ 40 files / 259 tests passed.
+
+### Verification status
+- **GREEN.** All 259 tests pass across 40 files.
+
+### Remaining scope for TASK 05
+The initial POS UX pass is done. Remaining items for full TASK 05 completion:
+- Customer/vehicle selection is already wired (CustomerSearchField) but not
+  deeply tested.
+- Hold/resume sales (TASK 07 in the plan) is a separate task.
+- Per-line discount is not wired (the existing percentage discount applies to
+  the whole sale).
+- The product grid is limited to 60 items; no virtualization or lazy loading.
+- Search results do not show compatibility info for the current vehicle.
+
+### Next recommended task
+**TASK 06 — Fast global product search.** Reusable search supporting name,
+SKU, barcode, OEM, brand, aliases. Show product/brand/SKU/stock/price.
+Desktop keyboard optimized. Tests.
