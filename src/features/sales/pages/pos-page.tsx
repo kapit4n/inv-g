@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { Search, Plus, Minus, Trash2, ShoppingCart, X, Percent, DollarSign, User, CreditCard, Banknote, Landmark, Receipt, Printer } from "lucide-react"
+import { Search, Plus, Minus, Trash2, ShoppingCart, X, Percent, DollarSign, CreditCard, Banknote, Landmark, Receipt } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,9 +10,12 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { CustomerSearchField, TextareaField } from "@/components/forms"
-import { searchProductsForPos, processCheckout } from "@/lib/tauri"
+import { searchProductsForPos, processCheckout, getSaleItems } from "@/lib/tauri"
 import { useNotification } from "@/hooks/use-notification"
-import type { ProductForPos, PaymentInput } from "@/types"
+import { usePrint, usePrintConfig } from "@/hooks"
+import { buildSaleReceiptModel, type ReceiptLabels } from "@/lib/print"
+import { cn } from "@/lib/utils"
+import type { ProductForPos, PaymentInput, CheckoutResult } from "@/types"
 
 interface CartItem {
   productId: number
@@ -22,6 +25,8 @@ interface CartItem {
   unitPrice: number
   taxRate: number
   total: number
+  stockQuantity: number
+  unit: string
 }
 
 interface PaymentRow {
@@ -37,9 +42,12 @@ export function PosPage() {
   const queryClient = useQueryClient()
   const notification = useNotification()
   const searchRef = useRef<HTMLInputElement>(null)
+  const print = usePrint()
+  const config = usePrintConfig()
 
   const [search, setSearch] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
+  const [selectedIndex, setSelectedIndex] = useState(0)
   const [cart, setCart] = useState<CartItem[]>([])
   const [customerId, setCustomerId] = useState<number | undefined>(undefined)
   const [payments, setPayments] = useState<PaymentRow[]>([{ method: "cash", amount: 0, reference: "", changeAmount: 0 }])
@@ -51,20 +59,29 @@ export function PosPage() {
     return () => clearTimeout(timer)
   }, [search])
 
+  useEffect(() => {
+    setSelectedIndex(0)
+  }, [debouncedSearch])
+
+  useEffect(() => {
+    searchRef.current?.focus()
+  }, [])
+
   const { data: products = [] } = useQuery({
     queryKey: ["pos-search", debouncedSearch],
     queryFn: () => searchProductsForPos(debouncedSearch),
-    enabled: debouncedSearch.length >= 0,
+    enabled: true,
   })
 
-  const filteredProducts = useMemo(() => {
-    if (!debouncedSearch) return products.filter((p) => p.isActive)
-    return products.filter((p) => p.isActive)
-  }, [products, debouncedSearch])
+  const filteredProducts = useMemo(() => products.filter((p) => p.isActive), [products])
 
   const addToCart = useCallback((product: ProductForPos) => {
     setCart((prev) => {
       const existing = prev.find((item) => item.productId === product.id)
+      const inCart = existing?.quantity ?? 0
+      if (product.stockQuantity <= 0 || inCart >= product.stockQuantity) {
+        return prev
+      }
       if (existing) {
         return prev.map((item) =>
           item.productId === product.id
@@ -72,17 +89,52 @@ export function PosPage() {
             : item
         )
       }
-      return [...prev, { productId: product.id, name: product.name, sku: product.sku, quantity: 1, unitPrice: product.salePrice, taxRate: product.taxRate, total: product.salePrice }]
+      return [...prev, {
+        productId: product.id,
+        name: product.name,
+        sku: product.sku,
+        quantity: 1,
+        unitPrice: product.salePrice,
+        taxRate: product.taxRate,
+        total: product.salePrice,
+        stockQuantity: product.stockQuantity,
+        unit: product.unit,
+      }]
     })
   }, [])
+
+  const handleProductClick = useCallback((product: ProductForPos) => {
+    const inCart = cart.find((item) => item.productId === product.id)?.quantity ?? 0
+    if (product.stockQuantity <= 0) {
+      notification.warning(t("sales.stockOut"), product.name)
+      return
+    }
+    if (inCart >= product.stockQuantity) {
+      notification.warning(t("sales.stockOnly", { count: product.stockQuantity }), product.name)
+      return
+    }
+    addToCart(product)
+  }, [cart, addToCart, notification, t])
 
   const updateQuantity = useCallback((productId: number, delta: number) => {
     setCart((prev) =>
       prev
         .map((item) => {
           if (item.productId !== productId) return item
-          const newQty = Math.max(0, item.quantity + delta)
-          return newQty === 0 ? null : { ...item, quantity: newQty, total: newQty * item.unitPrice }
+          const nextQty = Math.max(0, Math.min(item.stockQuantity, item.quantity + delta))
+          return nextQty === 0 ? null : { ...item, quantity: nextQty, total: nextQty * item.unitPrice }
+        })
+        .filter(Boolean) as CartItem[]
+    )
+  }, [])
+
+  const setCartQuantity = useCallback((productId: number, quantity: number) => {
+    setCart((prev) =>
+      prev
+        .map((item) => {
+          if (item.productId !== productId) return item
+          const nextQty = Math.max(0, Math.min(item.stockQuantity, quantity))
+          return nextQty === 0 ? null : { ...item, quantity: nextQty, total: nextQty * item.unitPrice }
         })
         .filter(Boolean) as CartItem[]
     )
@@ -98,12 +150,7 @@ export function PosPage() {
   const total = useMemo(() => subtotal + taxAmount - discountAmount, [subtotal, taxAmount, discountAmount])
 
   const totalPaid = useMemo(() => payments.reduce((sum, p) => sum + Number(p.amount || 0), 0), [payments])
-  const changeDue = useMemo(() => {
-    const cashChange = payments
-      .filter((p) => p.method === "cash")
-      .reduce((sum, p) => sum + (Number(p.amount || 0) - totalPaid + totalPaid), 0)
-    return Math.max(0, totalPaid - total)
-  }, [payments, total, totalPaid])
+  const changeDue = useMemo(() => Math.max(0, totalPaid - total), [totalPaid, total])
 
   const updatePayment = useCallback((index: number, field: keyof PaymentRow, value: string | number) => {
     setPayments((prev) =>
@@ -119,18 +166,28 @@ export function PosPage() {
     setPayments((prev) => prev.filter((_, i) => i !== index))
   }, [])
 
-  useEffect(() => {
-    setPayments((prev) =>
-      prev.map((p) => {
-        if (p.method === "cash") {
-          const cashPortion = Math.min(p.amount || 0, total)
-          const change = p.method === "cash" ? Math.max(0, (p.amount || 0) - total) : 0
-          return { ...p, changeAmount: change }
-        }
-        return { ...p, changeAmount: 0 }
-      })
-    )
-  }, [total])
+  const printReceiptForSale = useCallback(async (result: CheckoutResult) => {
+    const labels: ReceiptLabels = {
+      title: t("sales.receipt"),
+      subtotal: t("sales.subtotal"),
+      tax: t("sales.tax"),
+      discount: t("sales.discount"),
+      total: t("sales.total"),
+      customer: t("sales.customer"),
+      methods: {
+        cash: t("sales.cash"),
+        card: t("sales.card"),
+        transfer: t("sales.transfer"),
+      },
+    }
+    try {
+      const items = await getSaleItems(result.sale.id)
+      const document = buildSaleReceiptModel(result.sale, items, result.payments, config, labels)
+      print(document)
+    } catch {
+      // Receipt printing is best-effort; the sale is already complete.
+    }
+  }, [t, config, print])
 
   const checkoutMutation = useMutation({
     mutationFn: (input: { customerId?: number; items: CartItem[]; payments: PaymentRow[]; notes?: string }) => {
@@ -159,6 +216,7 @@ export function PosPage() {
       queryClient.invalidateQueries({ queryKey: ["pos-search"] })
       queryClient.invalidateQueries({ queryKey: ["daily-closeout"] })
       notification.success(t("common.success"), t("sales.invoiceCreated"))
+      void printReceiptForSale(result)
       navigate(`/sales/${result.sale.id}`)
     },
     onError: (err) => {
@@ -179,12 +237,29 @@ export function PosPage() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setSearch("")
+        setDebouncedSearch("")
         searchRef.current?.focus()
       }
     }
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [])
+
+  const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault()
+      setSelectedIndex((i) => (filteredProducts.length === 0 ? 0 : Math.min(Math.max(i, 0) + 1, filteredProducts.length - 1)))
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault()
+      setSelectedIndex((i) => Math.max(Math.max(i, 0) - 1, 0))
+    } else if (e.key === "Enter") {
+      const target = filteredProducts[selectedIndex]
+      if (target) {
+        e.preventDefault()
+        handleProductClick(target)
+      }
+    }
+  }, [filteredProducts, selectedIndex, handleProductClick])
 
   const paymentMethods = useMemo(
     () => [
@@ -205,7 +280,7 @@ export function PosPage() {
         description={t("sales.description")}
         actions={
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground hidden md:inline">Esc {t("common.clear")} | F1-F4 {t("common.actions")}</span>
+            <span className="text-xs text-muted-foreground hidden md:inline">{t("sales.posShortcuts")}</span>
             <Button variant="ghost" size="sm" onClick={() => navigate("/sales")}>
               <X className="h-4 w-4 mr-1" /> {t("common.cancel")}
             </Button>
@@ -222,16 +297,25 @@ export function PosPage() {
               placeholder={t("sales.searchProducts")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
               className="pl-9 h-10"
+              aria-label={t("sales.searchProducts")}
             />
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
-            {filteredProducts.slice(0, 60).map((product) => (
+            {filteredProducts.slice(0, 60).map((product, index) => (
               <Card
                 key={product.id}
-                className="cursor-pointer hover:bg-accent hover:border-primary/50 transition-all active:scale-[0.98]"
-                onClick={() => addToCart(product)}
+                className={cn(
+                  "cursor-pointer transition-all active:scale-[0.98]",
+                  index === selectedIndex
+                    ? "ring-2 ring-primary border-primary bg-accent"
+                    : "hover:bg-accent hover:border-primary/50"
+                )}
+                data-selected={index === selectedIndex}
+                data-testid={`pos-product-${product.id}`}
+                onClick={() => handleProductClick(product)}
               >
                 <CardContent className="p-3 space-y-1">
                   <div className="font-medium text-sm truncate leading-tight">{product.name}</div>
@@ -239,10 +323,10 @@ export function PosPage() {
                   <div className="text-sm font-bold text-primary">{formatCurrency(product.salePrice)}</div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge
-                      variant={product.stockQuantity <= 5 ? "destructive" : "outline"}
+                      variant={product.stockQuantity <= 0 ? "destructive" : product.stockQuantity <= 5 ? "warning" : "outline"}
                       className="text-xs"
                     >
-                      {product.stockQuantity} {product.unit}
+                      {product.stockQuantity <= 0 ? t("sales.stockOut") : `${product.stockQuantity} ${product.unit}`}
                     </Badge>
                     {product.taxRate > 0 && (
                       <span className="text-[10px] text-muted-foreground">TAX {product.taxRate}%</span>
@@ -254,7 +338,7 @@ export function PosPage() {
             {filteredProducts.length === 0 && (
               <div className="col-span-full py-16 text-center text-muted-foreground">
                 <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">{search ? t("common.noResults") : t("sales.typeToSearch")}</p>
+                <p className="text-sm">{search ? t("common.noResults") : t("common.typeToSearch")}</p>
               </div>
             )}
           </div>
@@ -277,7 +361,14 @@ export function PosPage() {
                       <div key={item.productId} className="flex items-center justify-between gap-2 rounded-lg border p-2">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{item.name}</p>
-                          <p className="text-xs text-muted-foreground">{formatCurrency(item.unitPrice)}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatCurrency(item.unitPrice)}
+                            {item.stockQuantity - item.quantity > 0 && (
+                              <span className="ml-2">
+                                {t("sales.stockLeft", { count: item.stockQuantity - item.quantity, unit: item.unit })}
+                              </span>
+                            )}
+                          </p>
                         </div>
                         <div className="flex items-center gap-1">
                           <Button
@@ -285,15 +376,25 @@ export function PosPage() {
                             size="icon"
                             className="h-7 w-7"
                             onClick={() => updateQuantity(item.productId, -1)}
+                            aria-label={`${t("common.remove")} ${item.name}`}
                           >
                             <Minus className="h-3 w-3" />
                           </Button>
-                          <span className="w-8 text-center text-sm font-medium tabular-nums">{item.quantity}</span>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={item.stockQuantity}
+                            value={item.quantity}
+                            onChange={(e) => setCartQuantity(item.productId, Number(e.target.value) || 0)}
+                            className="h-7 w-12 px-1 text-center text-sm tabular-nums"
+                            aria-label={`${t("inventory.quantity")} ${item.name}`}
+                          />
                           <Button
                             variant="outline"
                             size="icon"
                             className="h-7 w-7"
                             onClick={() => updateQuantity(item.productId, 1)}
+                            aria-label={`${t("common.add")} ${item.name}`}
                           >
                             <Plus className="h-3 w-3" />
                           </Button>
@@ -306,6 +407,7 @@ export function PosPage() {
                           size="icon"
                           className="h-7 w-7 text-destructive shrink-0"
                           onClick={() => removeFromCart(item.productId)}
+                          aria-label={`${t("common.remove")} ${item.name}`}
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>
@@ -337,6 +439,7 @@ export function PosPage() {
                             onChange={(e) => setDiscount(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
                             className="h-7 text-xs text-right"
                             placeholder="0"
+                            aria-label={t("sales.discount")}
                           />
                           <Percent className="h-3 w-3 text-muted-foreground shrink-0" />
                         </div>
@@ -381,6 +484,7 @@ export function PosPage() {
                             value={payment.method}
                             onChange={(e) => updatePayment(index, "method", e.target.value)}
                             className="h-8 rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                            aria-label={t("sales.payment")}
                           >
                             {paymentMethods.map((pm) => (
                               <option key={pm.value} value={pm.value}>
@@ -398,6 +502,7 @@ export function PosPage() {
                               onChange={(e) => updatePayment(index, "amount", Number(e.target.value) || 0)}
                               className="h-8 pl-6 text-xs text-right"
                               placeholder="0.00"
+                              aria-label={`${t("sales.payment")} ${index + 1}`}
                             />
                           </div>
                           {payments.length > 1 && (
