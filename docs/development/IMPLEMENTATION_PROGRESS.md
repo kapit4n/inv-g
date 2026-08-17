@@ -626,3 +626,76 @@ The initial POS UX pass is done. Remaining items for full TASK 05 completion:
 **TASK 06 — Fast global product search.** Reusable search supporting name,
 SKU, barcode, OEM, brand, aliases. Show product/brand/SKU/stock/price.
 Desktop keyboard optimized. Tests.
+
+---
+
+## TASK 06 — Fast global product search ✅
+
+**Status:** Complete
+**Date:** 2026-08-17
+**Branch/commit:** master (`8db0034`)
+
+### Current status
+- **Phase:** 2 — POS UX
+- **Task:** 06 — Fast global product search
+- **Next recommended task:** **TASK 07 — POS hold and resume sales**
+
+### What this task was
+Build a fast, reusable product search infrastructure that works across POS,
+inventory, purchasing, and other search surfaces. Replace fragmented LIKE-only
+searches with a single relevance-ordered command, add SQLite indexes for
+performance, and create reusable frontend primitives (hook + combobox).
+
+### Backend
+- **Schema v9** (`src-tauri/src/db/schema.rs`): Added 8 indexes on products
+  (`name`, `sku`, `barcode`, `oem_number`, `internal_code`, `category_id`,
+  `brand_id`, `is_active`). Destructive drop/recreate migration; the schema
+  version was bumped from 8 → 9.
+- **New `global_product_search` command** (`src-tauri/src/commands/sales.rs`):
+  Relevance-ordered search with `CASE WHEN` scoring (exact match > prefix >
+  contains), JOINed `brands.name` and `categories.name`, brand-name search
+  support, configurable `limit` (default 20). Returns `ProductForPos` with the
+  new `brand_name` field.
+- **Enhanced `search_products_for_pos`**: Now JOINs brands and returns
+  `brand_name` (backward compatible — new `Option<String>` field).
+- Registered in `src-tauri/src/lib.rs`.
+
+### Frontend
+- **`useProductSearch` hook** (`src/hooks/use-product-search.ts`): Wraps
+  `useQuery` + debounce, configurable `debounceMs` (default 200), `limit`
+  (default 20), `queryAllWhenEmpty` for POS initial load, `isTyping` indicator.
+  Exported from `src/hooks/index.ts`.
+- **`ProductSearchCombobox` component** (`src/components/product-search-combobox.tsx`):
+  Reusable Popover with inline search, product/SKU/brand display, stock badge
+  (destructive for 0, warning for ≤5), price, keyboard navigation between
+  results.
+- **POS page refactored**: Replaced manual `useState` + `useEffect` debounce
+  with `useProductSearch({ queryAllWhenEmpty: true })`. Removed unused
+  `searchProductsForPos` import.
+- **TypeScript**: `ProductForPos` now includes `brandName?: string`.
+  `globalProductSearch(query, limit?)` wrapper in `tauri.ts`.
+- **Screenshot mock** updated for `global_product_search`.
+
+### Tests executed
+- `npm run verify` — ✅ full gate green.
+- Vitest: **42 files / 270 tests passed** (11 new: 5 `use-product-search`,
+  6 `product-search-combobox`).
+- `cargo test` — ✅ 46 passed (unchanged).
+
+### Verification status
+- **GREEN.** Typecheck clean, lint 0 errors (pre-existing warnings),
+  270 frontend + 46 Rust tests pass.
+
+### Known issues discovered
+- `LIKE '%term%'` with leading wildcard still does full table scans even with
+  indexes; FTS5 would be needed for true full-text performance at scale. Not
+  justified for current data volumes (< 10K products).
+- The `ProductSearchCombobox` is not yet wired into purchasing or inventory
+  pages — those use their own search patterns.
+- Brand search via `b.name LIKE` requires a JOIN; at scale this could be a
+  bottleneck if brands table grows significantly.
+
+### Next recommended task
+**TASK 07 — POS hold and resume sales.** Hold a sale, name/identify it,
+continue another, view held, resume, cancel safely. Preserve inventory/payment
+correctness. Tests for full workflow.
