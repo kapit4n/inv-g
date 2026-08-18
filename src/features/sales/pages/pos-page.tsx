@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator"
 import { CustomerSearchField, TextareaField } from "@/components/forms"
 import { processCheckout, getSaleItems, getHeldSales, getHeldSaleItems, holdSale, resumeHeldSale, deleteHeldSale } from "@/lib/tauri"
 import { useNotification } from "@/hooks/use-notification"
+import { useHotkey } from "@/hooks/use-hotkey"
 import { usePrint, usePrintConfig, useProductSearch } from "@/hooks"
 import { buildSaleReceiptModel, type ReceiptLabels } from "@/lib/print"
 import { cn } from "@/lib/utils"
@@ -315,32 +316,30 @@ export function PosPage() {
     setTimeout(() => searchRef.current?.focus(), 0)
   }, [])
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        if (completedSale) {
-          resetNewSale()
-          return
-        }
-        setSearch("")
-        searchRef.current?.focus()
-      }
-      if (completedSale) return
-      if (e.key === "F2") {
-        e.preventDefault()
-        const customerBtn = document.querySelector("[data-testid='customer-search'] button") as HTMLButtonElement | null
-        customerBtn?.click()
-      } else if (e.key === "F4") {
-        e.preventDefault()
-        paymentRef.current?.focus()
-      } else if (e.key === "F10") {
-        e.preventDefault()
-        handleCheckout()
-      }
+  useHotkey("Escape", () => {
+    if (completedSale) {
+      resetNewSale()
+      return
     }
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [setSearch, completedSale, resetNewSale, handleCheckout])
+    setSearch("")
+    searchRef.current?.focus()
+  }, { deps: [setSearch, completedSale, resetNewSale] })
+
+  useHotkey("F2", () => {
+    if (completedSale) return
+    const customerBtn = document.querySelector("[data-testid='customer-search'] button") as HTMLButtonElement | null
+    customerBtn?.click()
+  }, { deps: [completedSale] })
+
+  useHotkey("F4", () => {
+    if (completedSale) return
+    paymentRef.current?.focus()
+  }, { deps: [completedSale] })
+
+  useHotkey("F10", () => {
+    if (completedSale) return
+    handleCheckout()
+  }, { deps: [completedSale, handleCheckout] })
 
   const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowDown") {

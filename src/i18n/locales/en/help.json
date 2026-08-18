@@ -5,6 +5,14 @@
     "commandPalette": "Open command palette",
     "toggleSidebar": "Toggle sidebar",
     "newSale": "New sale (POS)",
+    "newPurchaseOrder": "New purchase order",
+    "toggleTheme": "Toggle theme",
+    "customerSearch": "Open customer search (POS)",
+    "focusPayment": "Focus payment field (POS)",
+    "checkout": "Complete checkout (POS)",
     "close": "Close dialog / panel"
+  },
+  "shortcutCategories": {
+    "pos": "Point of Sale"
   }
 }

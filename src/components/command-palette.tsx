@@ -6,6 +6,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { useSettingsStore } from "@/stores"
 import { cn } from "@/lib/utils"
+import { useHotkey } from "@/hooks/use-hotkey"
 import { buildCommands, commandCategories } from "@/lib/command-palette/commands"
 import type { Command, CommandCategory } from "@/lib/command-palette/types"
 
@@ -72,16 +73,11 @@ export function CommandPalette() {
     }
   }, [commandPaletteOpen])
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault()
-        setCommandPaletteOpen(!commandPaletteOpen)
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [commandPaletteOpen, setCommandPaletteOpen])
+  useHotkey("Ctrl+K", () => setCommandPaletteOpen(!commandPaletteOpen), { deps: [commandPaletteOpen, setCommandPaletteOpen] })
+  useHotkey("Ctrl+N", () => navigate("/sales/new"))
+  useHotkey("Ctrl+Shift+P", () => navigate("/purchases/orders/new"))
+  useHotkey("Ctrl+Shift+D", cycleTheme)
+  useHotkey("Ctrl+B", toggleSidebar)
 
   const executeCommand = useCallback(
     (cmd: Command) => {

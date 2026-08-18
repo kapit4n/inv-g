@@ -5,6 +5,14 @@
     "commandPalette": "Abrir paleta de comandos",
     "toggleSidebar": "Alternar barra lateral",
     "newSale": "Nueva venta (POS)",
+    "newPurchaseOrder": "Nueva orden de compra",
+    "toggleTheme": "Alternar tema",
+    "customerSearch": "Abrir búsqueda de clientes (POS)",
+    "focusPayment": "Enfocar campo de pago (POS)",
+    "checkout": "Completar cobro (POS)",
     "close": "Cerrar diálogo / panel"
+  },
+  "shortcutCategories": {
+    "pos": "Punto de Venta"
   }
 }

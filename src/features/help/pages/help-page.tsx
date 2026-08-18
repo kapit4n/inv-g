@@ -4,16 +4,19 @@ import { PageHeader } from "@/components/page-header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-
-const shortcuts = [
-  { keys: "Ctrl + K", actionKey: "help.shortcuts.commandPalette" },
-  { keys: "Ctrl + B", actionKey: "help.shortcuts.toggleSidebar" },
-  { keys: "Ctrl + N", actionKey: "help.shortcuts.newSale" },
-  { keys: "Esc", actionKey: "help.shortcuts.close" },
-]
+import { shortcuts, shortcutCategories } from "@/lib/shortcuts/shortcuts"
+import type { ShortcutCategory } from "@/lib/shortcuts/shortcuts"
 
 export function HelpPage() {
   const { t } = useTranslation()
+
+  const grouped = shortcutCategories.reduce(
+    (acc, cat) => {
+      acc[cat.id] = shortcuts.filter((s) => s.category === cat.id)
+      return acc
+    },
+    {} as Record<ShortcutCategory, typeof shortcuts>
+  )
 
   return (
     <div className="space-y-6">
@@ -67,17 +70,30 @@ export function HelpPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-sm">
-            <Keyboard className="h-4 w-4" /> {t("help.title")}
+            <Keyboard className="h-4 w-4" /> Keyboard Shortcuts
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            {shortcuts.map((s) => (
-              <div key={s.keys} className="flex items-center justify-between">
-                <span className="text-sm">{t(s.actionKey)}</span>
-                <kbd className="rounded border bg-muted px-2 py-0.5 text-xs font-mono">{s.keys}</kbd>
-              </div>
-            ))}
+          <div className="space-y-4">
+            {shortcutCategories.map((cat) => {
+              const items = grouped[cat.id]
+              if (!items.length) return null
+              return (
+                <div key={cat.id}>
+                  <h3 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">
+                    {t(cat.label)}
+                  </h3>
+                  <div className="space-y-1.5">
+                    {items.map((s) => (
+                      <div key={s.id} className="flex items-center justify-between">
+                        <span className="text-sm">{t(s.actionKey)}</span>
+                        <kbd className="rounded border bg-muted px-2 py-0.5 text-xs font-mono">{s.keys}</kbd>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </CardContent>
       </Card>
