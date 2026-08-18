@@ -1,9 +1,15 @@
 import { useTranslation } from "react-i18next"
 import { useParams } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
-import { EntityDetailPage, EntityInfoCard, InfoRow } from "@/components/entity"
-import { getProduct, getCategories, getBrands, getManufacturers, getSuppliers, getWarehouses, getStorageLocations, getProductImages, getProductCompatibility } from "@/lib/tauri"
-import { Badge } from "@/components/ui/badge"
+import { EntityDetailPage } from "@/components/entity"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { getProduct, getCategories, getBrands, getManufacturers, getSuppliers, getWarehouses, getStorageLocations, getProductImages } from "@/lib/tauri"
+import { ProductOverviewTab } from "../components/product-overview-tab"
+import { ProductInventoryTab } from "../components/product-inventory-tab"
+import { ProductPricingTab } from "../components/product-pricing-tab"
+import { ProductSuppliersTab } from "../components/product-suppliers-tab"
+import { ProductCompatibilityTab } from "../components/product-compatibility-tab"
+import { ProductActivityTab } from "../components/product-activity-tab"
 
 export function ProductDetailPage() {
   const { t } = useTranslation()
@@ -22,12 +28,10 @@ export function ProductDetailPage() {
   const { data: warehouses = [] } = useQuery({ queryKey: ["inventory-warehouses"], queryFn: getWarehouses })
   const { data: storageLocations = [] } = useQuery({ queryKey: ["inventory-storage-locations"], queryFn: () => getStorageLocations() })
   const { data: images = [] } = useQuery({ queryKey: ["inventory-product-images", id], queryFn: () => getProductImages(Number(id)), enabled: !!id })
-  const { data: compatibility = [] } = useQuery({ queryKey: ["inventory-product-compatibility", id], queryFn: () => getProductCompatibility(Number(id)), enabled: !!id })
 
   const catName = categories.find((c) => c.id === product?.categoryId)?.name
   const brandName = brands.find((b) => b.id === product?.brandId)?.name
   const mfrName = manufacturers.find((m) => m.id === product?.manufacturerId)?.name
-  const supName = suppliers.find((s) => s.id === product?.supplierId)?.companyName
   const whName = warehouses.find((w) => w.id === product?.warehouseId)?.name
   const storageLocName = storageLocations.find((sl) => sl.id === product?.storageLocationId)?.code
 
@@ -39,68 +43,48 @@ export function ProductDetailPage() {
       loading={isLoading}
     >
       {product && (
-        <div className="space-y-6">
-          <EntityInfoCard title={t("inventory.productName")} columns={2}>
-            <InfoRow label={t("inventory.productName")} value={product.name} />
-            <InfoRow label={t("inventory.sku")} value={product.sku} />
-            <InfoRow label={t("inventory.barcode")} value={product.barcode} />
-            <InfoRow label={t("inventory.oemNumber")} value={product.oemNumber} />
-            <InfoRow label={t("inventory.internalCode")} value={product.internalCode} />
-            <InfoRow label={t("inventory.description")} value={product.description} />
-            <InfoRow label={t("inventory.category")} value={catName} />
-            <InfoRow label={t("inventory.brand")} value={brandName} />
-            <InfoRow label={t("inventory.manufacturer")} value={mfrName} />
-            <InfoRow label={t("inventory.supplier")} value={supName} />
-            <InfoRow label={t("common.status")} value={<Badge variant={product.isActive ? "default" : "secondary"}>{product.isActive ? t("common.active") : t("common.inactive")}</Badge>} />
-            <InfoRow label={t("inventory.isDiscontinued")} value={product.isDiscontinued ? t("common.yes") : t("common.no")} />
-          </EntityInfoCard>
+        <Tabs defaultValue="overview">
+          <TabsList className="w-full justify-start">
+            <TabsTrigger value="overview">{t("inventory.product360.tabs.overview")}</TabsTrigger>
+            <TabsTrigger value="inventory">{t("inventory.product360.tabs.inventory")}</TabsTrigger>
+            <TabsTrigger value="pricing">{t("inventory.product360.tabs.pricing")}</TabsTrigger>
+            <TabsTrigger value="suppliers">{t("inventory.product360.tabs.suppliers")}</TabsTrigger>
+            <TabsTrigger value="compatibility">{t("inventory.product360.tabs.compatibility")}</TabsTrigger>
+            <TabsTrigger value="activity">{t("inventory.product360.tabs.activity")}</TabsTrigger>
+          </TabsList>
 
-          <EntityInfoCard title={t("inventory.costPrice")} columns={2}>
-            <InfoRow label={t("inventory.costPrice")} value={`$${product.costPrice.toFixed(2)}`} />
-            <InfoRow label={t("inventory.salePrice")} value={`$${product.salePrice.toFixed(2)}`} />
-            <InfoRow label={t("inventory.wholesalePrice")} value={`$${product.wholesalePrice.toFixed(2)}`} />
-            <InfoRow label={t("inventory.suggestedRetailPrice")} value={`$${product.suggestedRetailPrice.toFixed(2)}`} />
-            <InfoRow label={t("inventory.taxRate")} value={`${(product.taxRate * 100).toFixed(1)}%`} />
-          </EntityInfoCard>
+          <TabsContent value="overview">
+            <ProductOverviewTab
+              product={product}
+              catName={catName}
+              brandName={brandName}
+              mfrName={mfrName}
+              whName={whName}
+              storageLocName={storageLocName}
+              images={images}
+            />
+          </TabsContent>
 
-          <EntityInfoCard title={t("inventory.stock")} columns={2}>
-            <InfoRow label={t("inventory.stockQuantity")} value={product.stockQuantity} />
-            <InfoRow label={t("inventory.minStockLevel")} value={product.minStockLevel} />
-            <InfoRow label={t("inventory.maxStockLevel")} value={product.maxStockLevel} />
-            <InfoRow label={t("inventory.reorderPoint")} value={product.reorderPoint} />
-            <InfoRow label={t("inventory.unit")} value={product.unit} />
-            <InfoRow label={t("inventory.weight")} value={product.weight ? `${product.weight} kg` : "-"} />
-            <InfoRow label={t("inventory.warehouse")} value={whName} />
-            <InfoRow label={t("inventory.storageLocation")} value={storageLocName} />
-          </EntityInfoCard>
+          <TabsContent value="inventory">
+            <ProductInventoryTab product={product} whName={whName} storageLocName={storageLocName} />
+          </TabsContent>
 
-          {images.length > 0 && (
-            <EntityInfoCard title={t("inventory.productImages")}>
-              <div className="space-y-2">
-                {images.map((img) => (
-                  <div key={img.id} className="flex items-center gap-2 text-sm">
-                    <span>{img.filePath}</span>
-                    {img.isPrimary && <Badge variant="outline">{t("inventory.primaryImage")}</Badge>}
-                  </div>
-                ))}
-              </div>
-            </EntityInfoCard>
-          )}
+          <TabsContent value="pricing">
+            <ProductPricingTab product={product} />
+          </TabsContent>
 
-          {compatibility.length > 0 && (
-            <EntityInfoCard title={t("inventory.vehicleCompatibility")} columns={2}>
-              {compatibility.map((c) => (
-                <div key={c.id} className="text-sm">
-                  {c.vehicleBrand} {c.vehicleModel}
-                  {c.yearStart && ` (${c.yearStart}${c.yearEnd ? `-${c.yearEnd}` : ""})`}
-                  {c.engine && ` | ${c.engine}`}
-                  {c.transmission && ` | ${c.transmission}`}
-                  {c.notes && ` | ${c.notes}`}
-                </div>
-              ))}
-            </EntityInfoCard>
-          )}
-        </div>
+          <TabsContent value="suppliers">
+            <ProductSuppliersTab product={product} />
+          </TabsContent>
+
+          <TabsContent value="compatibility">
+            <ProductCompatibilityTab productId={product.id} />
+          </TabsContent>
+
+          <TabsContent value="activity">
+            <ProductActivityTab productId={product.id} />
+          </TabsContent>
+        </Tabs>
       )}
     </EntityDetailPage>
   )

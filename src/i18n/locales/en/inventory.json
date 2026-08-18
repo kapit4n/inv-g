@@ -185,5 +185,27 @@
   "yearEnd": "Year End",
   "engine": "Engine",
   "transmission": "Transmission",
-  "compatibilityAdded": "Compatibility added successfully"
+  "compatibilityAdded": "Compatibility added successfully",
+
+  "product360": {
+    "tabs": {
+      "overview": "Overview",
+      "inventory": "Inventory",
+      "pricing": "Pricing",
+      "suppliers": "Suppliers",
+      "compatibility": "Compatibility",
+      "activity": "Activity"
+    }
+  },
+  "pricing": {
+    "margin": "Margin",
+    "costHistory": "Cost History"
+  },
+  "supplierProduct": {
+    "preferred": "Preferred",
+    "leadTime": "lead time"
+  },
+  "activity": {
+    "title": "Activity Timeline"
+  }
 }
