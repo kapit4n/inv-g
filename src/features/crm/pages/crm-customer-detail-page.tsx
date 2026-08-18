@@ -224,7 +224,7 @@ export function CrmCustomerDetailPage() {
     }
     setNSaving(true)
     try {
-      await createCustomerNote(customerId, nFormType, nFormTitle.trim(), nFormContent || undefined, nFormPrivate, user?.id ?? 0)
+      await createCustomerNote(customerId, nFormType, nFormPrivate, user?.id ?? 0, nFormTitle.trim(), nFormContent || undefined)
       toast.success("Note added")
       setNoteDialog(false)
       setNFormType("general")

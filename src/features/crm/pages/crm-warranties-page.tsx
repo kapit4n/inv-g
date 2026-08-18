@@ -54,10 +54,10 @@ export function CrmWarrantiesPage() {
     setSaving(true)
     try {
       await createWarranty(
+        Number(formCustomerId), formWarrantyType,
+        Number(formPeriodMonths), formStartDate, user?.id ?? 0,
         undefined, formProductId ? Number(formProductId) : undefined,
-        Number(formCustomerId), undefined, formWarrantyType,
-        Number(formPeriodMonths), formStartDate,
-        formNotes || undefined, user?.id ?? 0,
+        undefined, formNotes || undefined,
       )
       toast.success("Warranty registered")
       setDialogOpen(false)

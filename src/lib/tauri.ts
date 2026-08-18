@@ -710,8 +710,8 @@ export async function getServiceReminders(status?: string, customerId?: number):
 export async function getServiceReminder(id: number): Promise<ServiceReminder> {
   return invoke<ServiceReminder>("get_service_reminder", { id })
 }
-export async function createServiceReminder(customerId: number, vehicleId: number | undefined, reminderType: string, title: string, description?: string, dueDate?: string, dueMileage?: number, notes?: string, createdBy: number): Promise<ServiceReminder> {
-  return invoke<ServiceReminder>("create_service_reminder", { customerId, vehicleId, reminderType, title, description, dueDate, dueMileage, notes, createdBy })
+export async function createServiceReminder(customerId: number, vehicleId: number | undefined, reminderType: string, title: string, createdBy: number, description?: string, dueDate?: string, dueMileage?: number, notes?: string): Promise<ServiceReminder> {
+  return invoke<ServiceReminder>("create_service_reminder", { customerId, vehicleId, reminderType, title, createdBy, description, dueDate, dueMileage, notes })
 }
 export async function updateServiceReminderStatus(id: number, status: string, userId: number): Promise<ServiceReminder> {
   return invoke<ServiceReminder>("update_service_reminder_status", { id, status, userId })
@@ -727,8 +727,8 @@ export async function getWarranties(customerId?: number, status?: string): Promi
 export async function getWarranty(id: number): Promise<Warranty> {
   return invoke<Warranty>("get_warranty", { id })
 }
-export async function createWarranty(saleId?: number, productId?: number, customerId: number, vehicleId?: number, warrantyType: string, periodMonths: number, startDate: string, notes?: string, createdBy: number): Promise<Warranty> {
-  return invoke<Warranty>("create_warranty", { saleId, productId, customerId, vehicleId, warrantyType, periodMonths, startDate, notes, createdBy })
+export async function createWarranty(customerId: number, warrantyType: string, periodMonths: number, startDate: string, createdBy: number, saleId?: number, productId?: number, vehicleId?: number, notes?: string): Promise<Warranty> {
+  return invoke<Warranty>("create_warranty", { customerId, warrantyType, periodMonths, startDate, createdBy, saleId, productId, vehicleId, notes })
 }
 export async function updateWarrantyStatus(id: number, status: string): Promise<Warranty> {
   return invoke<Warranty>("update_warranty_status", { id, status })
@@ -741,8 +741,8 @@ export async function getExpiringWarranties(days: number): Promise<Warranty[]> {
 export async function getCustomerNotes(customerId: number): Promise<CustomerNote[]> {
   return invoke<CustomerNote[]>("get_customer_notes", { customerId })
 }
-export async function createCustomerNote(customerId: number, noteType: string, title?: string, content?: string, isPrivate: boolean, createdBy: number): Promise<CustomerNote> {
-  return invoke<CustomerNote>("create_customer_note", { customerId, noteType, title, content, isPrivate, createdBy })
+export async function createCustomerNote(customerId: number, noteType: string, isPrivate: boolean, createdBy: number, title?: string, content?: string): Promise<CustomerNote> {
+  return invoke<CustomerNote>("create_customer_note", { customerId, noteType, isPrivate, createdBy, title, content })
 }
 
 // ── Customer Timeline ──

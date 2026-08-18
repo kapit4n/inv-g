@@ -55,10 +55,10 @@ export function CrmRemindersPage() {
     setSaving(true)
     try {
       await createServiceReminder(
-        Number(formCustomerId), undefined, formType, formTitle.trim(),
+        Number(formCustomerId), undefined, formType, formTitle.trim(), user?.id ?? 0,
         formDescription || undefined, formDueDate || undefined,
         formDueMileage ? Number(formDueMileage) : undefined,
-        formNotes || undefined, user?.id ?? 0,
+        formNotes || undefined,
       )
       toast.success("Reminder created")
       setDialogOpen(false)
