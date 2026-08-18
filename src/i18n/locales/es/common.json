@@ -107,5 +107,28 @@
   "notFound": "No encontrado",
   "createdAt": "Creado",
   "yes": "Sí",
-  "no": "No"
+  "no": "No",
+  "commandPalette": {
+    "placeholder": "Escribe un comando o busca...",
+    "noResults": "No se encontraron comandos",
+    "navigate": "Navegar",
+    "select": "Seleccionar",
+    "results": "resultados",
+    "categories": {
+      "navigation": "Navegación",
+      "actions": "Acciones Rápidas",
+      "appearance": "Apariencia"
+    },
+    "actions": {
+      "newSale": "Nueva Venta",
+      "newPurchaseOrder": "Nueva Orden de Compra",
+      "newProduct": "Nuevo Producto",
+      "newCustomer": "Nuevo Cliente"
+    },
+    "appearance": {
+      "toggleTheme": "Cambiar Tema",
+      "expandSidebar": "Expandir Barra Lateral",
+      "collapseSidebar": "Contraer Barra Lateral"
+    }
+  }
 }

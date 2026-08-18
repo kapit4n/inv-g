@@ -1,4 +1,10 @@
 {
   "title": "Help & Support",
-  "description": "Find help, shortcuts, and resources for using the system"
+  "description": "Find help, shortcuts, and resources for using the system",
+  "shortcuts": {
+    "commandPalette": "Open command palette",
+    "toggleSidebar": "Toggle sidebar",
+    "newSale": "New sale (POS)",
+    "close": "Close dialog / panel"
+  }
 }

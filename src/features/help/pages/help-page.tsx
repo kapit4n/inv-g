@@ -6,11 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 
 const shortcuts = [
-  { keys: "Ctrl + K", actionKey: "common.search" },
-  { keys: "Ctrl + N", actionKey: "sales.newSale" },
-  { keys: "Ctrl + P", actionKey: "inventory.searchProducts" },
-  { keys: "Ctrl + B", actionKey: "common.toggle" },
-  { keys: "Esc", actionKey: "common.close" },
+  { keys: "Ctrl + K", actionKey: "help.shortcuts.commandPalette" },
+  { keys: "Ctrl + B", actionKey: "help.shortcuts.toggleSidebar" },
+  { keys: "Ctrl + N", actionKey: "help.shortcuts.newSale" },
+  { keys: "Esc", actionKey: "help.shortcuts.close" },
 ]
 
 export function HelpPage() {

@@ -107,5 +107,28 @@
   "notFound": "Not found",
   "createdAt": "Created",
   "yes": "Yes",
-  "no": "No"
+  "no": "No",
+  "commandPalette": {
+    "placeholder": "Type a command or search...",
+    "noResults": "No commands found",
+    "navigate": "Navigate",
+    "select": "Select",
+    "results": "results",
+    "categories": {
+      "navigation": "Navigation",
+      "actions": "Quick Actions",
+      "appearance": "Appearance"
+    },
+    "actions": {
+      "newSale": "New Sale",
+      "newPurchaseOrder": "New Purchase Order",
+      "newProduct": "New Product",
+      "newCustomer": "New Customer"
+    },
+    "appearance": {
+      "toggleTheme": "Toggle Theme",
+      "expandSidebar": "Expand Sidebar",
+      "collapseSidebar": "Collapse Sidebar"
+    }
+  }
 }

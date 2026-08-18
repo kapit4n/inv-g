@@ -1,4 +1,10 @@
 {
   "title": "Ayuda y Soporte",
-  "description": "Encuentra ayuda, accesos rápidos y recursos para usar el sistema"
+  "description": "Encuentra ayuda, accesos rápidos y recursos para usar el sistema",
+  "shortcuts": {
+    "commandPalette": "Abrir paleta de comandos",
+    "toggleSidebar": "Alternar barra lateral",
+    "newSale": "Nueva venta (POS)",
+    "close": "Cerrar diálogo / panel"
+  }
 }
