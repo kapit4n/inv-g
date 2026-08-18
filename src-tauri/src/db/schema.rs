@@ -20,9 +20,11 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
     }
 
     if current_version > 0 && current_version < SCHEMA_VERSION {
-        conn.execute_batch("PRAGMA defer_foreign_keys=ON;")?;
+        conn.execute_batch("PRAGMA foreign_keys=OFF;")?;
         conn.execute_batch(
             "
+            DROP TABLE IF EXISTS held_sale_items;
+            DROP TABLE IF EXISTS held_sales;
             DROP TABLE IF EXISTS purchase_return_items;
             DROP TABLE IF EXISTS purchase_returns;
             DROP TABLE IF EXISTS purchase_receipt_items;
@@ -90,7 +92,7 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             DROP TABLE IF EXISTS suppliers;
             ",
         )?;
-        conn.execute_batch("PRAGMA defer_foreign_keys=OFF;")?;
+        conn.execute_batch("PRAGMA foreign_keys=ON;")?;
     }
 
     conn.execute_batch(
@@ -1147,4 +1149,555 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
     set_user_version(conn, SCHEMA_VERSION)?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::init_database;
+    use rusqlite::Connection;
+    use std::path::PathBuf;
+
+    struct TestDb {
+        dir: PathBuf,
+        path: PathBuf,
+    }
+
+    impl TestDb {
+        fn new() -> Self {
+            let dir = std::env::temp_dir().join(format!("ig_schema_test_{}", uuid::Uuid::new_v4()));
+            std::fs::create_dir_all(&dir).expect("create temp dir");
+            let path = dir.join("test.db");
+            Self { dir, path }
+        }
+
+        fn conn(&self) -> Connection {
+            init_database(self.path.to_str().unwrap()).expect("init_database failed")
+        }
+    }
+
+    impl Drop for TestDb {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.dir);
+        }
+    }
+
+    fn table_names(conn: &Connection) -> Vec<String> {
+        let mut stmt = conn
+            .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+            .unwrap();
+        let rows = stmt.query_map([], |row| row.get(0)).unwrap();
+        rows.filter_map(|r| r.ok()).collect()
+    }
+
+    fn get_schema_version(conn: &Connection) -> i32 {
+        conn.pragma_query_value(None, "user_version", |row| row.get(0))
+            .unwrap_or(0)
+    }
+
+    const EXPECTED_TABLES: &[&str] = &[
+        "application_settings",
+        "audit_logs",
+        "backup_history",
+        "brands",
+        "categories",
+        "communication_log",
+        "credit_accounts",
+        "credit_transactions",
+        "customer_notes",
+        "customer_timeline",
+        "customer_vehicles",
+        "customers",
+        "dashboard_preferences",
+        "device_settings",
+        "diagnostic_reports",
+        "held_sale_items",
+        "held_sales",
+        "kpi_definitions",
+        "license_information",
+        "maintenance_logs",
+        "manufacturers",
+        "permissions",
+        "printer_settings",
+        "product_cost_history",
+        "product_images",
+        "product_vehicle_compatibility",
+        "products",
+        "purchase_order_items",
+        "purchase_orders",
+        "purchase_receipt_items",
+        "purchase_receipts",
+        "purchase_request_items",
+        "purchase_requests",
+        "purchase_return_items",
+        "purchase_returns",
+        "quote_items",
+        "quotes",
+        "receipts",
+        "report_history",
+        "report_templates",
+        "restore_history",
+        "role_permissions",
+        "roles",
+        "sale_items",
+        "sale_payments",
+        "sales",
+        "saved_reports",
+        "scheduled_reports",
+        "service_reminders",
+        "settings",
+        "storage_locations",
+        "supplier_products",
+        "suppliers",
+        "system_updates",
+        "user_sessions",
+        "users",
+        "vehicle_brands",
+        "vehicle_engines",
+        "vehicle_fuels",
+        "vehicle_generations",
+        "vehicle_models",
+        "vehicle_transmissions",
+        "warranties",
+    ];
+
+    fn assert_all_tables_exist(conn: &Connection) {
+        let existing = table_names(conn);
+        for expected in EXPECTED_TABLES {
+            assert!(
+                existing.iter().any(|t| t == expected),
+                "Missing table: {expected}"
+            );
+        }
+    }
+
+    // ── Fresh database tests ─────────────────────────────────────────
+
+    #[test]
+    fn fresh_db_creates_all_tables() {
+        let td = TestDb::new();
+        let conn = td.conn();
+        assert_all_tables_exist(&conn);
+    }
+
+    #[test]
+    fn fresh_db_sets_schema_version() {
+        let td = TestDb::new();
+        let conn = td.conn();
+        assert_eq!(get_schema_version(&conn), SCHEMA_VERSION);
+    }
+
+    #[test]
+    fn fresh_db_seeds_roles() {
+        let td = TestDb::new();
+        let conn = td.conn();
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM roles", [], |row| row.get(0))
+            .unwrap();
+        assert!(count >= 6, "Expected at least 6 seed roles, got {count}");
+    }
+
+    #[test]
+    fn fresh_db_seeds_users() {
+        let td = TestDb::new();
+        let conn = td.conn();
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM users", [], |row| row.get(0))
+            .unwrap();
+        assert!(count >= 6, "Expected at least 6 seed users, got {count}");
+    }
+
+    #[test]
+    fn fresh_db_seeds_permissions() {
+        let td = TestDb::new();
+        let conn = td.conn();
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM permissions", [], |row| row.get(0))
+            .unwrap();
+        assert!(count >= 40, "Expected at least 40 permissions, got {count}");
+    }
+
+    #[test]
+    fn fresh_db_seeds_warehouses() {
+        let td = TestDb::new();
+        let conn = td.conn();
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM warehouses", [], |row| row.get(0))
+            .unwrap();
+        assert!(count >= 3, "Expected at least 3 warehouses, got {count}");
+    }
+
+    #[test]
+    fn fresh_db_seeds_products() {
+        let td = TestDb::new();
+        let conn = td.conn();
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM products", [], |row| row.get(0))
+            .unwrap();
+        assert!(count >= 15, "Expected at least 15 products, got {count}");
+    }
+
+    // ── Foreign key integrity tests ──────────────────────────────────
+
+    #[test]
+    fn fk_enforced_after_creation() {
+        let td = TestDb::new();
+        let conn = td.conn();
+        let fk_on: i32 = conn
+            .pragma_query_value(None, "foreign_keys", |row| row.get(0))
+            .unwrap();
+        assert_eq!(fk_on, 1, "foreign_keys pragma should be ON after init");
+    }
+
+    #[test]
+    fn insert_product_with_invalid_category_fk_fails() {
+        let td = TestDb::new();
+        let conn = td.conn();
+        let result = conn.execute(
+            "INSERT INTO products (name, sku, cost_price, sale_price, category_id) VALUES ('test', 'FK-TEST-1', 1.0, 2.0, 99999)",
+            [],
+        );
+        assert!(result.is_err(), "FK violation should fail");
+    }
+
+    #[test]
+    fn insert_product_with_invalid_brand_fk_fails() {
+        let td = TestDb::new();
+        let conn = td.conn();
+        let result = conn.execute(
+            "INSERT INTO products (name, sku, cost_price, sale_price, brand_id) VALUES ('test', 'FK-TEST-2', 1.0, 2.0, 99999)",
+            [],
+        );
+        assert!(result.is_err(), "FK violation should fail");
+    }
+
+    #[test]
+    fn insert_product_with_invalid_warehouse_fk_fails() {
+        let td = TestDb::new();
+        let conn = td.conn();
+        let result = conn.execute(
+            "INSERT INTO products (name, sku, cost_price, sale_price, warehouse_id) VALUES ('test', 'FK-TEST-3', 1.0, 2.0, 99999)",
+            [],
+        );
+        assert!(result.is_err(), "FK violation should fail");
+    }
+
+    #[test]
+    fn insert_user_with_invalid_role_fk_fails() {
+        let td = TestDb::new();
+        let conn = td.conn();
+        let result = conn.execute(
+            "INSERT INTO users (username, email, password_hash, full_name, role_id) VALUES ('fktest', 'fk@test.com', 'hash', 'FK Test', 99999)",
+            [],
+        );
+        assert!(result.is_err(), "FK violation should fail");
+    }
+
+    #[test]
+    fn insert_sale_item_with_invalid_sale_fk_fails() {
+        let td = TestDb::new();
+        let conn = td.conn();
+        let result = conn.execute(
+            "INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, total) VALUES (99999, 1, 1, 1.0, 1.0)",
+            [],
+        );
+        assert!(result.is_err(), "FK violation should fail");
+    }
+
+    #[test]
+    fn insert_role_permission_with_invalid_role_fk_fails() {
+        let td = TestDb::new();
+        let conn = td.conn();
+        let result = conn.execute(
+            "INSERT INTO role_permissions (role_id, permission_id) VALUES (99999, 1)",
+            [],
+        );
+        assert!(result.is_err(), "FK violation should fail");
+    }
+
+    #[test]
+    fn insert_valid_product_succeeds() {
+        let td = TestDb::new();
+        let conn = td.conn();
+        let cat_id: i64 = conn
+            .query_row("SELECT id FROM categories LIMIT 1", [], |row| row.get(0))
+            .unwrap();
+        let brand_id: i64 = conn
+            .query_row("SELECT id FROM brands LIMIT 1", [], |row| row.get(0))
+            .unwrap();
+        let wh_id: i64 = conn
+            .query_row("SELECT id FROM warehouses LIMIT 1", [], |row| row.get(0))
+            .unwrap();
+        let result = conn.execute(
+            "INSERT INTO products (name, sku, cost_price, sale_price, category_id, brand_id, warehouse_id) VALUES ('valid', 'VALID-FK-1', 1.0, 2.0, ?1, ?2, ?3)",
+            rusqlite::params![cat_id, brand_id, wh_id],
+        );
+        assert!(result.is_ok(), "Valid FK insert should succeed");
+    }
+
+    // ── Migration tests ──────────────────────────────────────────────
+
+    #[test]
+    fn migration_from_old_version_succeeds() {
+        let td = TestDb::new();
+        let path = td.path.to_str().unwrap();
+
+        // Create DB at an older schema version.
+        {
+            let conn = Connection::open(path).unwrap();
+            conn.execute_batch("PRAGMA user_version=8;").unwrap();
+        }
+
+        // Running init_database should migrate and create everything.
+        let conn = init_database(path).expect("migration should succeed");
+        assert_all_tables_exist(&conn);
+        assert_eq!(get_schema_version(&conn), SCHEMA_VERSION);
+    }
+
+    #[test]
+    fn migration_from_old_version_with_fk_linked_data() {
+        let td = TestDb::new();
+        let path = td.path.to_str().unwrap();
+
+        // Simulate a partial old DB with FK-linked data.
+        {
+            let conn = Connection::open(path).unwrap();
+            conn.execute_batch("PRAGMA foreign_keys=OFF;").unwrap();
+            conn.execute_batch(
+                "
+                CREATE TABLE roles (id INTEGER PRIMARY KEY, name TEXT);
+                CREATE TABLE users (id INTEGER PRIMARY KEY, role_id INTEGER REFERENCES roles(id));
+                CREATE TABLE permissions (id INTEGER PRIMARY KEY, key TEXT);
+                CREATE TABLE role_permissions (id INTEGER PRIMARY KEY, role_id INTEGER, permission_id INTEGER);
+                CREATE TABLE categories (id INTEGER PRIMARY KEY, name TEXT);
+                CREATE TABLE brands (id INTEGER PRIMARY KEY, name TEXT);
+                CREATE TABLE suppliers (id INTEGER PRIMARY KEY, company_name TEXT);
+                CREATE TABLE warehouses (id INTEGER PRIMARY KEY, name TEXT, code TEXT);
+                CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT, sku TEXT, category_id INTEGER REFERENCES categories(id), brand_id INTEGER REFERENCES brands(id), supplier_id INTEGER REFERENCES suppliers(id), warehouse_id INTEGER REFERENCES warehouses(id));
+                CREATE TABLE customers (id INTEGER PRIMARY KEY, name TEXT);
+                CREATE TABLE sales (id INTEGER PRIMARY KEY, sale_number TEXT, customer_id INTEGER REFERENCES customers(id), user_id INTEGER REFERENCES users(id));
+                CREATE TABLE sale_items (id INTEGER PRIMARY KEY, sale_id INTEGER REFERENCES sales(id), product_id INTEGER);
+                CREATE TABLE settings (id INTEGER PRIMARY KEY, key TEXT UNIQUE, value TEXT);
+
+                INSERT INTO roles VALUES (1, 'owner');
+                INSERT INTO users VALUES (1, 1);
+                INSERT INTO categories VALUES (1, 'Engine');
+                INSERT INTO brands VALUES (1, 'Bosch');
+                INSERT INTO suppliers VALUES (1, 'TestSupplier');
+                INSERT INTO warehouses VALUES (1, 'Main', 'WH-001');
+                INSERT INTO products VALUES (1, 'Filter', 'SKU-1', 1, 1, 1, 1);
+                INSERT INTO customers VALUES (1, 'Test Customer');
+                INSERT INTO sales VALUES (1, 'SALE-001', 1, 1);
+                INSERT INTO sale_items VALUES (1, 1, 1);
+                INSERT INTO settings VALUES (1, 'app_version', '0.1.0');
+                PRAGMA user_version=8;
+                ",
+            )
+            .unwrap();
+        }
+
+        // Now init — the migration should drop everything and recreate.
+        let conn = init_database(path).expect("migration with FK data should succeed");
+        assert_all_tables_exist(&conn);
+        assert_eq!(get_schema_version(&conn), SCHEMA_VERSION);
+
+        // Should be fresh — no stale data from the old schema.
+        let users: i64 = conn
+            .query_row("SELECT COUNT(*) FROM users", [], |row| row.get(0))
+            .unwrap();
+        assert!(users >= 6, "Should have seeded users after migration");
+    }
+
+    #[test]
+    fn migration_preserves_no_data_from_old_schema() {
+        let td = TestDb::new();
+        let path = td.path.to_str().unwrap();
+
+        {
+            let conn = Connection::open(path).unwrap();
+            conn.execute_batch("PRAGMA foreign_keys=OFF;").unwrap();
+            conn.execute_batch(
+                "
+                CREATE TABLE settings (id INTEGER PRIMARY KEY, key TEXT UNIQUE, value TEXT);
+                INSERT INTO settings VALUES (1, 'old_key', 'old_value');
+                PRAGMA user_version=5;
+                ",
+            )
+            .unwrap();
+        }
+
+        let conn = init_database(path).unwrap();
+        let old_val: Option<String> = conn
+            .query_row(
+                "SELECT value FROM settings WHERE key = 'old_key'",
+                [],
+                |row| row.get(0),
+            )
+            .ok();
+        assert!(old_val.is_none(), "Old data should not survive migration");
+    }
+
+    // ── Idempotency tests ────────────────────────────────────────────
+
+    #[test]
+    fn init_database_is_idempotent() {
+        let td = TestDb::new();
+        let path = td.path.to_str().unwrap();
+
+        let conn1 = init_database(path).expect("first init");
+        let users1: i64 = conn1
+            .query_row("SELECT COUNT(*) FROM users", [], |row| row.get(0))
+            .unwrap();
+        drop(conn1);
+
+        let conn2 = init_database(path).expect("second init");
+        let users2: i64 = conn2
+            .query_row("SELECT COUNT(*) FROM users", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(users1, users2, "Double init should not duplicate data");
+    }
+
+    #[test]
+    fn init_database_preserves_existing_data() {
+        let td = TestDb::new();
+        let path = td.path.to_str().unwrap();
+
+        let conn = init_database(path).unwrap();
+        // Add a custom row.
+        conn.execute(
+            "INSERT INTO settings (key, value, group_name, setting_type, description) VALUES ('test_marker', 'yes', 'test', 'string', 'test')",
+            [],
+        )
+        .unwrap();
+        drop(conn);
+
+        let conn = init_database(path).unwrap();
+        let val: Option<String> = conn
+            .query_row(
+                "SELECT value FROM settings WHERE key = 'test_marker'",
+                [],
+                |row| row.get(0),
+            )
+            .ok();
+        assert_eq!(val, Some("yes".into()), "Existing data preserved after reinit");
+    }
+
+    // ── Schema version edge cases ────────────────────────────────────
+
+    #[test]
+    fn already_at_current_version_is_noop() {
+        let td = TestDb::new();
+        let path = td.path.to_str().unwrap();
+
+        let conn = init_database(path).unwrap();
+        let users_before: i64 = conn
+            .query_row("SELECT COUNT(*) FROM users", [], |row| row.get(0))
+            .unwrap();
+
+        // Re-init — should be a no-op.
+        drop(conn);
+        let conn = init_database(path).unwrap();
+        let users_after: i64 = conn
+            .query_row("SELECT COUNT(*) FROM users", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(users_before, users_after);
+    }
+
+    #[test]
+    fn migration_from_version_1_to_current() {
+        let td = TestDb::new();
+        let path = td.path.to_str().unwrap();
+
+        {
+            let conn = Connection::open(path).unwrap();
+            conn.execute_batch("PRAGMA user_version=1;").unwrap();
+        }
+
+        let conn = init_database(path).expect("migration from v1 should succeed");
+        assert_all_tables_exist(&conn);
+        assert_eq!(get_schema_version(&conn), SCHEMA_VERSION);
+    }
+
+    #[test]
+    fn migration_from_version_9_to_current() {
+        let td = TestDb::new();
+        let path = td.path.to_str().unwrap();
+
+        {
+            let conn = Connection::open(path).unwrap();
+            conn.execute_batch("PRAGMA user_version=9;").unwrap();
+        }
+
+        let conn = init_database(path).expect("migration from v9 should succeed");
+        assert_all_tables_exist(&conn);
+        assert_eq!(get_schema_version(&conn), SCHEMA_VERSION);
+    }
+
+    // ── FK constraint remains active after migration ─────────────────
+
+    #[test]
+    fn fk_enforced_after_migration() {
+        let td = TestDb::new();
+        let path = td.path.to_str().unwrap();
+
+        {
+            let conn = Connection::open(path).unwrap();
+            conn.execute_batch("PRAGMA user_version=8;").unwrap();
+        }
+
+        let conn = init_database(path).unwrap();
+        let result = conn.execute(
+            "INSERT INTO products (name, sku, cost_price, sale_price, category_id) VALUES ('test', 'FK-MIG-1', 1.0, 2.0, 99999)",
+            [],
+        );
+        assert!(result.is_err(), "FK enforcement should work after migration");
+    }
+
+    #[test]
+    fn fk_check_finds_no_violations_after_init() {
+        let td = TestDb::new();
+        let conn = td.conn();
+        let violations: Vec<(String, i64, String, i64)> = conn
+            .prepare("PRAGMA foreign_key_check")
+            .unwrap()
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, i64>(3)?,
+                ))
+            })
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+        assert!(
+            violations.is_empty(),
+            "Should have no FK violations after init, found: {violations:?}"
+        );
+    }
+
+    #[test]
+    fn fk_check_finds_no_violations_after_migration() {
+        let td = TestDb::new();
+        let path = td.path.to_str().unwrap();
+
+        {
+            let conn = Connection::open(path).unwrap();
+            conn.execute_batch("PRAGMA user_version=7;").unwrap();
+        }
+
+        let conn = init_database(path).unwrap();
+        let violations: Vec<String> = conn
+            .prepare("PRAGMA foreign_key_check")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+        assert!(
+            violations.is_empty(),
+            "Should have no FK violations after migration, found: {violations:?}"
+        );
+    }
 }
