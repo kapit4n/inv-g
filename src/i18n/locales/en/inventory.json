@@ -194,6 +194,7 @@
       "pricing": "Pricing",
       "suppliers": "Suppliers",
       "compatibility": "Compatibility",
+      "identifiers": "Identifiers",
       "activity": "Activity"
     }
   },
@@ -207,5 +208,22 @@
   },
   "activity": {
     "title": "Activity Timeline"
-  }
+  },
+  "crossReferences": "Cross References",
+  "crossReferencesDescription": "Search products by OEM, aftermarket, interchange, or cross-reference numbers",
+  "crossRefSearchPlaceholder": "Enter OEM number, barcode, SKU, or cross-reference...",
+  "crossRefNoResultsHint": "Try searching with a different identifier number",
+  "productField": "Product Field",
+  "identifiers": "Product Identifiers",
+  "noIdentifiers": "No identifiers added yet",
+  "identifier": "Identifier",
+  "identifierType": {
+    "oem": "OEM Number",
+    "aftermarket": "Aftermarket",
+    "interchange": "Interchange",
+    "supersession": "Supersession",
+    "cross_ref": "Cross Reference"
+  },
+  "brandNameOptional": "Brand name (optional)",
+  "notesOptional": "Notes (optional)"
 }

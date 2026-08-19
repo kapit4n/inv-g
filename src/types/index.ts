@@ -1191,6 +1191,28 @@ export interface StockStatusItem {
   status: string
 }
 
+export interface ProductIdentifier {
+  id: number
+  productId: number
+  identifier: string
+  identifierType: string
+  brandName?: string
+  notes?: string
+  createdAt: string
+}
+
+export interface CrossReferenceResult {
+  productId: number
+  productName: string
+  productSku: string
+  salePrice: number
+  stockQuantity: number
+  categoryName?: string
+  brandName?: string
+  matchedIdentifier: string
+  matchedType: string
+}
+
 export interface MovementSummary {
   period: string
   inbound: number

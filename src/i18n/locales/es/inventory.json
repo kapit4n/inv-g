@@ -194,6 +194,7 @@
       "pricing": "Precios",
       "suppliers": "Proveedores",
       "compatibility": "Compatibilidad",
+      "identifiers": "Identificadores",
       "activity": "Actividad"
     }
   },
@@ -207,5 +208,22 @@
   },
   "activity": {
     "title": "Línea de Tiempo"
-  }
+  },
+  "crossReferences": "Referencias Cruzadas",
+  "crossReferencesDescription": "Buscar productos por números OEM, aftermarket, intercambio o referencias cruzadas",
+  "crossRefSearchPlaceholder": "Ingrese número OEM, código de barras, SKU o referencia cruzada...",
+  "crossRefNoResultsHint": "Intente buscar con un número de identificación diferente",
+  "productField": "Campo del Producto",
+  "identifiers": "Identificadores del Producto",
+  "noIdentifiers": "No hay identificadores agregados",
+  "identifier": "Identificador",
+  "identifierType": {
+    "oem": "Número OEM",
+    "aftermarket": "Aftermarket",
+    "interchange": "Intercambio",
+    "supersession": "Sucesión",
+    "cross_ref": "Referencia Cruzada"
+  },
+  "brandNameOptional": "Nombre de marca (opcional)",
+  "notesOptional": "Notas (opcional)"
 }

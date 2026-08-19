@@ -2,6 +2,7 @@ pub mod admin;
 pub mod app;
 pub mod auth;
 pub mod compatibility;
+pub mod cross_references;
 pub mod crm;
 pub mod customers;
 pub mod inventory;

@@ -468,7 +468,7 @@ Comprehensive product detail (general, SKU, barcode, OEM, brand, prices, stock b
 ### TASK 13 — Automotive vehicle-to-part search
 Vehicle → Make → Model → Year → Engine → Compatible parts. Inspect existing vehicle/compatibility schema; do not duplicate. Minimum viable Part Finder with product/brand/SKU/OEM/stock/price. Tests for compatibility queries.
 
-### TASK 14 — OEM and cross-reference support
+### TASK 14 — OEM and cross-reference support ✅
 OEM numbers, manufacturer numbers, alternative numbers, cross-references. Search one identifier → find products. Review existing schema before introducing many-to-many. Add indexes. Tests.
 
 ## PHASE 6 — BARCODE AND WAREHOUSE

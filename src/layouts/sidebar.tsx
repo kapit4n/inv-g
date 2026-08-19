@@ -8,7 +8,7 @@ import {
   FileText, RotateCcw, DollarSign, Printer, Receipt,
   GitCompare, BellRing, ShieldCheck, CreditCard, StickyNote,
   TrendingUp, Monitor, HardDrive, Wifi, Database, Shield, Activity,
-  Smartphone, ScanLine,
+  Smartphone, ScanLine, Link2,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -50,6 +50,7 @@ const navigation: NavItemConfig[] = [
       { nameKey: "inventory.storageLocations", href: "/inventory/storage-locations", icon: MapPin },
       { nameKey: "inventory.products", href: "/inventory/products", icon: Box },
       { nameKey: "inventory.inventoryMovements", href: "/inventory/movements", icon: ArrowUpDown },
+      { nameKey: "inventory.crossReferences", href: "/inventory/cross-references", icon: Link2 },
     ],
   },
   {

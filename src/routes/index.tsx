@@ -12,6 +12,7 @@ import {
   StorageLocationsPage, StorageLocationFormPage,
   ProductsPage, ProductFormPage, ProductDetailPage,
   InventoryMovementsPage, InventoryMovementFormPage,
+  CrossReferencesPage,
 } from "@/features/inventory"
 import { SalesPage, PosPage, SaleDetailPage, CloseoutPage, QuotesPage, QuoteDetailPage, QuoteFormPage, ReturnsPage, CashRegisterPage, ReceiptsPage } from "@/features/sales"
 import {
@@ -105,6 +106,7 @@ export const router = createBrowserRouter([
       { path: "inventory/storage-locations/:id/edit", element: <StorageLocationFormPage /> },
       { path: "inventory/movements", element: <InventoryMovementsPage /> },
       { path: "inventory/movements/new", element: <InventoryMovementFormPage /> },
+      { path: "inventory/cross-references", element: <CrossReferencesPage /> },
       { path: "inventory/products", element: <ProductsPage /> },
       { path: "inventory/products/new", element: <ProductFormPage /> },
       { path: "inventory/products/:id", element: <ProductDetailPage /> },

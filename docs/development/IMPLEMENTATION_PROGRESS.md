@@ -1184,3 +1184,64 @@ transmission. Cascading selectors filter downstream options. Reuses the existing
 ### Next recommended task
 **TASK 14 — OEM and cross-reference support.** OEM numbers, manufacturer numbers,
 alternative numbers, cross-references. Search one identifier → find products.
+
+---
+
+## TASK 14 — OEM and cross-reference support ✅
+
+**Completed:** 2026-08-19
+
+### Summary
+Added a unified cross-reference identifier system that supports many-to-many
+product-to-identifier mappings. Each product can have multiple identifiers of
+different types (OEM, aftermarket, interchange, supersession, cross-reference).
+A new Cross References search page lets users find products by any identifier.
+
+### Backend
+- **Schema v11:** Added `product_identifiers` table with `id`, `product_id`,
+  `identifier`, `identifier_type`, `brand_name`, `notes`, `created_at`. Indexed
+  on `identifier`, `product_id`, and `identifier_type`.
+- **Commands:** `get_product_identifiers`, `create_product_identifier`,
+  `delete_product_identifier`, `cross_reference_search`. The search command
+  queries both product fields (SKU, barcode, OEM, internal_code, name) and the
+  `product_identifiers` table, deduplicating by product_id.
+
+### Frontend
+- **Cross References page** (`/inventory/cross-references`): Full-text search
+  across all product fields and cross-reference identifiers. Results show
+  product name, SKU, category, brand, price, stock, and matched identifier type.
+- **Product Identifiers tab** added to Product 360° page. CRUD for identifiers
+  with type selector, optional brand name and notes. Identifiers grouped by type.
+- **Sidebar:** Added "Cross References" under Inventory section with Link2 icon.
+
+### Files created/modified
+- `src-tauri/src/db/schema.rs` — version 10→11, `product_identifiers` table
+- `src-tauri/src/commands/cross_references.rs` — new file, 4 Tauri commands
+- `src-tauri/src/commands/mod.rs` — register `cross_references` module
+- `src-tauri/src/lib.rs` — register 4 new commands
+- `src/types/index.ts` — `ProductIdentifier`, `CrossReferenceResult` interfaces
+- `src/lib/tauri.ts` — 4 new TypeScript bindings
+- `src/features/inventory/pages/cross-references-page.tsx` — new page
+- `src/features/inventory/components/product-identifiers-tab.tsx` — new component
+- `src/features/inventory/pages/product-detail-page.tsx` — add Identifiers tab
+- `src/features/inventory/index.ts` — export `CrossReferencesPage`
+- `src/routes/index.tsx` — add `/inventory/cross-references` route
+- `src/layouts/sidebar.tsx` — add cross-references nav item
+- `src/i18n/locales/en/inventory.json` — 11 new keys
+- `src/i18n/locales/es/inventory.json` — 11 new keys
+- `src/i18n/locales/en/common.json` — added `results` key
+- `src/i18n/locales/es/common.json` — added `results` key
+- `tests/unit/components/cross-references-page.test.tsx` — 11 tests
+- `tests/unit/components/product-identifiers-tab.test.tsx` — 11 tests
+
+### Test results
+- 22 new frontend tests, all passing
+- 72 Rust tests passing
+- Full verify (typecheck + lint + vitest + rust) green
+
+### Known issues / future improvements
+- Cross-reference search currently uses simple LIKE queries. Fuzzy/approximate
+  matching could improve results for partial identifiers.
+- The identifiers tab could show a "supersedes" chain visualization for
+  supersession-type identifiers.
+- Bulk import of cross-references from CSV/Excel is not yet supported.

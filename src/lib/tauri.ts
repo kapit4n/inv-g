@@ -38,6 +38,7 @@ import type {
   DiscountAnalysis, ReturnsSummary, TaxSummary,
   InventoryReportFilter, InventoryReportRow, InventoryValuation,
   StockStatusItem, MovementSummary, AgingItem,
+  ProductIdentifier, CrossReferenceResult,
   PurchaseReportFilter, PurchaseReportRow, PurchaseBySupplier,
   SupplierPerformance as SupplierPerformanceReport, POStatusSummary, ProductToReorder,
   CustomerReportRow, CustomerGrowthRow, CustomerLocation,
@@ -701,6 +702,20 @@ export async function searchCompatibleProducts(brandId?: number, modelId?: numbe
 }
 export async function getRecommendationsForVehicle(brandId?: number, modelId?: number, year?: number): Promise<ProductRecommendation[]> {
   return invoke<ProductRecommendation[]>("get_recommendations_for_vehicle", { brandId, modelId, year })
+}
+
+// ── Cross-References ──
+export async function getProductIdentifiers(productId: number): Promise<ProductIdentifier[]> {
+  return invoke<ProductIdentifier[]>("get_product_identifiers", { productId })
+}
+export async function createProductIdentifier(productId: number, identifier: string, identifierType: string, brandName?: string, notes?: string): Promise<ProductIdentifier> {
+  return invoke<ProductIdentifier>("create_product_identifier", { productId, identifier, identifierType, brandName, notes })
+}
+export async function deleteProductIdentifier(id: number): Promise<void> {
+  return invoke<void>("delete_product_identifier", { id })
+}
+export async function crossReferenceSearch(query: string): Promise<CrossReferenceResult[]> {
+  return invoke<CrossReferenceResult[]>("cross_reference_search", { query })
 }
 
 // ── Service Reminders ──

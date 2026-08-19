@@ -1,6 +1,6 @@
 use rusqlite::{Connection, Result};
 
-const SCHEMA_VERSION: i32 = 10;
+const SCHEMA_VERSION: i32 = 11;
 
 fn get_user_version(conn: &Connection) -> Result<i32> {
     let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
@@ -40,6 +40,7 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             DROP TABLE IF EXISTS quotes;
             DROP TABLE IF EXISTS sale_payments;
             DROP TABLE IF EXISTS inventory_movements;
+            DROP TABLE IF EXISTS product_identifiers;
             DROP TABLE IF EXISTS product_vehicle_compatibility;
             DROP TABLE IF EXISTS product_images;
             DROP TABLE IF EXISTS storage_locations;
@@ -1109,6 +1110,21 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
         CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
         CREATE INDEX IF NOT EXISTS idx_products_brand ON products(brand_id);
         CREATE INDEX IF NOT EXISTS idx_products_active ON products(is_active);
+
+        -- Cross-reference identifiers (TASK 14)
+        CREATE TABLE IF NOT EXISTS product_identifiers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL,
+            identifier TEXT NOT NULL,
+            identifier_type TEXT NOT NULL DEFAULT 'oem',
+            brand_name TEXT,
+            notes TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_pi_identifier ON product_identifiers(identifier);
+        CREATE INDEX IF NOT EXISTS idx_pi_product ON product_identifiers(product_id);
+        CREATE INDEX IF NOT EXISTS idx_pi_type ON product_identifiers(identifier_type);
 
         -- Held sales (TASK 07)
         CREATE TABLE IF NOT EXISTS held_sales (

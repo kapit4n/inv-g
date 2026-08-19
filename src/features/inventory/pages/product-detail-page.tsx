@@ -10,6 +10,7 @@ import { ProductPricingTab } from "../components/product-pricing-tab"
 import { ProductSuppliersTab } from "../components/product-suppliers-tab"
 import { ProductCompatibilityTab } from "../components/product-compatibility-tab"
 import { ProductActivityTab } from "../components/product-activity-tab"
+import { ProductIdentifiersTab } from "../components/product-identifiers-tab"
 
 export function ProductDetailPage() {
   const { t } = useTranslation()
@@ -50,6 +51,7 @@ export function ProductDetailPage() {
             <TabsTrigger value="pricing">{t("inventory.product360.tabs.pricing")}</TabsTrigger>
             <TabsTrigger value="suppliers">{t("inventory.product360.tabs.suppliers")}</TabsTrigger>
             <TabsTrigger value="compatibility">{t("inventory.product360.tabs.compatibility")}</TabsTrigger>
+            <TabsTrigger value="identifiers">{t("inventory.product360.tabs.identifiers")}</TabsTrigger>
             <TabsTrigger value="activity">{t("inventory.product360.tabs.activity")}</TabsTrigger>
           </TabsList>
 
@@ -79,6 +81,10 @@ export function ProductDetailPage() {
 
           <TabsContent value="compatibility">
             <ProductCompatibilityTab productId={product.id} />
+          </TabsContent>
+
+          <TabsContent value="identifiers">
+            <ProductIdentifiersTab productId={product.id} />
           </TabsContent>
 
           <TabsContent value="activity">
