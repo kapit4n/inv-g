@@ -50,6 +50,7 @@ import { EmployeesPage } from "@/features/employees"
 import { PartFinderPage } from "@/features/part-finder"
 import { SettingsPage } from "@/features/settings"
 import { HelpPage } from "@/features/help"
+import { ManualPage } from "@/features/manual"
 import { LoginPage } from "@/features/auth"
 import { ForbiddenPage } from "@/components/error-pages"
 
@@ -175,6 +176,7 @@ export const router = createBrowserRouter([
       { path: "employees", element: <EmployeesPage /> },
       { path: "settings", element: <SettingsPage /> },
       { path: "help", element: <HelpPage /> },
+      { path: "manual", element: <ManualPage /> },
       { path: "*", element: <Navigate to="/dashboard" replace /> },
     ],
   },

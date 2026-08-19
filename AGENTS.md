@@ -33,3 +33,70 @@ Tests are in `tests/` (frontend Vitest) and `src-tauri/src/` (Rust `#[cfg(test)]
 - Group related changes into a single commit.
 - Use `Milestone X: Title` as the commit message header for milestone work.
 - List key changes as bullet points in the commit body.
+
+## Documentation
+
+User documentation lives in `docs-site/` and is built with VitePress.
+
+### Rule: Documentation is Part of the Product
+
+Every new feature MUST include its documentation. A feature is not complete without docs.
+
+When implementing a new feature:
+
+1. **Implement the feature** (code, tests, i18n)
+2. **Create/update documentation** in `docs-site/`:
+   - Create or update the relevant `.md` page
+   - Follow the existing page structure (What is it, How to access, How to use, Considerations)
+   - Add screenshots if the UI changed
+   - Update the sidebar in `docs-site/.vitepress/config.ts` if a new page was added
+3. **Update CHANGELOG** — Add entry to `docs/CHANGELOG.md`
+4. **Build docs** — Run `npm run docs:build` to verify
+5. **Update IMPLEMENTATION_STATUS** — Check off completed items
+
+### Documentation Structure
+
+```
+docs-site/
+├── getting-started/   # Introduction, installation, login, first steps
+├── dashboard/         # Dashboard overview
+├── inventory/         # Products, categories, warehouses, stock, cross-refs
+├── sales/             # POS, history, quotes, returns, cash register, closeout
+├── purchases/         # Orders, receiving, supplier products
+├── crm/               # Customers, vehicles, reminders, credit
+├── manual/            # Part finder, manual landing page
+├── reports/           # All report types
+├── admin/             # Users, roles, settings, database, diagnostics
+├── settings/          # User settings, help
+├── troubleshooting/   # Common problems
+└── developer/         # Architecture, development, testing
+```
+
+### Page Structure Convention
+
+Each documentation page should follow this structure:
+
+```markdown
+# Module Name
+
+## What is it?
+## What is it for?
+## How to Access
+## How to Use
+### Step 1: ...
+### Step 2: ...
+## Considerations
+## Related
+```
+
+### Screenshot Convention
+
+Screenshots are in `docs-site/public/screenshots/light/` and `dark/`.
+Reference from Markdown: `![Alt text](/screenshots/light/XX-name.png)`
+
+### Commands
+
+- `npm run docs:dev` — VitePress dev server (hot reload)
+- `npm run docs:build` — Build to public/manual/
+- `npm run docs:pdf` — Generate PDF (requires Playwright)
+

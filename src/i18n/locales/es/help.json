@@ -1,6 +1,13 @@
 {
   "title": "Ayuda y Soporte",
   "description": "Encuentra ayuda, accesos rápidos y recursos para usar el sistema",
+  "userManual": "Manual de Usuario",
+  "userManualDescription": "Explora la guía completa de usuario de Inventory Gear",
+  "openInNewTab": "Abrir en Nueva Pestaña",
+  "downloadPdf": "Descargar PDF",
+  "loadingManual": "Cargando manual...",
+  "manualNotAvailable": "Manual no disponible",
+  "manualBuildRequired": "Primero construye la documentación con: npm run docs:build",
   "shortcuts": {
     "commandPalette": "Abrir paleta de comandos",
     "globalSearch": "Enfocar búsqueda",

@@ -8,7 +8,7 @@ import {
   FileText, RotateCcw, DollarSign, Printer, Receipt,
   GitCompare, BellRing, ShieldCheck, CreditCard, StickyNote,
   TrendingUp, Monitor, HardDrive, Wifi, Database, Shield, Activity,
-  Smartphone, ScanLine, Link2,
+  Smartphone, ScanLine, Link2, Book,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -125,6 +125,7 @@ const secondaryNavigation: NavItemConfig[] = [
   },
   { nameKey: "employees.title", href: "/employees", icon: UsersRound },
   { nameKey: "settings.title", href: "/settings", icon: Settings },
+  { nameKey: "help.userManual", href: "/manual", icon: Book },
   { nameKey: "help.title", href: "/help", icon: HelpCircle },
 ]
 

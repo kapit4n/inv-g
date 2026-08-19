@@ -6,7 +6,7 @@ import reactRefreshPlugin from "eslint-plugin-react-refresh"
 
 export default [
   {
-    ignores: ["dist", "node_modules", "src-tauri", "database", "scripts", "*.js", "*.cjs", "*.mjs"],
+    ignores: ["dist", "node_modules", "src-tauri", "database", "scripts", "docs-site", "*.js", "*.cjs", "*.mjs"],
   },
   {
     files: ["src/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}"],

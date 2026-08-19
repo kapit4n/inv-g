@@ -29,7 +29,11 @@
     "test:smoke": "vitest run tests/smoke",
     "test:tauri": "vitest run tests/tauri",
     "test:rust": "cd src-tauri && cargo test",
-    "verify": "npm run typecheck && npm run lint && vitest run && cd src-tauri && cargo test"
+    "verify": "npm run typecheck && npm run lint && vitest run && cd src-tauri && cargo test",
+    "docs:dev": "vitepress dev docs-site",
+    "docs:build": "node scripts/build-docs.mjs",
+    "docs:preview": "vitepress preview docs-site",
+    "docs:pdf": "node scripts/generate-pdf.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.5.7",
@@ -102,6 +106,7 @@
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "vite": "^8.1.1",
+    "vitepress": "^1.6.4",
     "vitest": "^4.1.10"
   }
 }
