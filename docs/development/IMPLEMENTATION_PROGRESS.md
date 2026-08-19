@@ -1057,3 +1057,52 @@ checkout).
 **TASK 11 — Quick Actions dashboard.** Employee-oriented operational dashboard:
 new sale, receive purchase, search product/customer, inventory, PO, returns;
 "needs attention" section. Do not duplicate the executive analytics dashboard.
+
+---
+
+## TASK 11 — Quick Actions dashboard ✅
+
+**Status:** Complete
+**Date:** 2026-08-19
+**Branch/commit:** (uncommitted)
+
+### What this task was
+Replaced the hardcoded static dashboard mockup with a real, data-driven
+employee-oriented operational dashboard. The new dashboard focuses on quick
+actions (daily tasks), a "needs attention" section (actionable alerts), and
+today's summary stats — all pulling live data from existing Tauri commands.
+
+### Deliverables
+- **Quick Actions grid** — 6 clickable cards (New Sale, Receive PO, Products,
+  New Customer, New PO, Inventory) navigating to their respective routes.
+- **Today at a Glance** — 4 stat cards with live data: revenue, sales count,
+  low stock, new customers.
+- **Needs Attention** — Dynamic list of actionable items with severity badges
+  (out of stock, low stock, pending POs, awaiting approval, reminders,
+  warranties). All items navigate to their relevant page. Shows "All clear!"
+  when nothing needs attention.
+- **Recent Sales** — Last 5 sales with sale number, time, total, payment status.
+  Click navigates to sale detail. "View all sales" link to `/sales`.
+
+### Files created/modified
+- `src/features/dashboard/pages/dashboard-page.tsx` — Full rewrite: replaced
+  hardcoded mockup with real Tauri data queries (react-query) and navigation.
+- `src/i18n/locales/en/dashboard.json` — Replaced old static keys with new
+  structured keys for actions, attention items, stats.
+- `src/i18n/locales/es/dashboard.json` — Spanish translations for all new keys.
+- `tests/unit/components/dashboard-page.test.tsx` — 6 tests: page renders,
+  quick actions present, stats display, attention items with data, recent sales,
+  all-clear state.
+
+### Architecture notes
+- Uses 5 Tauri commands in parallel via react-query: `getDashboardWidgets`,
+  `getPurchaseDashboard`, `getCrmDashboard`, `getDashboardStats`, `getSales`.
+- Attention items are computed from query results (not a separate API).
+- No new Tauri commands needed — everything built on existing infrastructure.
+
+### Known issues
+- None.
+
+### Next recommended task
+**TASK 12 — Kanban-style workflow boards.** Visual task management for
+purchase order workflow states. Depends on TASK 11 for the dashboard integration.

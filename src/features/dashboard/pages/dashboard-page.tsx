@@ -1,101 +1,164 @@
 import { useTranslation } from "react-i18next"
+import { useNavigate } from "react-router-dom"
+import { useQuery } from "@tanstack/react-query"
 import {
-  DollarSign,
   ShoppingCart,
   Package,
+  Search,
+  UserPlus,
+  FileText,
+  Warehouse,
   AlertTriangle,
-  TrendingUp,
+  AlertCircle,
   Clock,
-  ArrowUpRight,
+  CheckCircle,
+  ShieldCheck,
+  ArrowRight,
+  DollarSign,
+  ShoppingBag,
+  Users,
 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { StatCard } from "@/components/stat-card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Section } from "@/components/section"
+import { getDashboardWidgets, getPurchaseDashboard, getCrmDashboard, getDashboardStats, getSales } from "@/lib/tauri"
 
-const stats = [
-  {
-    titleKey: "dashboard.todaysSales",
-    valueKey: "dashboard.statCards.todaysSalesValue",
-    icon: <DollarSign className="h-5 w-5" />,
-    trend: "up" as const,
-    trendValueKey: "dashboard.statCards.trendUp",
-    descriptionKey: "dashboard.fromYesterday",
-  },
-  {
-    titleKey: "dashboard.todaysOrders",
-    valueKey: "dashboard.statCards.todaysOrdersValue",
-    icon: <ShoppingCart className="h-5 w-5" />,
-    trend: "up" as const,
-    trendValueKey: "dashboard.statCards.trendUp2",
-    descriptionKey: "dashboard.fromYesterday",
-  },
-  {
-    titleKey: "dashboard.inventoryValue",
-    valueKey: "dashboard.statCards.inventoryValueValue",
-    icon: <Package className="h-5 w-5" />,
-    trend: "up" as const,
-    trendValueKey: "dashboard.statCards.trendUp3",
-    descriptionKey: "dashboard.fromLastMonth",
-  },
-  {
-    titleKey: "dashboard.lowStockItems",
-    valueKey: "dashboard.statCards.lowStockValue",
-    icon: <AlertTriangle className="h-5 w-5" />,
-    trend: "down" as const,
-    trendValueKey: "dashboard.statCards.trendDown",
-    descriptionKey: "dashboard.fromLastWeek",
-  },
-]
+interface AttentionItem {
+  id: string
+  label: string
+  count: number
+  severity: "destructive" | "warning" | "info"
+  icon: React.ReactNode
+  path: string
+}
 
-const bestSellers = [
-  { name: "Ceramic Brake Pads", sku: "BP-CER-001", sold: 156, revenue: "$7,176" },
-  { name: "Premium Oil Filter", sku: "OF-PRM-002", sold: 134, revenue: "$1,741" },
-  { name: "Iridium Spark Plugs", sku: "SP-IRD-005", sold: 98, revenue: "$832" },
-  { name: "Synthetic 5W-30 Oil", sku: "OIL-5W30-010", sold: 89, revenue: "$4,445" },
-  { name: "Air Filter (Universal)", sku: "AF-UNI-008", sold: 76, revenue: "$1,520" },
-]
-
-const recentActivity = [
-  { actionKey: "dashboard.recentActivity", detail: "Invoice #INV-2024-034 — $1,240.00", time: "2 min ago", type: "sale" },
-  { actionKey: "dashboard.recentActivity", detail: "Brake Pads — 50 units received", time: "15 min ago", type: "stock" },
-  { actionKey: "dashboard.stockAlerts", detail: "Alternator Reman — 3 units remaining", time: "1 hour ago", type: "alert" },
-  { actionKey: "dashboard.recentActivity", detail: "Mike's Auto Repair", time: "2 hours ago", type: "customer" },
-  { actionKey: "dashboard.recentPurchases", detail: "PO-0089 — $4,500.00 from AutoParts Co.", time: "3 hours ago", type: "purchase" },
-  { actionKey: "dashboard.recentActivity", detail: "Invoice #INV-2024-033 — $890.00", time: "4 hours ago", type: "sale" },
-]
-
-const lowStockItems = [
-  { name: "Alternator (Reman)", sku: "ALT-003", current: 3, min: 10, status: "critical" },
-  { name: "Fuel Pump Assembly", sku: "FP-012", current: 5, min: 15, status: "critical" },
-  { name: "Timing Belt Kit", sku: "TB-007", current: 8, min: 20, status: "warning" },
-  { name: "Wheel Bearings", sku: "WB-015", current: 12, min: 25, status: "warning" },
-]
-
-const monthlyData = [
-  { month: "Jan", sales: 42000, purchases: 28000 },
-  { month: "Feb", sales: 38000, purchases: 25000 },
-  { month: "Mar", sales: 51000, purchases: 32000 },
-  { month: "Apr", sales: 47000, purchases: 29000 },
-  { month: "May", sales: 55000, purchases: 35000 },
-  { month: "Jun", sales: 61000, purchases: 38000 },
-  { month: "Jul", sales: 48000, purchases: 30000 },
-]
-
-const activityTypeColors: Record<string, string> = {
-  sale: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  stock: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  alert: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  customer: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
-  purchase: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
+interface QuickAction {
+  label: string
+  description: string
+  icon: React.ReactNode
+  path: string
+  color: string
 }
 
 export function DashboardPage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
+
+  const { data: widgets, isLoading: widgetsLoading } = useQuery({
+    queryKey: ["dashboard-widgets"],
+    queryFn: getDashboardWidgets,
+  })
+
+  const { data: purchaseDash } = useQuery({
+    queryKey: ["purchase-dashboard"],
+    queryFn: getPurchaseDashboard,
+  })
+
+  const { data: crmDash } = useQuery({
+    queryKey: ["crm-dashboard"],
+    queryFn: getCrmDashboard,
+  })
+
+  const { data: inventoryStats } = useQuery({
+    queryKey: ["inventory-stats"],
+    queryFn: getDashboardStats,
+  })
+
+  const { data: recentSales = [] } = useQuery({
+    queryKey: ["recent-sales"],
+    queryFn: getSales,
+  })
+
+
+
+  const quickActions: QuickAction[] = [
+    { label: t("dashboard.actions.newSale"), description: t("dashboard.actions.newSaleDesc"), icon: <ShoppingCart className="h-5 w-5" />, path: "/sales/new", color: "bg-emerald-500" },
+    { label: t("dashboard.actions.receivePO"), description: t("dashboard.actions.receivePODesc"), icon: <Package className="h-5 w-5" />, path: "/purchases/receipts/new", color: "bg-blue-500" },
+    { label: t("dashboard.actions.searchProduct"), description: t("dashboard.actions.searchProductDesc"), icon: <Search className="h-5 w-5" />, path: "/inventory/products", color: "bg-violet-500" },
+    { label: t("dashboard.actions.newCustomer"), description: t("dashboard.actions.newCustomerDesc"), icon: <UserPlus className="h-5 w-5" />, path: "/crm/customers/new", color: "bg-amber-500" },
+    { label: t("dashboard.actions.newPO"), description: t("dashboard.actions.newPODesc"), icon: <FileText className="h-5 w-5" />, path: "/purchases/orders/new", color: "bg-orange-500" },
+    { label: t("dashboard.actions.inventory"), description: t("dashboard.actions.inventoryDesc"), icon: <Warehouse className="h-5 w-5" />, path: "/inventory", color: "bg-cyan-500" },
+  ]
+
+  const attentionItems: AttentionItem[] = []
+
+  if (inventoryStats) {
+    if (inventoryStats.outOfStockProducts > 0) {
+      attentionItems.push({
+        id: "out-of-stock",
+        label: t("dashboard.attention.outOfStock"),
+        count: inventoryStats.outOfStockProducts,
+        severity: "destructive",
+        icon: <AlertCircle className="h-4 w-4" />,
+        path: "/inventory/products",
+      })
+    }
+    if (inventoryStats.lowStockProducts > 0) {
+      attentionItems.push({
+        id: "low-stock",
+        label: t("dashboard.attention.lowStock"),
+        count: inventoryStats.lowStockProducts,
+        severity: "warning",
+        icon: <AlertTriangle className="h-4 w-4" />,
+        path: "/inventory/products",
+      })
+    }
+  }
+
+  if (purchaseDash) {
+    if (purchaseDash.pendingOrders > 0) {
+      attentionItems.push({
+        id: "pending-orders",
+        label: t("dashboard.attention.pendingOrders"),
+        count: purchaseDash.pendingOrders,
+        severity: "info",
+        icon: <ShoppingBag className="h-4 w-4" />,
+        path: "/purchases/orders",
+      })
+    }
+    if (purchaseDash.awaitingApproval > 0) {
+      attentionItems.push({
+        id: "awaiting-approval",
+        label: t("dashboard.attention.awaitingApproval"),
+        count: purchaseDash.awaitingApproval,
+        severity: "warning",
+        icon: <Clock className="h-4 w-4" />,
+        path: "/purchases/requests",
+      })
+    }
+  }
+
+  if (crmDash) {
+    if (crmDash.upcomingReminders > 0) {
+      attentionItems.push({
+        id: "reminders",
+        label: t("dashboard.attention.upcomingReminders"),
+        count: crmDash.upcomingReminders,
+        severity: "info",
+        icon: <Clock className="h-4 w-4" />,
+        path: "/crm/reminders",
+      })
+    }
+    if (crmDash.expiredWarranties > 0) {
+      attentionItems.push({
+        id: "warranties",
+        label: t("dashboard.attention.expiringWarranties"),
+        count: crmDash.expiredWarranties,
+        severity: "warning",
+        icon: <ShieldCheck className="h-4 w-4" />,
+        path: "/crm/warranties",
+      })
+    }
+  }
+
+  const salesForToday = recentSales.slice(0, 5)
+
+  const formatCurrency = (value: number) =>
+    value.toLocaleString("en-US", { style: "currency", currency: "USD" })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="dashboard-page">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">{t("dashboard.title")}</h1>
         <p className="text-sm text-muted-foreground">
@@ -103,220 +166,178 @@ export function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <StatCard
-            key={stat.titleKey}
-            title={t(stat.titleKey)}
-            value={t(stat.valueKey)}
-            icon={stat.icon}
-            trend={stat.trend}
-            trendValue={t(stat.trendValueKey)}
-            description={t(stat.descriptionKey)}
-          />
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base">{t("dashboard.monthlySalesOverview")}</CardTitle>
-            <Button variant="ghost" size="sm" disabled>
-              {t("dashboard.viewReport")} <ArrowUpRight className="ml-1 h-3 w-3" />
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {monthlyData.map((d) => (
-                <div key={d.month} className="flex items-center gap-4">
-                  <span className="w-8 text-xs text-muted-foreground">{d.month}</span>
-                  <div className="flex-1">
-                    <div className="flex gap-1">
-                      <div
-                        className="h-6 rounded-md bg-primary"
-                        style={{ width: `${(d.sales / 65000) * 100}%` }}
-                      />
-                      <div
-                        className="h-6 rounded-md bg-primary/20"
-                        style={{ width: `${(d.purchases / 65000) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                  <span className="w-20 text-right text-xs font-medium">${(d.sales / 1000).toFixed(0)}k</span>
+      <Section title={t("dashboard.quickActions")} description={t("dashboard.quickActionsDesc")}>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {quickActions.map((action) => (
+            <Card
+              key={action.path}
+              className="cursor-pointer transition-all hover:shadow-md hover:border-primary/50 active:scale-[0.98]"
+              onClick={() => navigate(action.path)}
+              data-testid={`quick-action-${action.path.replace(/\//g, "-").slice(1)}`}
+            >
+              <CardContent className="flex flex-col items-center gap-2 p-4 text-center">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-xl text-white ${action.color}`}>
+                  {action.icon}
                 </div>
-              ))}
-              <div className="flex items-center gap-4 pt-2 text-xs text-muted-foreground">
-                <div className="flex items-center gap-1.5">
-                  <div className="h-3 w-3 rounded bg-primary" /> {t("dashboard.sales")}
+                <div>
+                  <p className="text-sm font-medium">{action.label}</p>
+                  <p className="text-[10px] text-muted-foreground">{action.description}</p>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="h-3 w-3 rounded bg-primary/20" /> {t("dashboard.purchases")}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </Section>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">{t("dashboard.profitOverview")}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="text-sm text-muted-foreground">{t("dashboard.thisMonth")}</p>
-              <p className="text-2xl font-bold">$23,450</p>
-              <div className="flex items-center gap-1 text-xs text-emerald-500">
-                <TrendingUp className="h-3 w-3" />
-                <span>+18.2% {t("dashboard.fromLastMonth")}</span>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">{t("dashboard.revenue")}</span>
-                <span className="font-medium">$48,200</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">{t("dashboard.cogs")}</span>
-                <span className="font-medium">$24,750</span>
-              </div>
-              <div className="h-px bg-border" />
-              <div className="flex justify-between text-sm font-medium">
-                <span>{t("dashboard.netProfit")}</span>
-                <span className="text-emerald-500">$23,450</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Section title={t("dashboard.bestSellers")} description={t("dashboard.topPerformingProducts")}>
+      <Section title={t("dashboard.todaySummary")} description={t("dashboard.todaySummaryDesc")}>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <Card>
-            <CardContent className="p-0">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("dashboard.product")}</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("dashboard.sold")}</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">{t("dashboard.revenueCol")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bestSellers.map((item, idx) => (
-                    <tr key={item.sku} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                            {idx + 1}
-                          </span>
-                          <div>
-                            <p className="text-sm font-medium">{item.name}</p>
-                            <p className="text-xs text-muted-foreground">{item.sku}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm">{item.sold}</td>
-                      <td className="px-4 py-3 text-right text-sm font-medium">{item.revenue}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </CardContent>
-          </Card>
-        </Section>
-
-        <Section title={t("dashboard.recentActivity")} description={t("dashboard.latestStoreEvents")}>
-          <Card>
-            <CardContent className="p-4">
-              <div className="space-y-4">
-                {recentActivity.map((activity, idx) => (
-                  <div key={idx} className="flex items-start gap-3">
-                    <div className="mt-0.5">
-                      <Badge variant="outline" className={`text-[10px] ${activityTypeColors[activity.type] || ""}`}>
-                        {activity.type}
-                      </Badge>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{t(activity.actionKey)}</p>
-                      <p className="text-xs text-muted-foreground truncate">{activity.detail}</p>
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground whitespace-nowrap">
-                      <Clock className="h-3 w-3" />
-                      {activity.time}
-                    </div>
-                  </div>
-                ))}
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
+                <DollarSign className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{t("dashboard.stats.todayRevenue")}</p>
+                <p className="text-lg font-bold tabular-nums">
+                  {widgetsLoading ? "—" : formatCurrency(widgets?.todayRevenue ?? 0)}
+                </p>
               </div>
             </CardContent>
           </Card>
-        </Section>
-      </div>
+          <Card>
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600">
+                <ShoppingCart className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{t("dashboard.stats.salesCount")}</p>
+                <p className="text-lg font-bold tabular-nums">
+                  {widgetsLoading ? "—" : widgets?.recentSalesCount ?? 0}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{t("dashboard.stats.lowStock")}</p>
+                <p className="text-lg font-bold tabular-nums">
+                  {widgetsLoading ? "—" : inventoryStats?.lowStockProducts ?? 0}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600">
+                <Users className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{t("dashboard.stats.newCustomers")}</p>
+                <p className="text-lg font-bold tabular-nums">
+                  {crmDash ? crmDash.newCustomersMonth : "—"}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </Section>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Section
-          title={t("dashboard.stockAlerts")}
-          description={t("dashboard.itemsThatNeedAttention")}
-          actions={
-            <Button variant="outline" size="sm" disabled>
-              {t("dashboard.viewReport")} <ArrowUpRight className="ml-1 h-3 w-3" />
-            </Button>
-          }
+          title={t("dashboard.needsAttention")}
+          description={t("dashboard.needsAttentionDesc")}
         >
-          <Card>
-            <CardContent className="p-0">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("dashboard.product")}</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">{t("dashboard.current")}</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">{t("dashboard.minRequired")}</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("common.status")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lowStockItems.map((item) => (
-                    <tr key={item.sku} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-3">
-                        <p className="text-sm font-medium">{item.name}</p>
-                        <p className="text-xs text-muted-foreground">{item.sku}</p>
-                      </td>
-                      <td className="px-4 py-3 text-center text-sm font-medium">{item.current}</td>
-                      <td className="px-4 py-3 text-center text-sm text-muted-foreground">{item.min}</td>
-                      <td className="px-4 py-3">
-                        <Badge variant={item.status === "critical" ? "destructive" : "warning"}>
-                          {item.status === "critical" ? t("dashboard.critical") : t("dashboard.low")}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </CardContent>
-          </Card>
+          {attentionItems.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                <CheckCircle className="h-8 w-8 text-emerald-500 mb-2" />
+                <p className="text-sm font-medium">{t("dashboard.allClear")}</p>
+                <p className="text-xs text-muted-foreground">{t("dashboard.allClearDesc")}</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {attentionItems.map((item) => (
+                <Card
+                  key={item.id}
+                  className="cursor-pointer transition-all hover:shadow-sm hover:border-primary/30"
+                  onClick={() => navigate(item.path)}
+                  data-testid={`attention-${item.id}`}
+                >
+                  <CardContent className="flex items-center justify-between p-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+                        item.severity === "destructive" ? "bg-destructive/10 text-destructive" :
+                        item.severity === "warning" ? "bg-amber-500/10 text-amber-600" :
+                        "bg-blue-500/10 text-blue-600"
+                      }`}>
+                        {item.icon}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{item.label}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={item.severity}>{item.count}</Badge>
+                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </Section>
 
-        <Section title={t("dashboard.recentPurchases")} description={t("dashboard.latestPurchaseOrders")}>
-          <div className="space-y-3">
-            {[
-              { po: "PO-0089", supplier: "AutoParts Co.", amount: "$4,500.00", items: 12, statusKey: "dashboard.delivered" },
-              { po: "PO-0088", supplier: "OEM Direct", amount: "$2,890.00", items: 8, statusKey: "dashboard.inTransit" },
-              { po: "PO-0087", supplier: "BrakeMaster Inc.", amount: "$6,200.00", items: 24, statusKey: "dashboard.processing" },
-              { po: "PO-0086", supplier: "FilterPro Supply", amount: "$1,340.00", items: 6, statusKey: "dashboard.delivered" },
-            ].map((po) => (
-              <Card key={po.po} className="transition-shadow hover:shadow-md">
-                <CardContent className="flex items-center justify-between p-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium">{po.po}</p>
-                      <Badge variant="success">{t(po.statusKey)}</Badge>
+        <Section title={t("dashboard.recentSales")} description={t("dashboard.recentSalesDesc")}>
+          {salesForToday.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                <ShoppingCart className="h-8 w-8 text-muted-foreground mb-2" />
+                <p className="text-sm font-medium">{t("dashboard.noRecentSales")}</p>
+                <Button variant="outline" size="sm" className="mt-2" onClick={() => navigate("/sales/new")}>
+                  {t("dashboard.actions.newSale")}
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {salesForToday.map((sale) => (
+                <Card
+                  key={sale.id}
+                  className="cursor-pointer transition-all hover:shadow-sm hover:border-primary/30"
+                  onClick={() => navigate(`/sales/${sale.id}`)}
+                  data-testid={`recent-sale-${sale.id}`}
+                >
+                  <CardContent className="flex items-center justify-between p-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600">
+                        <ShoppingCart className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{sale.saleNumber}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(sale.createdAt).toLocaleTimeString()}
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-xs text-muted-foreground">{po.supplier} — {po.items} {t("dashboard.items")}</p>
-                  </div>
-                  <p className="text-sm font-semibold">{po.amount}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold tabular-nums">{formatCurrency(sale.total)}</p>
+                      <Badge variant={sale.paymentStatus === "paid" ? "success" : "warning"} className="text-[10px]">
+                        {sale.paymentStatus}
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              <Button variant="ghost" size="sm" className="w-full" onClick={() => navigate("/sales")}>
+                {t("dashboard.viewAllSales")} <ArrowRight className="ml-1 h-3 w-3" />
+              </Button>
+            </div>
+          )}
         </Section>
       </div>
     </div>
