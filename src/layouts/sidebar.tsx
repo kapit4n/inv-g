@@ -79,6 +79,7 @@ const navigation: NavItemConfig[] = [
     ],
   },
   { nameKey: "suppliers.title", href: "/suppliers", icon: Truck },
+  { nameKey: "part-finder.title", href: "/part-finder", icon: ScanLine },
   { nameKey: "warehouse.title", href: "/warehouse", icon: Warehouse },
 ]
 

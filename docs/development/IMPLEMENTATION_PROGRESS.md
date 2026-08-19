@@ -1104,5 +1104,83 @@ today's summary stats — all pulling live data from existing Tauri commands.
 - None.
 
 ### Next recommended task
-**TASK 12 — Kanban-style workflow boards.** Visual task management for
-purchase order workflow states. Depends on TASK 11 for the dashboard integration.
+**TASK 13 — Automotive vehicle-to-part search.** Vehicle → Make → Model → Year →
+Engine → Compatible parts. Inspect existing vehicle/compatibility schema; do not
+duplicate. Minimum viable Part Finder with product/brand/SKU/OEM/stock/price. Tests.
+
+---
+
+## TASK 12 — Product 360° page ✅
+
+**Status:** Complete
+**Date:** 2026-08-18 (prior session)
+**Branch/commit:** `8da1de1`
+
+### What this task was
+Comprehensive product detail page with 6-tab Radix UI interface: Overview,
+Inventory, Pricing, Suppliers, Compatibility, Activity. Implemented in a prior
+session.
+
+### Files created/modified
+- 6 tab components in `src/features/inventory/components/`
+- `src/features/inventory/pages/product-detail-page.tsx` — rewritten with tabs
+- 20 i18n keys (en/es) for tab labels
+- 22 unit tests covering all 6 tab components
+
+---
+
+## TASK 13 — Automotive vehicle-to-part search (Part Finder) ✅
+
+**Status:** Complete
+**Date:** 2026-08-19
+**Branch/commit:** (uncommitted)
+
+### What this task was
+Built a standalone Part Finder feature at `/part-finder` that allows users to
+search compatible parts by vehicle make, model, generation, year, engine, and
+transmission. Cascading selectors filter downstream options. Reuses the existing
+`search_compatible_products` and `get_recommendations_for_vehicle` Tauri commands.
+
+### Deliverables
+- **Part Finder page** — 7-selector grid: Brand → Model → Generation → Year →
+  Engine → Transmission + free-text search. All selectors cascade: selecting a
+  brand loads its models, selecting a model loads its generations, and selecting
+  a generation narrows the year range.
+- **Compatible Parts results** — Card grid with product name, SKU, category,
+  brand, price, stock badge. Click navigates to product detail.
+- **Recommended Parts sidebar** — Category-filtered recommendations based on
+  selected vehicle, auto-fetched on brand/model change.
+- **Empty/loading/error states** — Skeleton loading, "select and search"
+  placeholder, "no results" empty state, toast errors.
+- **11 unit tests** — page renders, labels, brand loading, cascading model,
+  cascading generation, search call, results display, out-of-stock badge,
+  empty results, recommendations, disabled model.
+
+### Files created/modified
+- `src/features/part-finder/index.ts` — barrel export
+- `src/features/part-finder/pages/part-finder-page.tsx` — main page component
+- `src/i18n/locales/en/part-finder.json` — English i18n (25 keys)
+- `src/i18n/locales/es/part-finder.json` — Spanish i18n (25 keys)
+- `src/i18n/config.ts` — registered `part-finder` namespace
+- `src/routes/index.tsx` — added `/part-finder` route
+- `src/layouts/sidebar.tsx` — added Part Finder nav item with ScanLine icon
+- `tests/unit/components/part-finder-page.test.tsx` — 11 tests
+
+### Architecture notes
+- No Rust backend changes needed — the existing `search_compatible_products`
+  command already supports brand, model, year, engine, and transmission filters.
+- Generation filtering is handled client-side: when a generation is selected,
+  the year dropdown is narrowed to its yearStart–yearEnd range.
+- The page uses `useTranslation("part-finder")` with a dedicated namespace.
+
+### Known issues
+- The legacy `CrmCompatibilityPage` at `/crm/compatibility` still exists with
+  the old basic implementation. Consider deprecating it in favor of the new
+  Part Finder, or redirecting `/crm/compatibility` to `/part-finder`.
+- Engine list is loaded globally (all engines). A production Part Finder would
+  benefit from filtering engines by brand/model/year, but this requires either
+  cross-referencing `product_vehicle_compatibility` or `customer_vehicles` data.
+
+### Next recommended task
+**TASK 14 — OEM and cross-reference support.** OEM numbers, manufacturer numbers,
+alternative numbers, cross-references. Search one identifier → find products.

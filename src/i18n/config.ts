@@ -20,6 +20,7 @@ import esHelp from "./locales/es/help.json"
 import esCrm from "./locales/es/crm.json"
 import esAdmin from "./locales/es/admin.json"
 import esPrint from "./locales/es/print.json"
+import esPartFinder from "./locales/es/part-finder.json"
 
 import enCommon from "./locales/en/common.json"
 import enDashboard from "./locales/en/dashboard.json"
@@ -40,6 +41,7 @@ import enHelp from "./locales/en/help.json"
 import enCrm from "./locales/en/crm.json"
 import enAdmin from "./locales/en/admin.json"
 import enPrint from "./locales/en/print.json"
+import enPartFinder from "./locales/en/part-finder.json"
 
 const resources = {
   es: {
@@ -62,6 +64,7 @@ const resources = {
     crm: esCrm,
     admin: esAdmin,
     print: esPrint,
+    "part-finder": esPartFinder,
   },
   en: {
     common: enCommon,
@@ -83,6 +86,7 @@ const resources = {
     crm: enCrm,
     admin: enAdmin,
     print: enPrint,
+    "part-finder": enPartFinder,
   },
 }
 
@@ -97,7 +101,7 @@ export function setupI18n(language?: string) {
       ns: [
         "common", "dashboard", "inventory", "sales", "purchases",
         "customers", "suppliers", "vehicles", "warehouse", "reports",
-        "settings", "auth", "employees", "validation", "errors", "help", "crm", "admin", "print",
+        "settings", "auth", "employees", "validation", "errors", "help", "crm", "admin", "print", "part-finder",
       ],
       nsSeparator: ".",
       interpolation: {

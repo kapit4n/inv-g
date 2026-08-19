@@ -46,6 +46,7 @@ import {
   AdminMaintenancePage, AdminAboutPage,
 } from "@/features/admin"
 import { EmployeesPage } from "@/features/employees"
+import { PartFinderPage } from "@/features/part-finder"
 import { SettingsPage } from "@/features/settings"
 import { HelpPage } from "@/features/help"
 import { LoginPage } from "@/features/auth"
@@ -135,6 +136,7 @@ export const router = createBrowserRouter([
       { path: "customers/:id", element: <CustomerDetailPage /> },
       { path: "suppliers", element: <SuppliersPage /> },
       { path: "vehicles", element: <CrmVehiclesPage /> },
+      { path: "part-finder", element: <PartFinderPage /> },
       { path: "warehouse", element: <WarehousePage /> },
       { path: "reports", element: <ReportsPage /> },
       { path: "reports/sales", element: <ReportsSalesPage /> },
