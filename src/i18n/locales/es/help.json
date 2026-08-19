@@ -3,14 +3,18 @@
   "description": "Encuentra ayuda, accesos rápidos y recursos para usar el sistema",
   "shortcuts": {
     "commandPalette": "Abrir paleta de comandos",
+    "globalSearch": "Enfocar búsqueda",
     "toggleSidebar": "Alternar barra lateral",
     "newSale": "Nueva venta (POS)",
     "newPurchaseOrder": "Nueva orden de compra",
     "toggleTheme": "Alternar tema",
-    "customerSearch": "Abrir búsqueda de clientes (POS)",
-    "focusPayment": "Enfocar campo de pago (POS)",
-    "checkout": "Completar cobro (POS)",
-    "close": "Cerrar diálogo / panel"
+    "save": "Guardar formulario actual",
+    "print": "Imprimir documento actual",
+    "close": "Cerrar diálogo / panel",
+    "productSearch": "Enfocar búsqueda de productos (POS)",
+    "customerSearch": "Abrir selector de clientes (POS)",
+    "vehicleSearch": "Abrir selector de vehículos (POS)",
+    "focusPayment": "Enfocar campo de pago (POS)"
   },
   "shortcutCategories": {
     "pos": "Punto de Venta"

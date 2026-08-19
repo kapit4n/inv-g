@@ -932,3 +932,128 @@ Updated shortcuts list to reflect actually implemented global shortcuts:
 search, Ctrl+N new, Ctrl+S save, Ctrl+P print, Escape close, F2 product, F4 customer,
 F6 vehicle, F10 payment. Inspect existing shortcuts first; avoid conflicts; document
 via shortcut/help dialog. Tests.
+
+---
+
+## TASK 10 — Keyboard shortcuts ✅
+
+**Status:** Complete
+**Date:** 2026-08-19
+**Branch/commit:** master
+
+### Current status
+- **Phase:** 3 — Desktop productivity
+- **Task:** 10 — Keyboard shortcuts
+- **Next recommended task:** **TASK 11 — Quick Actions dashboard**
+
+### What this task was
+Centralized keyboard shortcut system. Previously shortcuts were scattered across
+`command-palette.tsx` (5 shortcuts) and `pos-page.tsx` (4 shortcuts) via individual
+`useHotkey` calls with no single source of truth, potential Escape conflicts, and
+no way to discover shortcuts except the help page. This task created a central
+registry, a `ShortcutProvider` that registers all shortcuts from one place, context-
+aware POS shortcuts via custom events, and a shared theme-cycling utility.
+
+### Architecture
+
+#### Central registry (`src/lib/shortcuts/shortcuts.ts`)
+Single source of truth for all shortcut metadata: 13 shortcuts with `id`, `keys`,
+`scope` (global | pos), `category` (navigation | actions | pos | appearance),
+and `actionKey` (i18n key). Used by the help page for documentation.
+
+**Shortcuts registered:**
+
+| Shortcut | Scope | Action |
+|---|---|---|
+| Ctrl+K | global | Toggle command palette |
+| Ctrl+F | global | Focus search (or open palette) |
+| Ctrl+N | global | New sale (POS) |
+| Ctrl+Shift+P | global | New purchase order |
+| Ctrl+Shift+D | global | Cycle theme |
+| Ctrl+B | global | Toggle sidebar |
+| Ctrl+S | global | Save (dispatches `shortcut:save`) |
+| Ctrl+P | global | Print (dispatches `shortcut:print`) |
+| Escape | global | Close (priority: palette > dialog > page) |
+| F2 | pos | Focus product search |
+| F4 | pos | Open customer selector |
+| F6 | pos | Open vehicle selector |
+| F10 | pos | Focus payment field |
+
+#### ShortcutProvider (`src/components/shortcut-provider.tsx`)
+Mounted in `AppShell`. Registers all global shortcuts via `useHotkey`. Handles
+Escape priority: command palette first, then active dialogs, then page-specific
+(via `shortcut:escape` custom event). POS-specific shortcuts (F2/F4/F6/F10) are
+only active when on `/sales/new` and dispatch `shortcut:pos` custom events with a
+`detail` string identifying which action.
+
+#### Theme cycle utility (`src/lib/theme-cycle.ts`)
+Extracted `cycleTheme` from the command palette into a shared pure function. Both
+the `ShortcutProvider` and command palette use it. Persists via `useThemeStore`.
+
+#### Command palette (`src/components/command-palette.tsx`)
+Removed 5 `useHotkey` calls and the manual global Escape listener — all now
+handled by `ShortcutProvider`. The palette retains local keyboard navigation
+(ArrowUp/Down/Enter/Escape on the input) and the `cycleTheme` for its internal
+toggle-theme action.
+
+#### POS page (`src/features/sales/pages/pos-page.tsx`)
+Removed 4 `useHotkey` calls. Now listens for `shortcut:escape` and `shortcut:pos`
+custom events. Reassigned shortcuts: F2 → product search (was customer), F4 →
+customer (was payment), F6 → vehicle (new, placeholder), F10 → payment (was
+checkout).
+
+### Files created/modified
+- `src/lib/shortcuts/shortcuts.ts` — expanded from 9 to 13 shortcuts
+- `src/lib/theme-cycle.ts` — new shared theme cycling utility
+- `src/components/shortcut-provider.tsx` — new centralized shortcut handler
+- `src/layouts/app-shell.tsx` — added ShortcutProvider
+- `src/components/command-palette.tsx` — removed useHotkey calls, removed global Escape listener
+- `src/features/sales/pages/pos-page.tsx` — replaced useHotkey with custom event listeners
+- `src/i18n/locales/en/help.json` — added keys for new shortcuts
+- `src/i18n/locales/es/help.json` — added keys for new shortcuts
+- `tests/unit/lib/shortcuts.test.ts` — new, 10 tests
+- `tests/unit/lib/theme-cycle.test.ts` — new, 4 tests
+- `tests/unit/components/shortcut-provider.test.tsx` — new, 8 tests
+- `tests/unit/components/pos-page.test.tsx` — updated Escape/F10 tests, added F2 test
+
+### Tests executed
+- `npm run typecheck` — ✅ passed.
+- `npm run lint` — ✅ 0 errors (pre-existing warnings).
+- `npx vitest run` — ✅ **49 files / 374 tests passed** (22 new: 10 shortcuts, 4 theme-cycle, 8 shortcut-provider).
+- `cargo test` — ✅ **72 passed** (unchanged).
+
+### Verification status
+- **GREEN.** Typecheck clean, lint 0 errors, 374 frontend + 72 Rust tests pass.
+
+### Architectural decisions
+- **Centralized registry + distributed listeners.** The `shortcuts.ts` registry is the
+  single source of truth for metadata (used by help page). The `ShortcutProvider`
+  handles global shortcuts; page-specific shortcuts use custom events dispatched
+  by the provider and listened by pages. This avoids a single component needing
+  to know about every page's internals.
+- **Custom events for page-specific shortcuts.** The `ShortcutProvider` detects
+  the current route and dispatches `shortcut:pos` / `shortcut:escape` events.
+  Pages listen for these events. This decouples the provider from page internals
+  while keeping shortcut registration centralized.
+- **Escape priority chain.** Command palette > Radix dialog `[data-state='open']` >
+  page-specific handler. The provider checks each in order and stops when one
+  consumes the event.
+- **Shared theme cycling.** Extracted from the command palette into `lib/theme-cycle.ts`
+  so both the provider and palette use the same logic without duplication.
+
+### Known issues discovered
+- F6 vehicle selector is a no-op placeholder — the POS page does not yet have a
+  vehicle selector component. This will be implemented in TASK 19 (Customer +
+  vehicle unified workflow).
+- `Ctrl+S` and `Ctrl+P` dispatch custom events (`shortcut:save`, `shortcut:print`)
+  but no pages currently listen for them. They are registered for future use when
+  forms and document pages need context-aware save/print.
+- The `useHotkey` hook attaches to `window` — POS shortcuts (F2/F4/F6/F10) fire
+  even when focused on inputs. This is intentional for POS keyboard-driven
+  operation but could interfere with input typing if any F-key is used in an
+  input field (unlikely in practice).
+
+### Next recommended task
+**TASK 11 — Quick Actions dashboard.** Employee-oriented operational dashboard:
+new sale, receive purchase, search product/customer, inventory, PO, returns;
+"needs attention" section. Do not duplicate the executive analytics dashboard.

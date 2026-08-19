@@ -12,7 +12,6 @@ import { Separator } from "@/components/ui/separator"
 import { CustomerSearchField, TextareaField } from "@/components/forms"
 import { processCheckout, getSaleItems, getHeldSales, getHeldSaleItems, holdSale, resumeHeldSale, deleteHeldSale } from "@/lib/tauri"
 import { useNotification } from "@/hooks/use-notification"
-import { useHotkey } from "@/hooks/use-hotkey"
 import { usePrint, usePrintConfig, useProductSearch } from "@/hooks"
 import { buildSaleReceiptModel, type ReceiptLabels } from "@/lib/print"
 import { cn } from "@/lib/utils"
@@ -316,30 +315,44 @@ export function PosPage() {
     setTimeout(() => searchRef.current?.focus(), 0)
   }, [])
 
-  useHotkey("Escape", () => {
-    if (completedSale) {
-      resetNewSale()
-      return
+  // Listen for centralized Escape shortcut
+  useEffect(() => {
+    const handleEscape = () => {
+      if (completedSale) {
+        resetNewSale()
+        return
+      }
+      setSearch("")
+      searchRef.current?.focus()
     }
-    setSearch("")
-    searchRef.current?.focus()
-  }, { deps: [setSearch, completedSale, resetNewSale] })
 
-  useHotkey("F2", () => {
-    if (completedSale) return
-    const customerBtn = document.querySelector("[data-testid='customer-search'] button") as HTMLButtonElement | null
-    customerBtn?.click()
-  }, { deps: [completedSale] })
+    window.addEventListener("shortcut:escape", handleEscape)
+    return () => window.removeEventListener("shortcut:escape", handleEscape)
+  }, [completedSale, resetNewSale, setSearch])
 
-  useHotkey("F4", () => {
-    if (completedSale) return
-    paymentRef.current?.focus()
-  }, { deps: [completedSale] })
+  // Listen for centralized POS shortcuts (F2=product, F4=customer, F6=vehicle, F10=payment)
+  useEffect(() => {
+    const handlePosShortcut = (e: Event) => {
+      if (completedSale) return
+      const detail = (e as CustomEvent).detail
 
-  useHotkey("F10", () => {
-    if (completedSale) return
-    handleCheckout()
-  }, { deps: [completedSale, handleCheckout] })
+      if (detail === "product") {
+        searchRef.current?.focus()
+        searchRef.current?.select()
+      } else if (detail === "customer") {
+        const customerBtn = document.querySelector("[data-testid='customer-search'] button") as HTMLButtonElement | null
+        customerBtn?.click()
+      } else if (detail === "vehicle") {
+        // TODO: Focus vehicle selector when implemented
+      } else if (detail === "payment") {
+        paymentRef.current?.focus()
+        paymentRef.current?.select()
+      }
+    }
+
+    window.addEventListener("shortcut:pos", handlePosShortcut)
+    return () => window.removeEventListener("shortcut:pos", handlePosShortcut)
+  }, [completedSale])
 
   const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowDown") {

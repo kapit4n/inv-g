@@ -3,6 +3,7 @@ import { Sidebar } from "./sidebar"
 import { TopBar } from "./top-bar"
 import { StatusBar } from "./status-bar"
 import { CommandPalette } from "@/components/command-palette"
+import { ShortcutProvider } from "@/components/shortcut-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { useSettingsStore } from "@/stores"
 import { cn } from "@/lib/utils"
@@ -12,6 +13,7 @@ export function AppShell() {
 
   return (
     <TooltipProvider>
+      <ShortcutProvider />
       <div className="flex h-screen overflow-hidden bg-background">
         <Sidebar />
         <div className={cn(

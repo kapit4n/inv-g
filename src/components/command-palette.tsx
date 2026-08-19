@@ -6,7 +6,6 @@ import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { useSettingsStore } from "@/stores"
 import { cn } from "@/lib/utils"
-import { useHotkey } from "@/hooks/use-hotkey"
 import { buildCommands, commandCategories } from "@/lib/command-palette/commands"
 import type { Command, CommandCategory } from "@/lib/command-palette/types"
 
@@ -73,12 +72,6 @@ export function CommandPalette() {
     }
   }, [commandPaletteOpen])
 
-  useHotkey("Ctrl+K", () => setCommandPaletteOpen(!commandPaletteOpen), { deps: [commandPaletteOpen, setCommandPaletteOpen] })
-  useHotkey("Ctrl+N", () => navigate("/sales/new"))
-  useHotkey("Ctrl+Shift+P", () => navigate("/purchases/orders/new"))
-  useHotkey("Ctrl+Shift+D", cycleTheme)
-  useHotkey("Ctrl+B", toggleSidebar)
-
   const executeCommand = useCallback(
     (cmd: Command) => {
       cmd.action()
@@ -106,17 +99,6 @@ export function CommandPalette() {
     },
     [flatFiltered, selectedIndex, executeCommand, setCommandPaletteOpen]
   )
-
-  useEffect(() => {
-    const handleGlobalEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && commandPaletteOpen) {
-        e.preventDefault()
-        setCommandPaletteOpen(false)
-      }
-    }
-    window.addEventListener("keydown", handleGlobalEscape)
-    return () => window.removeEventListener("keydown", handleGlobalEscape)
-  }, [commandPaletteOpen, setCommandPaletteOpen])
 
   useEffect(() => {
     if (listRef.current) {

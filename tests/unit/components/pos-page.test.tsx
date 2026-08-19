@@ -162,7 +162,7 @@ describe("PosPage", () => {
       expect(screen.queryByText("Brake Pads")).toBeNull()
       expect(screen.getByText("Oil Filter")).toBeTruthy()
     }, { timeout: 3000 })
-    fireEvent.keyDown(window, { key: "Escape" })
+    window.dispatchEvent(new CustomEvent("shortcut:escape"))
     await waitFor(() => {
       expect((searchInput as HTMLInputElement).value).toBe("")
       expect(screen.getByText("Brake Pads")).toBeTruthy()
@@ -309,14 +309,24 @@ describe("PosPage", () => {
     }, { timeout: 2000 })
   })
 
-  it("F10 keyboard shortcut triggers checkout when payment covers total", async () => {
+  it("F10 keyboard shortcut focuses payment field", async () => {
     renderPos()
     await addProduct()
-    fireEvent.change(screen.getByRole("spinbutton", { name: "Payment 1" }), { target: { value: "116" } })
-    fireEvent.keyDown(window, { key: "F10" })
+    const paymentInput = screen.getByRole("spinbutton", { name: "Payment 1" })
+    window.dispatchEvent(new CustomEvent("shortcut:pos", { detail: "payment" }))
 
     await waitFor(() => {
-      expect(processCheckout).toHaveBeenCalled()
+      expect(document.activeElement).toBe(paymentInput)
+    }, { timeout: 3000 })
+  })
+
+  it("F2 keyboard shortcut focuses product search", async () => {
+    renderPos()
+    const searchInput = await screen.findByRole("textbox", { name: "Search products..." })
+    window.dispatchEvent(new CustomEvent("shortcut:pos", { detail: "product" }))
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(searchInput)
     }, { timeout: 3000 })
   })
 

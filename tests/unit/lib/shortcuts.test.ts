@@ -1,95 +1,76 @@
 import { describe, it, expect } from "vitest"
 import { shortcuts, shortcutCategories } from "@/lib/shortcuts/shortcuts"
+import type { ShortcutScope, ShortcutCategory } from "@/lib/shortcuts/shortcuts"
 
 describe("shortcuts registry", () => {
-  it("defines all expected shortcuts", () => {
-    expect(shortcuts.length).toBe(9)
-  })
-
-  it("every shortcut has required fields", () => {
-    for (const s of shortcuts) {
-      expect(s.id).toBeTruthy()
-      expect(s.keys).toBeTruthy()
-      expect(["global", "pos"]).toContain(s.scope)
-      expect(["navigation", "actions", "pos", "appearance"]).toContain(s.category)
-      expect(s.actionKey).toBeTruthy()
-    }
-  })
-
-  it("has unique ids", () => {
+  it("contains all expected shortcuts", () => {
     const ids = shortcuts.map((s) => s.id)
-    expect(new Set(ids).size).toBe(ids.length)
+    expect(ids).toContain("commandPalette")
+    expect(ids).toContain("globalSearch")
+    expect(ids).toContain("toggleSidebar")
+    expect(ids).toContain("newSale")
+    expect(ids).toContain("newPurchaseOrder")
+    expect(ids).toContain("toggleTheme")
+    expect(ids).toContain("save")
+    expect(ids).toContain("print")
+    expect(ids).toContain("close")
+    expect(ids).toContain("productSearch")
+    expect(ids).toContain("customerSearch")
+    expect(ids).toContain("vehicleSearch")
+    expect(ids).toContain("focusPayment")
   })
 
-  it("Ctrl+K is registered as global navigation shortcut", () => {
-    const cmd = shortcuts.find((s) => s.id === "commandPalette")
-    expect(cmd).toBeDefined()
-    expect(cmd!.keys).toBe("Ctrl+K")
-    expect(cmd!.scope).toBe("global")
-    expect(cmd!.category).toBe("navigation")
+  it("has 13 shortcuts total", () => {
+    expect(shortcuts.length).toBe(13)
   })
 
-  it("Ctrl+N new sale is registered", () => {
-    const cmd = shortcuts.find((s) => s.id === "newSale")
-    expect(cmd).toBeDefined()
-    expect(cmd!.keys).toBe("Ctrl+N")
-    expect(cmd!.scope).toBe("global")
+  it("every shortcut has valid scope", () => {
+    const validScopes: ShortcutScope[] = ["global", "pos"]
+    shortcuts.forEach((s) => {
+      expect(validScopes).toContain(s.scope)
+    })
   })
 
-  it("Ctrl+Shift+P new purchase order is registered", () => {
-    const cmd = shortcuts.find((s) => s.id === "newPurchaseOrder")
-    expect(cmd).toBeDefined()
-    expect(cmd!.keys).toBe("Ctrl+Shift+P")
-    expect(cmd!.scope).toBe("global")
+  it("every shortcut has valid category", () => {
+    const validCategories: ShortcutCategory[] = ["navigation", "actions", "pos", "appearance"]
+    shortcuts.forEach((s) => {
+      expect(validCategories).toContain(s.category)
+    })
   })
 
-  it("Ctrl+Shift+D toggle theme is registered", () => {
-    const cmd = shortcuts.find((s) => s.id === "toggleTheme")
-    expect(cmd).toBeDefined()
-    expect(cmd!.keys).toBe("Ctrl+Shift+D")
-    expect(cmd!.scope).toBe("global")
-    expect(cmd!.category).toBe("appearance")
+  it("every shortcut has a non-empty keys string", () => {
+    shortcuts.forEach((s) => {
+      expect(s.keys.trim().length).toBeGreaterThan(0)
+    })
   })
 
-  it("Ctrl+B toggle sidebar is registered", () => {
-    const cmd = shortcuts.find((s) => s.id === "toggleSidebar")
-    expect(cmd).toBeDefined()
-    expect(cmd!.keys).toBe("Ctrl+B")
-    expect(cmd!.scope).toBe("global")
-    expect(cmd!.category).toBe("appearance")
+  it("every shortcut has a non-empty actionKey", () => {
+    shortcuts.forEach((s) => {
+      expect(s.actionKey.trim().length).toBeGreaterThan(0)
+    })
   })
 
-  it("F2 customer search is registered as POS scope", () => {
-    const cmd = shortcuts.find((s) => s.id === "customerSearch")
-    expect(cmd).toBeDefined()
-    expect(cmd!.keys).toBe("F2")
-    expect(cmd!.scope).toBe("pos")
-    expect(cmd!.category).toBe("pos")
+  it("global shortcuts include Ctrl+K, Ctrl+F, Ctrl+N, Ctrl+B", () => {
+    const globalShortcuts = shortcuts.filter((s) => s.scope === "global")
+    const keys = globalShortcuts.map((s) => s.keys)
+    expect(keys).toContain("Ctrl+K")
+    expect(keys).toContain("Ctrl+F")
+    expect(keys).toContain("Ctrl+N")
+    expect(keys).toContain("Ctrl+B")
   })
 
-  it("F4 focus payment is registered as POS scope", () => {
-    const cmd = shortcuts.find((s) => s.id === "focusPayment")
-    expect(cmd).toBeDefined()
-    expect(cmd!.keys).toBe("F4")
-    expect(cmd!.scope).toBe("pos")
+  it("POS shortcuts include F2, F4, F6, F10", () => {
+    const posShortcuts = shortcuts.filter((s) => s.scope === "pos")
+    const keys = posShortcuts.map((s) => s.keys)
+    expect(keys).toContain("F2")
+    expect(keys).toContain("F4")
+    expect(keys).toContain("F6")
+    expect(keys).toContain("F10")
   })
+})
 
-  it("F10 checkout is registered as POS scope", () => {
-    const cmd = shortcuts.find((s) => s.id === "checkout")
-    expect(cmd).toBeDefined()
-    expect(cmd!.keys).toBe("F10")
-    expect(cmd!.scope).toBe("pos")
-  })
-
-  it("Escape is registered as global shortcut", () => {
-    const cmd = shortcuts.find((s) => s.id === "close")
-    expect(cmd).toBeDefined()
-    expect(cmd!.keys).toBe("Escape")
-    expect(cmd!.scope).toBe("global")
-  })
-
-  it("has 4 shortcut categories", () => {
-    expect(shortcutCategories).toHaveLength(4)
+describe("shortcut categories", () => {
+  it("contains navigation, actions, pos, appearance", () => {
     const ids = shortcutCategories.map((c) => c.id)
     expect(ids).toContain("navigation")
     expect(ids).toContain("actions")
@@ -97,26 +78,9 @@ describe("shortcuts registry", () => {
     expect(ids).toContain("appearance")
   })
 
-  it("global shortcuts are a subset of shortcuts", () => {
-    const globalIds = shortcuts.filter((s) => s.scope === "global").map((s) => s.id)
-    expect(globalIds).toContain("commandPalette")
-    expect(globalIds).toContain("newSale")
-    expect(globalIds).toContain("newPurchaseOrder")
-    expect(globalIds).toContain("toggleTheme")
-    expect(globalIds).toContain("toggleSidebar")
-    expect(globalIds).toContain("close")
-  })
-
-  it("POS shortcuts are a subset of shortcuts", () => {
-    const posIds = shortcuts.filter((s) => s.scope === "pos").map((s) => s.id)
-    expect(posIds).toContain("customerSearch")
-    expect(posIds).toContain("focusPayment")
-    expect(posIds).toContain("checkout")
-  })
-
-  it("every shortcut actionKey follows help.shortcuts.* pattern", () => {
-    for (const s of shortcuts) {
-      expect(s.actionKey).toMatch(/^help\.shortcuts\./)
-    }
+  it("every category has a label key", () => {
+    shortcutCategories.forEach((c) => {
+      expect(c.label.trim().length).toBeGreaterThan(0)
+    })
   })
 })

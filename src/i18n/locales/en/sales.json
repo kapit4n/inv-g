@@ -43,7 +43,7 @@
   "stockOut": "Out of stock",
   "stockLeft": "{{count}} {{unit}} left",
   "stockOnly": "Only {{count}} left",
-  "posShortcuts": "F2 customer · F4 pay · F10 checkout · Esc clear",
+  "posShortcuts": "F2 product · F4 customer · F6 vehicle · F10 pay · Esc clear",
   "saleComplete": "Sale Complete",
   "saleCompleteMsg": "Invoice {{number}} created successfully",
   "newSaleButton": "New Sale",

@@ -43,7 +43,7 @@
   "stockOut": "Sin stock",
   "stockLeft": "{{count}} {{unit}} restantes",
   "stockOnly": "Solo quedan {{count}}",
-  "posShortcuts": "F2 cliente · F4 pago · F10 cobrar · Esc limpiar",
+  "posShortcuts": "F2 producto · F4 cliente · F6 vehículo · F10 pago · Esc limpiar",
   "saleComplete": "Venta Completada",
   "saleCompleteMsg": "Factura {{number}} creada exitosamente",
   "newSaleButton": "Nueva Venta",

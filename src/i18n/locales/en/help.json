@@ -3,14 +3,18 @@
   "description": "Find help, shortcuts, and resources for using the system",
   "shortcuts": {
     "commandPalette": "Open command palette",
+    "globalSearch": "Focus search",
     "toggleSidebar": "Toggle sidebar",
     "newSale": "New sale (POS)",
     "newPurchaseOrder": "New purchase order",
     "toggleTheme": "Toggle theme",
-    "customerSearch": "Open customer search (POS)",
-    "focusPayment": "Focus payment field (POS)",
-    "checkout": "Complete checkout (POS)",
-    "close": "Close dialog / panel"
+    "save": "Save current form",
+    "print": "Print current document",
+    "close": "Close dialog / panel",
+    "productSearch": "Focus product search (POS)",
+    "customerSearch": "Open customer selector (POS)",
+    "vehicleSearch": "Open vehicle selector (POS)",
+    "focusPayment": "Focus payment field (POS)"
   },
   "shortcutCategories": {
     "pos": "Point of Sale"
