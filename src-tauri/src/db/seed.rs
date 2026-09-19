@@ -267,7 +267,19 @@ const SEED_PRODUCTS: &[(&str, &str, &str, f64, f64, i32, i32, i32, &str, i32, i3
     ("Engine Oil 5W30 Synthetic", "OIL-MOBIL-001", "Aceite de motor sintético 5W30", 8.00, 22.00, 100, 10, 150, "ltr", 7, 1, 1),
 ];
 
+/// Seeds the database using the `default` profile (legacy behaviour).
 pub fn seed_database(conn: &Connection) -> Result<()> {
+    seed_database_with_profile(conn, crate::config::PROFILE_DEFAULT)
+}
+
+/// Seeds the database honouring the active database profile.
+///
+/// * `default` — legacy behaviour (3 warehouses, everything seeded).
+/// * `single-store` — exactly 1 warehouse, all products in it.
+/// * `multi-store` — 3 warehouses, products distributed across them.
+/// * `empty` — users/roles/permissions/settings only, no business reference
+///   data or warehouses.
+pub fn seed_database_with_profile(conn: &Connection, profile: &str) -> Result<()> {
     let existing_users: i64 = conn.query_row(
         "SELECT COUNT(*) FROM users", [], |row| row.get(0)
     )?;
@@ -277,13 +289,16 @@ pub fn seed_database(conn: &Connection) -> Result<()> {
         seed_roles(conn)?;
         seed_users(conn)?;
         seed_settings(conn)?;
-        seed_categories(conn)?;
-        seed_brands(conn)?;
-        seed_manufacturers(conn)?;
-        seed_suppliers(conn)?;
-        seed_warehouses(conn)?;
-        seed_storage_locations(conn)?;
-        seed_products(conn)?;
+
+        if profile != crate::config::PROFILE_EMPTY {
+            seed_categories(conn)?;
+            seed_brands(conn)?;
+            seed_manufacturers(conn)?;
+            seed_suppliers(conn)?;
+            seed_warehouses(conn, profile)?;
+            seed_storage_locations(conn, profile)?;
+            seed_products(conn, profile)?;
+        }
     }
 
     // Always seed these (they check existence internally)
@@ -606,8 +621,19 @@ fn seed_suppliers(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-fn seed_warehouses(conn: &Connection) -> Result<()> {
-    for (name, code, address, city, state) in SEED_WAREHOUSES {
+fn seed_warehouses(conn: &Connection, profile: &str) -> Result<()> {
+    if profile == crate::config::PROFILE_EMPTY {
+        return Ok(());
+    }
+
+    // single-store keeps only the first warehouse; default/multi-store keep all.
+    let warehouses: &[(&str, &str, &str, &str, &str)] = if profile == crate::config::PROFILE_SINGLE_STORE {
+        &SEED_WAREHOUSES[..1]
+    } else {
+        &SEED_WAREHOUSES[..]
+    };
+
+    for (name, code, address, city, state) in warehouses {
         conn.execute(
             "INSERT OR IGNORE INTO warehouses (name, code, address, city, state) VALUES (?1, ?2, ?3, ?4, ?5)",
             rusqlite::params![name, code, address, city, state],
@@ -616,8 +642,18 @@ fn seed_warehouses(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-fn seed_storage_locations(conn: &Connection) -> Result<()> {
-    for (zone, aisle, shelf, bin, code, warehouse_idx) in SEED_STORAGE_LOCATIONS {
+fn seed_storage_locations(conn: &Connection, profile: &str) -> Result<()> {
+    if profile == crate::config::PROFILE_EMPTY {
+        return Ok(());
+    }
+
+    let locations: &[(&str, &str, &str, &str, &str, i32)] = if profile == crate::config::PROFILE_SINGLE_STORE {
+        &SEED_STORAGE_LOCATIONS[..5]
+    } else {
+        &SEED_STORAGE_LOCATIONS[..]
+    };
+
+    for (zone, aisle, shelf, bin, code, warehouse_idx) in locations {
         if let Ok(warehouse_id) = conn.query_row::<i64, _, _>(
             "SELECT id FROM warehouses WHERE code = ?1",
             rusqlite::params![format!("WH-{:03}", warehouse_idx)],
@@ -632,7 +668,25 @@ fn seed_storage_locations(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-fn seed_products(conn: &Connection) -> Result<()> {
+fn warehouse_ids(conn: &Connection) -> Vec<i64> {
+    let mut stmt = match conn.prepare("SELECT id FROM warehouses ORDER BY code") {
+        Ok(s) => s,
+        Err(_) => return Vec::new(),
+    };
+    stmt.query_map([], |row| row.get::<_, i64>(0))
+        .map(|rows| rows.filter_map(|r| r.ok()).collect())
+        .unwrap_or_default()
+}
+
+fn seed_products(conn: &Connection, profile: &str) -> Result<()> {
+    if profile == crate::config::PROFILE_EMPTY {
+        return Ok(());
+    }
+
+    let warehouses = warehouse_ids(conn);
+    let default_warehouse_id = warehouses.first().copied().unwrap_or(1);
+    let multi_store = profile == crate::config::PROFILE_MULTI_STORE;
+
     let default_category = |idx: i32| -> Option<i64> {
         conn.query_row("SELECT id FROM categories WHERE sort_order = ?1", rusqlite::params![idx], |row| row.get(0)).ok()
     };
@@ -643,14 +697,22 @@ fn seed_products(conn: &Connection) -> Result<()> {
         conn.query_row("SELECT id FROM brands WHERE id = ?1", rusqlite::params![idx], |row| row.get(0)).ok()
     };
 
-    for (name, sku, description, cost_price, sale_price, stock_qty, min_stock, max_stock, unit, cat_idx, brand_idx, supplier_idx) in SEED_PRODUCTS {
+    for (i, (name, sku, description, cost_price, sale_price, stock_qty, min_stock, max_stock, unit, cat_idx, brand_idx, supplier_idx)) in SEED_PRODUCTS.iter().enumerate() {
         let category_id = default_category(*cat_idx);
         let brand_id = default_brand(*brand_idx);
         let supplier_id = default_supplier(*supplier_idx);
 
+        // multi-store distributes products round-robin across stores; any
+        // other profile pins everything to the first (only) warehouse.
+        let warehouse_id = if multi_store && !warehouses.is_empty() {
+            warehouses[i % warehouses.len()]
+        } else {
+            default_warehouse_id
+        };
+
         conn.execute(
-            "INSERT OR IGNORE INTO products (name, sku, description, cost_price, sale_price, stock_quantity, min_stock_level, max_stock_level, unit, category_id, brand_id, supplier_id, warehouse_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 1)",
-            rusqlite::params![name, sku, description, cost_price, sale_price, stock_qty, min_stock, max_stock, unit, category_id, brand_id, supplier_id],
+            "INSERT OR IGNORE INTO products (name, sku, description, cost_price, sale_price, stock_quantity, min_stock_level, max_stock_level, unit, category_id, brand_id, supplier_id, warehouse_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+            rusqlite::params![name, sku, description, cost_price, sale_price, stock_qty, min_stock, max_stock, unit, category_id, brand_id, supplier_id, warehouse_id],
         )?;
     }
     Ok(())

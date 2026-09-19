@@ -6,6 +6,35 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-18 — Flaky Rust config test: `test_read_active_profile_no_file_falls_back_to_default` intermittently failed
+
+**Symptom:**
+- `cargo test --lib` occasionally failed with
+  `read_active_profile(...) == "multi-store"` instead of `"default"`.
+- Non-deterministic: the same suite passed on earlier runs and failed later.
+
+**Investigation:**
+- `src-tauri/src/config.rs` `temp_dir()` built one path per process
+  (`inventory-gear-config-<pid>`) and tests ran **in parallel**.
+- `test_write_and_read_profile_roundtrip` wrote `{"profile":"multi-store"}`
+  into that shared dir while `test_read_active_profile_no_file...` was reading
+  it, so the "no file" test saw another test's `profile.json`.
+- `test_env_var_overrides_file` additionally mutated the process-wide
+  `IG_DATABASE_PROFILE` env var (cleaned up after itself, but also racy).
+- First surfaced when `npm run verify` invoked `cargo test` and the full suite
+  ran simultaneously.
+
+**Fix:**
+- `temp_dir()` now appends a per-call atomic counter
+  (`AtomicU64`) so every test uses an isolated directory; no two tests share
+  state. Verified deterministic by running the config suite 3×.
+
+**Affected:** `src-tauri/src/config.rs` (test helper only). Frontend unchanged.
+
+**Commit:** `TBD`
+
+---
+
 ### 2026-08-13 — Print feature: `usePrint()` crash, A4 paper width misreport, and missing sales locale keys
 
 **Symptom:**

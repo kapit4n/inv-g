@@ -6,6 +6,44 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased] - Database Profiles
+
+### Added
+
+- Four development/test database profiles: `default`, `single-store`, `multi-store`, `empty`
+  with per-profile DB files (`inventory_gear.db`, `inventory-gear-single.db`, `inventory-gear-multi.db`, `inventory-gear-empty.db`).
+- Profile resolution: `IG_DATABASE_PROFILE` env var → `profile.json` in the app data dir → `default`.
+- Profile-aware Rust seeding (`single-store` = 1 warehouse, `multi-store` = 3 warehouses,
+  `empty` = users/roles/settings only) and TSX seeder (`--profile` flag; warehouses, locations,
+  transfers skip < 2 warehouses, empty skips business data).
+- `BusinessCapabilities` model + `get_business_context` / `get_business_capabilities` backend
+  commands; capabilities derived from the connected DB (store count).
+- Store transfers: `transfer_inventory_between_stores` command with
+  `transfer_out`/`transfer_in` movements and warehouse re-assignment (multi-store only, server enforced).
+- Per-store commands: `get_store_sales`, `get_store_inventory` (multi-store only).
+- Store-aware POS: `processCheckout` accepts `warehouseId`; single-store auto-resolves the only store.
+- StoreSelector in the top bar (multi-store), persisted per session.
+- Sidebar/route gating by capability (hide Warehouses/Storage Locations/Transfers when unsupported).
+- `/inventory/transfers` page with transfer form and recent-transfers history.
+- Dashboard per-store widgets (Sales by Store, Inventory by Store) rendered only in multi-store.
+- Settings → Developer Tools card (dev builds only) to switch profile; restart required.
+- i18n keys in `en` and `es` for the selector, transfers, dev tools and dashboard widgets
+  (new `business` namespace).
+- Docs: `docs/database-profiles.md`, `docs/database-profiles-assessment.md`,
+  `docs/database-profiles-progress.md`, docs-site page `developer/database-profiles`.
+
+### Fixed
+
+- Flaky Rust config test: tests now use a unique temp dir per call instead of a shared
+  process-wide dir (parallel test races on `profile.json`).
+
+### Regressions
+
+- None: `npm run verify` passes (typecheck → lint → vitest 431 tests → rust 87 tests);
+  legacy `default` DB behaviour unchanged.
+
+---
+
 ## [1.0.0] - 2026-08-19
 
 ### Added

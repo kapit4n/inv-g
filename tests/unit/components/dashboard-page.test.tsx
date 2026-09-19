@@ -9,6 +9,8 @@ vi.mock("@/lib/tauri", () => ({
   getCrmDashboard: vi.fn(),
   getDashboardStats: vi.fn(),
   getSales: vi.fn(),
+  getStoreSales: vi.fn().mockResolvedValue([]),
+  getStoreInventory: vi.fn().mockResolvedValue([]),
 }))
 
 import {

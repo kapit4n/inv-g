@@ -225,5 +225,15 @@
     "cross_ref": "Cross Reference"
   },
   "brandNameOptional": "Brand name (optional)",
-  "notesOptional": "Notes (optional)"
+  "notesOptional": "Notes (optional)",
+  "storeTransfers": "Store Transfers",
+  "transfersTitle": "Store Transfers",
+  "transfersDesc": "Move stock between stores and track transfer history",
+  "newTransfer": "New Transfer",
+  "transferFrom": "From store",
+  "transferTo": "To store",
+  "transferNow": "Transfer Stock",
+  "transferCreated": "Inventory transferred between stores.",
+  "recentTransfers": "Recent Transfers",
+  "noTransfers": "No transfers yet"
 }

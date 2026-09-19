@@ -517,6 +517,10 @@ pub fn get_sale_payments(state: State<DbState>, sale_id: i64) -> Result<Vec<Sale
 pub fn process_checkout(state: State<DbState>, input: CheckoutInput) -> Result<CheckoutResult, String> {
     let conn = get_conn(&state)?;
 
+    // Store-aware checkout: single-store auto-uses the only store; multi-store
+    // requires an explicit store.
+    let warehouse_id = crate::commands::business::resolve_checkout_store(&conn, input.warehouse_id)?;
+
     let sale_number = next_sale_number(&conn)?;
     let receipt_number = next_receipt_number(&conn)?;
 
@@ -534,7 +538,7 @@ pub fn process_checkout(state: State<DbState>, input: CheckoutInput) -> Result<C
     conn.execute(
         "INSERT INTO sales (sale_number, receipt_number, customer_id, user_id, warehouse_id, subtotal, tax_rate, tax_amount, discount_amount, total, payment_method, payment_status, notes)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11)",
-        params![sale_number, receipt_number, input.customer_id, input.user_id, input.warehouse_id,
+        params![sale_number, receipt_number, input.customer_id, input.user_id, warehouse_id,
                 subtotal, total_discount, subtotal, payment_method, payment_status, input.notes],
     ).map_err(|e| e.to_string())?;
 

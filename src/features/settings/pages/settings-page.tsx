@@ -1,16 +1,20 @@
-import { useCallback, useMemo } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
-import { Store, Palette, Database, Bell, Shield, Globe, Printer, Truck, Check, ArrowRight } from "lucide-react"
+import { Store, Palette, Database, Bell, Shield, Globe, Printer, Truck, Check, ArrowRight, FlaskConical } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
-import { useLanguageStore, useAppSettingsStore, useThemeStore } from "@/stores"
+import { useLanguageStore, useAppSettingsStore, useThemeStore, useBusinessStore } from "@/stores"
 import { usePermission } from "@/hooks"
-import { updateAppSetting } from "@/lib/tauri"
+import { updateAppSetting, switchDatabaseProfile } from "@/lib/tauri"
+import { useNotification } from "@/hooks/use-notification"
+import type { DatabaseProfile } from "@/types"
+
+const PROFILE_OPTIONS: DatabaseProfile[] = ["default", "single-store", "multi-store", "empty"]
 
 const settingGroups = [
   { icon: <Store className="h-5 w-5" />, titleKey: "settings.storeInformation", descKey: "settings.storeInfoDesc", badgeKey: "common.required" },
@@ -31,6 +35,22 @@ export function SettingsPage() {
   const getValue = useAppSettingsStore((s) => s.getValue)
   const setSettingValue = useAppSettingsStore((s) => s.setValue)
   const canManageSettings = usePermission("admin.settings.manage")
+  const notification = useNotification()
+  const businessContext = useBusinessStore((s) => s.context)
+  const [switching, setSwitching] = useState<DatabaseProfile | null>(null)
+
+  const switchProfile = async (profile: DatabaseProfile) => {
+    if (switching) return
+    setSwitching(profile)
+    try {
+      const message = await switchDatabaseProfile(profile)
+      notification.success(t("settings.devTools.switchSuccess"), message)
+    } catch (err) {
+      notification.error(t("common.error"), String(err))
+    } finally {
+      setSwitching(null)
+    }
+  }
 
   const settingEnabled = useCallback(
     (key: string, fallback = true) => getValue(key) !== undefined ? getValue(key) === "true" : fallback,
@@ -166,6 +186,42 @@ export function SettingsPage() {
           </Card>
         </div>
       </div>
+
+      {businessContext?.devMode && canManageSettings && (
+        <div className="space-y-4">
+          <Separator />
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <FlaskConical className="h-5 w-5 text-muted-foreground" />
+              <h3 className="text-lg font-semibold">{t("settings.devTools.title")}</h3>
+              <Badge variant="warning" className="text-[10px]">{t("settings.devTools.devOnly")}</Badge>
+            </div>
+            <Card className="border-dashed">
+              <CardContent className="space-y-3 p-6">
+                <div className="text-xs text-muted-foreground">
+                  <p><span className="font-semibold text-foreground">{t("settings.devTools.activeProfile")}:</span> {businessContext.activeProfile}</p>
+                  <p className="mt-1 truncate"><span className="font-semibold text-foreground">{t("settings.devTools.database")}:</span> {businessContext.databasePath}</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {PROFILE_OPTIONS.map((profile) => (
+                    <Button
+                      key={profile}
+                      variant={businessContext.activeProfile === profile ? "default" : "outline"}
+                      size="sm"
+                      disabled={switching !== null}
+                      onClick={() => switchProfile(profile)}
+                    >
+                      {switching === profile && t("settings.devTools.switching")}
+                      {profile}
+                    </Button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-muted-foreground">{t("settings.devTools.restartWarning")}</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

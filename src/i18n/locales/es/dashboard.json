@@ -40,5 +40,13 @@
     "newPODesc": "Crear orden de compra",
     "inventory": "Inventario",
     "inventoryDesc": "Ver niveles de stock"
+  },
+  "perStore": {
+    "title": "Resumen de Tiendas",
+    "desc": "Totales de ventas e inventario por tienda",
+    "salesTitle": "Ventas por Tienda",
+    "inventoryTitle": "Inventario por Tienda",
+    "empty": "Aún no hay datos de tiendas",
+    "products": "productos"
   }
 }

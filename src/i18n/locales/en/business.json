@@ -1,0 +1,11 @@
+{
+  "selectStore": "Select store",
+  "selectStorePlaceholder": "Select store...",
+  "errors": {
+    "multiStoreRequired": "This feature requires a multi-store database profile.",
+    "storeRequired": "Select a store. In a multi-store profile every sale must be assigned to a store.",
+    "storeNotFound": "The selected store could not be found.",
+    "transferSameStore": "The source and destination stores must be different.",
+    "devOnly": "This action is only available in development builds."
+  }
+}

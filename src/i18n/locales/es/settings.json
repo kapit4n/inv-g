@@ -33,5 +33,14 @@
   "autoBackup": "Respaldo Automático",
   "autoBackupDesc": "Respaldo automático diario de la base de datos",
   "darkModeToggle": "Modo Oscuro",
-  "darkModeToggleDesc": "Usar esquema de colores oscuro"
+  "darkModeToggleDesc": "Usar esquema de colores oscuro",
+  "devTools": {
+    "title": "Herramientas de Desarrollo",
+    "devOnly": "Solo Dev",
+    "activeProfile": "Perfil activo",
+    "database": "Base de datos",
+    "switching": "Cambiando...",
+    "switchSuccess": "Perfil cambiado. Reinicie la aplicación para aplicarlo.",
+    "restartWarning": "Cambiar solo define qué base de datos de desarrollo/pruebas abre la aplicación. Requiere un reinicio y nunca toca la base de datos de producción."
+  }
 }

@@ -40,5 +40,13 @@
     "newPODesc": "Create purchase order",
     "inventory": "Inventory",
     "inventoryDesc": "View stock levels"
+  },
+  "perStore": {
+    "title": "Stores Overview",
+    "desc": "Sales and inventory totals per store",
+    "salesTitle": "Sales by Store",
+    "inventoryTitle": "Inventory by Store",
+    "empty": "No store data yet",
+    "products": "products"
   }
 }

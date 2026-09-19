@@ -238,6 +238,68 @@ export interface CheckoutResult {
   receiptNumber: string
 }
 
+// ── Business capabilities & store profiles ──
+
+export type DatabaseProfile = "default" | "single-store" | "multi-store" | "empty"
+
+export interface BusinessCapabilities {
+  multiStore: boolean
+  storeSelection: boolean
+  storeManagement: boolean
+  storeTransfers: boolean
+  crossStoreReports: boolean
+}
+
+export interface BusinessStoreInfo {
+  id: number
+  name: string
+  code: string
+  address?: string
+  city?: string
+  isActive: boolean
+  isDefault: boolean
+}
+
+export interface BusinessContext {
+  activeProfile: DatabaseProfile
+  databasePath: string
+  multiStore: boolean
+  storeCount: number
+  defaultStoreId?: number
+  stores: BusinessStoreInfo[]
+  capabilities: BusinessCapabilities
+  devMode: boolean
+}
+
+export interface StoreSalesRow {
+  storeId: number
+  storeName: string
+  storeCode: string
+  salesCount: number
+  totalRevenue: number
+  cashTotal: number
+  cardTotal: number
+  transferTotal: number
+}
+
+export interface StoreInventoryRow {
+  storeId: number
+  storeName: string
+  storeCode: string
+  productCount: number
+  totalStockUnits: number
+  inventoryValue: number
+}
+
+export interface TransferInput {
+  productId: number
+  fromStoreId: number
+  toStoreId: number
+  quantity: number
+  notes?: string
+  createdBy?: number
+}
+
 export interface HeldSale {
   id: number
   holdNumber: string

@@ -1,0 +1,11 @@
+{
+  "selectStore": "Seleccionar tienda",
+  "selectStorePlaceholder": "Seleccionar tienda...",
+  "errors": {
+    "multiStoreRequired": "Esta función requiere un perfil de base de datos de múltiples tiendas.",
+    "storeRequired": "Seleccione una tienda. En un perfil de múltiples tiendas, cada venta debe asignarse a una tienda.",
+    "storeNotFound": "No se pudo encontrar la tienda seleccionada.",
+    "transferSameStore": "La tienda de origen y de destino deben ser diferentes.",
+    "devOnly": "Esta acción solo está disponible en versiones de desarrollo."
+  }
+}

@@ -67,4 +67,53 @@ describe("Tauri Command Contracts", () => {
     const result = await tauri.runSeeds()
     expect(typeof result).toBe("string")
   })
+
+  it("getBusinessContext returns context with capabilities and stores", async () => {
+    const result = await tauri.getBusinessContext()
+    expect(result).toHaveProperty("activeProfile")
+    expect(result).toHaveProperty("storeCount")
+    expect(result).toHaveProperty("capabilities")
+    expect(Array.isArray(result.stores)).toBe(true)
+    expect(result.stores[0]).toHaveProperty("id")
+    expect(result.stores[0]).toHaveProperty("name")
+    expect(typeof result.capabilities.multiStore).toBe("boolean")
+  })
+
+  it("getBusinessCapabilities returns capability flags", async () => {
+    const result = await tauri.getBusinessCapabilities()
+    expect(result).toHaveProperty("multiStore")
+    expect(result).toHaveProperty("storeSelection")
+    expect(result).toHaveProperty("storeManagement")
+    expect(result).toHaveProperty("storeTransfers")
+    expect(result).toHaveProperty("crossStoreReports")
+  })
+
+  it("switchDatabaseProfile returns restart message", async () => {
+    const result = await tauri.switchDatabaseProfile("single-store")
+    expect(typeof result).toBe("string")
+  })
+
+  it("transferInventoryBetweenStores returns reference", async () => {
+    const result = await tauri.transferInventoryBetweenStores({
+      productId: 1,
+      fromStoreId: 1,
+      toStoreId: 2,
+      quantity: 5,
+    })
+    expect(typeof result).toBe("string")
+  })
+
+  it("getStoreSales returns array", async () => {
+    const result = await tauri.getStoreSales()
+    expect(Array.isArray(result)).toBe(true)
+    expect(result[0]).toHaveProperty("storeId")
+    expect(result[0]).toHaveProperty("totalRevenue")
+  })
+
+  it("getStoreInventory returns array", async () => {
+    const result = await tauri.getStoreInventory()
+    expect(Array.isArray(result)).toBe(true)
+    expect(result[0]).toHaveProperty("storeId")
+    expect(result[0]).toHaveProperty("inventoryValue")
+  })
 })

@@ -33,5 +33,14 @@
   "autoBackup": "Auto Backup",
   "autoBackupDesc": "Daily automatic database backup",
   "darkModeToggle": "Dark Mode",
-  "darkModeToggleDesc": "Use dark color scheme"
+  "darkModeToggleDesc": "Use dark color scheme",
+  "devTools": {
+    "title": "Developer Tools",
+    "devOnly": "Dev Only",
+    "activeProfile": "Active profile",
+    "database": "Database",
+    "switching": "Switching...",
+    "switchSuccess": "Profile switched. Restart the app to apply it.",
+    "restartWarning": "Switching only changes which development/test database the app opens. It requires a restart and never touches the production database."
+  }
 }

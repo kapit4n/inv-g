@@ -229,3 +229,27 @@ docs-site/**/*.md (Markdown source)
 - [x] Prepared for future features (easy to add new pages)
 - [x] README updated
 - [x] Existing tests pass without regression
+
+---
+
+## Database Profiles Milestone (2026-09-18)
+
+Full report: **[`docs/progress/MILESTONE_14.md`](./progress/MILESTONE_14.md)**.
+
+### Summary
+
+Implemented four development/test database profiles (`default`, `single-store`,
+`multi-store`, `empty`) with per-profile DB files, a capability model derived
+from the connected DB, profile-aware seeding (Rust + TSX), store transfers,
+per-store reports, a store selector, server-side enforcement of multi-store-only
+commands, and EN/ES i18n.
+
+- **Backend:** `config.rs` profile resolution (env → `profile.json` → default),
+  profile-aware init/seeding, new `commands/business.rs` with 6 commands, store-aware POS.
+- **Frontend:** business store + capability hook, StoreSelector, sidebar/route
+  gating, transfers page, dashboard per-store widgets, Developer Tools card.
+- **Quality:** `npm run verify` green — typecheck, lint (0 errors), Vitest
+  431 tests / 55 files, Rust 87 tests. Fixed a flaky Rust config test (shared
+  temp dir race).
+- **Docs:** `database-profiles.md`, assessment + progress files, `docs-site`
+  developer page, CHANGELOG / IMPLEMENTATION_STATUS / ROADMAP / BUG_FIX_LOG updated.

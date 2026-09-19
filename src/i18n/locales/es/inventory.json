@@ -225,5 +225,15 @@
     "cross_ref": "Referencia Cruzada"
   },
   "brandNameOptional": "Nombre de marca (opcional)",
-  "notesOptional": "Notas (opcional)"
+  "notesOptional": "Notas (opcional)",
+  "storeTransfers": "Transferencias de Tiendas",
+  "transfersTitle": "Transferencias de Tiendas",
+  "transfersDesc": "Mueva stock entre tiendas y consulte el historial",
+  "newTransfer": "Nueva Transferencia",
+  "transferFrom": "Tienda de origen",
+  "transferTo": "Tienda de destino",
+  "transferNow": "Transferir Stock",
+  "transferCreated": "Inventario transferido entre tiendas.",
+  "recentTransfers": "Transferencias Recientes",
+  "noTransfers": "Aún no hay transferencias"
 }

@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3"
-import { exists } from "./helpers"
+import type { DatabaseProfile } from "./index"
 
 const WAREHOUSES = [
   { name: "Almacén Principal", code: "WH-001", city: "Cochabamba", manager: "Carlos Romero" },
@@ -8,10 +8,23 @@ const WAREHOUSES = [
   { name: "Almacén de Rotación Rápida", code: "WH-004", city: "La Paz", manager: "Ana Morales" },
 ]
 
-export function seed(db: Database.Database): void {
-  const existing = db.prepare("SELECT COUNT(*) as cnt FROM warehouses").get() as { cnt: number }
-  if (existing.cnt >= WAREHOUSES.length) return
+/**
+ * Returns the target warehouse set for a profile:
+ *   single-store → exactly 1, multi-store → 3, default → 4 (legacy).
+ */
+function wantedWarehouses(profile: DatabaseProfile) {
+  if (profile === "single-store") return WAREHOUSES.slice(0, 1)
+  if (profile === "multi-store") return WAREHOUSES.slice(0, 3)
+  if (profile === "empty") return []
+  return WAREHOUSES
+}
 
+export function seed(db: Database.Database, profile: DatabaseProfile): void {
+  const wanted = wantedWarehouses(profile)
+  if (profile === "empty") return
+
+  // The base schema (created by the app) already provides warehouses for the
+  // single-store/multi-store seeds; only add whatever is missing.
   const checkStmt = db.prepare("SELECT id FROM warehouses WHERE code = ?")
   const insertStmt = db.prepare(
     `INSERT INTO warehouses (name, code, address, city, country, manager, phone, is_active, created_at, updated_at)
@@ -19,7 +32,7 @@ export function seed(db: Database.Database): void {
   )
 
   let added = 0
-  WAREHOUSES.forEach((w) => {
+  wanted.forEach((w) => {
     const row = checkStmt.get(w.code) as { id: number } | undefined
     if (!row) {
       insertStmt.run(w.name, w.code, `Zona Industrial, Calle ${w.code}`, w.city, w.manager, "+591 4 4567890")

@@ -13,6 +13,7 @@ import { CustomerSearchField, TextareaField } from "@/components/forms"
 import { processCheckout, getSaleItems, getHeldSales, getHeldSaleItems, holdSale, resumeHeldSale, deleteHeldSale } from "@/lib/tauri"
 import { useNotification } from "@/hooks/use-notification"
 import { usePrint, usePrintConfig, useProductSearch } from "@/hooks"
+import { useBusinessStore } from "@/stores"
 import { buildSaleReceiptModel, type ReceiptLabels } from "@/lib/print"
 import { cn } from "@/lib/utils"
 import type { ProductForPos, PaymentInput, CheckoutResult, HeldSale } from "@/types"
@@ -45,6 +46,7 @@ export function PosPage() {
   const paymentRef = useRef<HTMLInputElement>(null)
   const print = usePrint()
   const config = usePrintConfig()
+  const currentStoreId = useBusinessStore((s) => s.currentStoreId)
 
   const { query: search, setQuery: setSearch, products: searchResults, isLoading: searchLoading } = useProductSearch({ debounceMs: 200, queryAllWhenEmpty: true })
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -277,6 +279,7 @@ export function PosPage() {
       }))
       return processCheckout({
         customerId: input.customerId,
+        warehouseId: currentStoreId ?? undefined,
         items: saleItems,
         payments: paymentInputs,
         notes: input.notes || undefined,
@@ -302,7 +305,7 @@ export function PosPage() {
       return
     }
     checkoutMutation.mutate({ customerId, items: cart, payments, notes })
-  }, [cart, totalPaid, total, customerId, payments, notes, checkoutMutation, notification, t])
+  }, [cart, totalPaid, total, customerId, payments, notes, checkoutMutation, notification, t, currentStoreId])
 
   const resetNewSale = useCallback(() => {
     setCart([])

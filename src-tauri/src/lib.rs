@@ -3,7 +3,7 @@ mod config;
 mod db;
 mod error;
 
-use db::{init_database, DbState};
+use db::{init_database_with_profile, DbState};
 use std::sync::OnceLock;
 
 static DB_STATE: OnceLock<DbState> = OnceLock::new();
@@ -19,9 +19,9 @@ pub fn run() {
         std::fs::create_dir_all(parent).expect("Failed to create database directory");
     }
 
-    let conn = init_database(&db_path).expect("Failed to initialize database");
+    let conn = init_database_with_profile(&db_path, &app_config.profile).expect("Failed to initialize database");
 
-    let db_state = DbState::new(conn, app_config.db_path);
+    let db_state = DbState::new(conn, app_config.db_path, &app_config.profile);
     let tauri_state = db_state.clone();
     DB_STATE.set(db_state).expect("Failed to set database state");
 
@@ -33,6 +33,12 @@ pub fn run() {
             commands::app::health_check,
             commands::app::greet,
             commands::app::run_seeds,
+            commands::business::get_business_context,
+            commands::business::get_business_capabilities,
+            commands::business::switch_database_profile,
+            commands::business::transfer_inventory_between_stores,
+            commands::business::get_store_sales,
+            commands::business::get_store_inventory,
             commands::auth::login,
             commands::auth::logout,
             commands::auth::get_current_user,

@@ -142,6 +142,7 @@ export default defineConfig({
         items: [
           { text: "Architecture", link: "/developer/architecture" },
           { text: "Development Guide", link: "/developer/development" },
+          { text: "Database Profiles", link: "/developer/database-profiles" },
           { text: "Testing", link: "/developer/testing" },
         ],
       },

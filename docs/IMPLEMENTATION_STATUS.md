@@ -112,3 +112,26 @@ docs/manual/*.md (Markdown source — single source of truth)
 - [ ] AGENTS.md doc rules
 - [ ] README update
 - [ ] Build verification
+
+---
+
+## Database Profiles Milestone (2026-09-18)
+
+Feature marker: **in-progress from 2026-09-18.**
+
+### Status
+- [x] Assessment completed (`docs/database-profiles-assessment.md`)
+- [x] Profile resolution + persistence (`src-tauri/src/config.rs`)
+- [x] Profile-aware DB init & seeding (`src-tauri/src/db/{connection,seed}.rs`)
+- [x] Business capabilities + store commands (`src-tauri/src/commands/business.rs`)
+- [x] Store-aware POS checkout (`processCheckout` + `warehouseId`)
+- [x] TSX seeder profile support (`database/seed/`)
+- [x] Dev scripts (`scripts/database/*`, npm `db:*`)
+- [x] Frontend: business store, hook, tauri wrappers, StoreSelector
+- [x] Frontend: sidebar/route gating, transfers page, dashboard widgets, Dev Tools card
+- [x] i18n (`en`/`es`, new `business` namespace)
+- [x] Tests: Rust (87), Vitest (431), command contracts, business-gating
+- [x] Docs: `database-profiles.md`, progress file, docs-site page, CHANGELOG
+- [x] `npm run verify` green
+- [ ] Live app check: run against single-store / multi-store / empty DBs
+- [ ] Final implementation report (`docs/IMPLEMENTATION_REPORT.md`)

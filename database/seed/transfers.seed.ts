@@ -1,12 +1,17 @@
 import type Database from "better-sqlite3"
-import { exists, pick, randomInt, randomDate } from "./helpers"
+import type { DatabaseProfile } from "./index"
+import { pick, randomInt, randomDate } from "./helpers"
 
 const TRANSFER_NOTES = [
   "Reabastecimiento de stock", "Traslado por demanda", "Distribución a sucursal",
   "Traslado por exceso de inventario", "Reorganización de almacén",
 ]
 
-export function seed(db: Database.Database): void {
+export function seed(db: Database.Database, profile: DatabaseProfile): void {
+  // Transfers require at least two stores; single-store profile has exactly one.
+  const warehouseCount = db.prepare("SELECT COUNT(*) as cnt FROM warehouses").get() as { cnt: number }
+  if (profile === "single-store" || warehouseCount.cnt < 2) return
+
   const count = db.prepare("SELECT COUNT(*) as cnt FROM inventory_movements WHERE reference_type = 'transfer'").get() as { cnt: number }
   if (count.cnt > 10) return
 

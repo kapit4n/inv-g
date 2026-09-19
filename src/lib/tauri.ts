@@ -49,6 +49,8 @@ import type {
   KpiValue, KpiDefinition,
   SavedReport, SavedReportInput, ScheduledReport, ReportHistoryEntry, ReportTemplate,
   CostHistoryEntry,
+  BusinessCapabilities, BusinessContext,
+  StoreSalesRow, StoreInventoryRow, TransferInput,
 } from "@/types"
 
 export async function getAppVersion(): Promise<string> {
@@ -65,6 +67,32 @@ export async function greet(name: string): Promise<string> {
 
 export async function runSeeds(): Promise<string> {
   return invoke<string>("run_seeds")
+}
+
+// ── Business capabilities & store profiles ──
+
+export async function getBusinessContext(): Promise<BusinessContext> {
+  return invoke<BusinessContext>("get_business_context")
+}
+
+export async function getBusinessCapabilities(): Promise<BusinessCapabilities> {
+  return invoke<BusinessCapabilities>("get_business_capabilities")
+}
+
+export async function switchDatabaseProfile(profile: string): Promise<string> {
+  return invoke<string>("switch_database_profile", { profile })
+}
+
+export async function transferInventoryBetweenStores(input: TransferInput): Promise<string> {
+  return invoke<string>("transfer_inventory_between_stores", { input })
+}
+
+export async function getStoreSales(): Promise<StoreSalesRow[]> {
+  return invoke<StoreSalesRow[]>("get_store_sales")
+}
+
+export async function getStoreInventory(): Promise<StoreInventoryRow[]> {
+  return invoke<StoreInventoryRow[]>("get_store_inventory")
 }
 
 export async function login(username: string, password: string): Promise<LoginResponse> {

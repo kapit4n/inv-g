@@ -2,6 +2,7 @@ import i18n from "i18next"
 import { initReactI18next } from "react-i18next"
 
 import esCommon from "./locales/es/common.json"
+import esBusiness from "./locales/es/business.json"
 import esDashboard from "./locales/es/dashboard.json"
 import esInventory from "./locales/es/inventory.json"
 import esSales from "./locales/es/sales.json"
@@ -23,6 +24,7 @@ import esPrint from "./locales/es/print.json"
 import esPartFinder from "./locales/es/part-finder.json"
 
 import enCommon from "./locales/en/common.json"
+import enBusiness from "./locales/en/business.json"
 import enDashboard from "./locales/en/dashboard.json"
 import enInventory from "./locales/en/inventory.json"
 import enSales from "./locales/en/sales.json"
@@ -46,6 +48,7 @@ import enPartFinder from "./locales/en/part-finder.json"
 const resources = {
   es: {
     common: esCommon,
+    business: esBusiness,
     dashboard: esDashboard,
     inventory: esInventory,
     sales: esSales,
@@ -68,6 +71,7 @@ const resources = {
   },
   en: {
     common: enCommon,
+    business: enBusiness,
     dashboard: enDashboard,
     inventory: enInventory,
     sales: enSales,

@@ -16,6 +16,7 @@ import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useSettingsStore } from "@/stores"
+import { useBusinessCapabilities } from "@/hooks"
 import { cn } from "@/lib/utils"
 
 interface NavItemConfig {
@@ -50,6 +51,7 @@ const navigation: NavItemConfig[] = [
       { nameKey: "inventory.storageLocations", href: "/inventory/storage-locations", icon: MapPin },
       { nameKey: "inventory.products", href: "/inventory/products", icon: Box },
       { nameKey: "inventory.inventoryMovements", href: "/inventory/movements", icon: ArrowUpDown },
+      { nameKey: "inventory.storeTransfers", href: "/inventory/transfers", icon: ArrowUpDown },
       { nameKey: "inventory.crossReferences", href: "/inventory/cross-references", icon: Link2 },
     ],
   },
@@ -135,9 +137,46 @@ function isActivePath(location: ReturnType<typeof useLocation>, href: string): b
 
 export function Sidebar() {
   const { sidebarCollapsed, toggleSidebar } = useSettingsStore()
+  const capabilities = useBusinessCapabilities()
   const location = useLocation()
   const { t } = useTranslation()
   const [expanded, setExpanded] = useState<string[]>(["/inventory", "/sales", "/purchases"])
+
+  // Single-store hides store-management features; transfers appear only when
+  // the profile supports them (derived from the number of stores).
+  const gatedNavigation: NavItemConfig[] = navigation
+    .map((item) => {
+      if (item.href === "/inventory") {
+        const children = item.children!.filter((child) => {
+          if (child.href === "/inventory/warehouses" || child.href === "/inventory/storage-locations") {
+            return capabilities.storeManagement
+          }
+          if (child.href === "/inventory/transfers") {
+            return capabilities.storeTransfers
+          }
+          return true
+        })
+        return { ...item, children }
+      }
+      if (item.href === "/warehouse") {
+        return capabilities.storeManagement ? item : null
+      }
+      return item
+    })
+    .filter((item): item is NavItemConfig => item !== null)
+
+  const gatedSecondaryNavigation: NavItemConfig[] = secondaryNavigation
+    .map((item) => {
+      if (item.href === "/reports") {
+        const children = item.children!.filter((child) => {
+          if (child.href === "/reports/warehouses") return capabilities.crossStoreReports
+          return true
+        })
+        return { ...item, children }
+      }
+      return item
+    })
+    .filter((item): item is NavItemConfig => item !== null)
 
   const toggleExpand = (href: string) => {
     setExpanded((prev) =>
@@ -241,7 +280,7 @@ export function Sidebar() {
 
       <ScrollArea className="flex-1 px-3 py-4">
         <nav className="space-y-1">
-          {navigation.map((item) => (
+          {gatedNavigation.map((item) => (
             <NavItem key={item.href} item={item} />
           ))}
         </nav>
@@ -249,7 +288,7 @@ export function Sidebar() {
         <Separator className="my-4" />
 
         <nav className="space-y-1">
-          {secondaryNavigation.map((item) => (
+          {gatedSecondaryNavigation.map((item) => (
             <NavItem key={item.href} item={item} />
           ))}
         </nav>

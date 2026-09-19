@@ -4,6 +4,22 @@
 
 SQLite is used as the local database, managed via rusqlite in Rust and Drizzle ORM in TypeScript.
 
+## Database Profiles
+
+The app opens **one of four development/test databases** depending on the active
+profile (`default`, `single-store`, `multi-store`, `empty`). Files all live in
+the app data directory:
+
+```
+inventory_gear.db          ← default (legacy/production behaviour)
+inventory-gear-single.db   ← single-store
+inventory-gear-multi.db    ← multi-store
+inventory-gear-empty.db    ← empty
+```
+
+Resolution order: `IG_DATABASE_PROFILE` env var → `profile.json` in the data dir
+→ `default`. See [`database-profiles.md`](./database-profiles.md).
+
 ## Schema
 
 ### Core Tables

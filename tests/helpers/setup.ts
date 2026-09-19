@@ -4,6 +4,10 @@ vi.stubGlobal("crypto", {
   randomUUID: () => "00000000-0000-0000-0000-000000000000",
 })
 
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = vi.fn()
+}
+
 vi.stubGlobal("localStorage", {
   _store: {} as Record<string, string>,
   getItem(key: string) { return this._store[key] ?? null },
@@ -41,4 +45,35 @@ vi.mock("@/lib/tauri", () => ({
   getSetting: vi.fn().mockResolvedValue(null),
   updateSetting: vi.fn().mockResolvedValue(undefined),
   getSettingsByGroup: vi.fn().mockResolvedValue([]),
+  getBusinessContext: vi.fn().mockResolvedValue({
+    activeProfile: "multi-store",
+    databasePath: "",
+    multiStore: true,
+    storeCount: 3,
+    defaultStoreId: null,
+    stores: [
+      { id: 1, name: "Central Store", code: "WH-001", isActive: true, isDefault: true },
+      { id: 2, name: "North Branch", code: "WH-002", isActive: true, isDefault: false },
+      { id: 3, name: "South Branch", code: "WH-003", isActive: true, isDefault: false },
+    ],
+    capabilities: { multiStore: true, storeSelection: true, storeManagement: true, storeTransfers: true, crossStoreReports: true },
+    devMode: true,
+  }),
+  getBusinessCapabilities: vi.fn().mockResolvedValue({
+    multiStore: true,
+    storeSelection: true,
+    storeManagement: true,
+    storeTransfers: true,
+    crossStoreReports: true,
+  }),
+  switchDatabaseProfile: vi.fn().mockResolvedValue("Profile switched. Restart required."),
+  transferInventoryBetweenStores: vi.fn().mockResolvedValue("TRX-000001"),
+  getStoreSales: vi.fn().mockResolvedValue([
+    { storeId: 1, storeName: "Central Store", storeCode: "WH-001", salesCount: 10, totalRevenue: 1200, cashTotal: 800, cardTotal: 400, transferTotal: 0 },
+    { storeId: 2, storeName: "North Branch", storeCode: "WH-002", salesCount: 4, totalRevenue: 450, cashTotal: 300, cardTotal: 150, transferTotal: 0 },
+  ]),
+  getStoreInventory: vi.fn().mockResolvedValue([
+    { storeId: 1, storeName: "Central Store", storeCode: "WH-001", productCount: 80, totalStockUnits: 950, inventoryValue: 25000 },
+    { storeId: 2, storeName: "North Branch", storeCode: "WH-002", productCount: 40, totalStockUnits: 310, inventoryValue: 8100 },
+  ]),
 }))

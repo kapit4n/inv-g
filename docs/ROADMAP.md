@@ -255,7 +255,7 @@ CRUD modules, with phases executed incrementally one task at a time.
 | 9 | Printing & labels | 🟠 High | Planned |
 | 10 | Customer + vehicle workflow | 🟡 Medium | Planned |
 | 11 | Attention Center & operational dashboard | 🟡 Medium | Planned |
-| 12 | Multi-branch foundation | 🟡 Medium | Planned |
+| 12 | Multi-branch foundation | 🟡 Medium | ⏳ Database profiles foundation (`default`/`single-store`/`multi-store`/`empty` + capabilities + store transfers) — see `docs/database-profiles.md` |
 | 13 | Automation / AI | 🟢 Later | Deferred — do not start yet |
 
 The particularly important sequence once Phase 1 lands:

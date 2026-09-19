@@ -22,7 +22,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Section } from "@/components/section"
-import { getDashboardWidgets, getPurchaseDashboard, getCrmDashboard, getDashboardStats, getSales } from "@/lib/tauri"
+import { getDashboardWidgets, getPurchaseDashboard, getCrmDashboard, getDashboardStats, getSales, getStoreSales, getStoreInventory } from "@/lib/tauri"
+import { useBusinessCapabilities } from "@/hooks"
 
 interface AttentionItem {
   id: string
@@ -44,6 +45,19 @@ interface QuickAction {
 export function DashboardPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const capabilities = useBusinessCapabilities()
+
+  const { data: storeSales = [] } = useQuery({
+    queryKey: ["store-sales"],
+    queryFn: getStoreSales,
+    enabled: capabilities.crossStoreReports,
+  })
+
+  const { data: storeInventory = [] } = useQuery({
+    queryKey: ["store-inventory"],
+    queryFn: getStoreInventory,
+    enabled: capabilities.crossStoreReports,
+  })
 
   const { data: widgets, isLoading: widgetsLoading } = useQuery({
     queryKey: ["dashboard-widgets"],
@@ -245,6 +259,43 @@ export function DashboardPage() {
           </Card>
         </div>
       </Section>
+
+      {capabilities.crossStoreReports && (
+        <Section title={t("dashboard.perStore.title")} description={t("dashboard.perStore.desc")}>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <Card>
+              <CardContent className="space-y-3 p-4">
+                <p className="text-xs font-medium text-muted-foreground">{t("dashboard.perStore.salesTitle")}</p>
+                {storeSales.length === 0 ? (
+                  <p className="py-4 text-center text-sm text-muted-foreground">{t("dashboard.perStore.empty")}</p>
+                ) : (
+                  storeSales.map((row) => (
+                    <div key={row.storeId} className="flex items-center justify-between text-sm">
+                      <span className="font-medium">{row.storeName} <span className="text-xs text-muted-foreground">{row.storeCode}</span></span>
+                      <span className="tabular-nums">{row.salesCount} · {formatCurrency(row.totalRevenue)}</span>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="space-y-3 p-4">
+                <p className="text-xs font-medium text-muted-foreground">{t("dashboard.perStore.inventoryTitle")}</p>
+                {storeInventory.length === 0 ? (
+                  <p className="py-4 text-center text-sm text-muted-foreground">{t("dashboard.perStore.empty")}</p>
+                ) : (
+                  storeInventory.map((row) => (
+                    <div key={row.storeId} className="flex items-center justify-between text-sm">
+                      <span className="font-medium">{row.storeName} <span className="text-xs text-muted-foreground">{row.storeCode}</span></span>
+                      <span className="tabular-nums">{row.productCount} {t("dashboard.perStore.products")} · {formatCurrency(row.inventoryValue)}</span>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </Section>
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Section
