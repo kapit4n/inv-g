@@ -59,6 +59,8 @@ export function SaleDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["sale", saleId] })
       queryClient.invalidateQueries({ queryKey: ["sales"] })
       queryClient.invalidateQueries({ queryKey: ["daily-closeout"] })
+      queryClient.invalidateQueries({ queryKey: ["sales-summary"] })
+      queryClient.invalidateQueries({ queryKey: ["dashboard-widgets"] })
       notification.success(t("common.success"), t("sales.refundProcessed"))
       setRefundMode(false)
     },
@@ -91,6 +93,7 @@ export function SaleDetailPage() {
     value.toLocaleString("en-US", { style: "currency", currency: "USD" })
 
   const handlePrint = () => {
+    if (!sale) return
     const labels: ReceiptLabels = {
       title: t("sales.receipt"),
       subtotal: t("sales.subtotal"),

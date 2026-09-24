@@ -9,10 +9,12 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { DataTable } from "@/components/data-table"
 import { StatCard } from "@/components/stat-card"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { TextareaField } from "@/components/forms"
 import { searchSales, refundSale, getDailyCloseout } from "@/lib/tauri"
 import { useNotification } from "@/hooks/use-notification"
+import type { TableColumn } from "@/types/crud"
+import type { Sale } from "@/types"
 
 export function ReturnsPage() {
   const { t } = useTranslation()
@@ -39,42 +41,44 @@ export function ReturnsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sales"] })
       queryClient.invalidateQueries({ queryKey: ["daily-closeout"] })
+      queryClient.invalidateQueries({ queryKey: ["sales-summary"] })
+      queryClient.invalidateQueries({ queryKey: ["dashboard-widgets"] })
       notification.success(t("common.success"), t("sales.refundProcessed"))
       setSelectedSaleId(null)
       setRefundReason("")
     },
   })
 
-  const columns = [
-    { header: t("sales.invoice"), accessorKey: "saleNumber" as const },
-    { header: t("sales.date"), accessorKey: "createdAt" as const, cell: (v: string) => new Date(v).toLocaleDateString() },
-    { header: t("sales.customer"), accessorKey: "customerName" as const },
-    { header: t("sales.total"), accessorKey: "total" as const, cell: (v: number) => v.toLocaleString("en-US", { style: "currency", currency: "USD" }) },
-    { header: t("sales.payment"), accessorKey: "paymentStatus" as const, cell: (v: string) => <Badge variant={v === "refunded" ? "destructive" : "secondary"}>{v}</Badge> },
+  const columns: TableColumn<Sale>[] = [
+    { id: "saleNumber", header: t("sales.invoice"), accessorKey: "saleNumber" },
+    { id: "createdAt", header: t("sales.date"), accessorKey: "createdAt", cell: (r) => new Date(r.createdAt).toLocaleDateString() },
+    { id: "customerName", header: t("sales.customer"), accessorKey: "customerName" },
+    { id: "total", header: t("sales.total"), accessorKey: "total", cell: (r) => r.total.toLocaleString("en-US", { style: "currency", currency: "USD" }) },
+    { id: "paymentStatus", header: t("sales.payment"), accessorKey: "paymentStatus", cell: (r) => <Badge variant={r.paymentStatus === "refunded" ? "destructive" : "secondary"}>{r.paymentStatus}</Badge> },
     {
-      header: "Actions", accessorKey: "id" as const,
-      cell: (v: number, row: any) => row.paymentStatus !== "refunded" ? (
-        <Button size="sm" variant="destructive" onClick={() => setSelectedSaleId(v)}><RotateCcw className="h-3 w-3 mr-1" /> {t("sales.refund")}</Button>
-      ) : <span className="text-xs text-muted-foreground">Already refunded</span>,
+      id: "actions", header: t("actions"), accessorKey: "id",
+      cell: (r) => r.paymentStatus !== "refunded" ? (
+        <Button size="sm" variant="destructive" onClick={() => setSelectedSaleId(r.id)}><RotateCcw className="h-3 w-3 mr-1" /> {t("sales.refund")}</Button>
+      ) : <span className="text-xs text-muted-foreground">{t("alreadyRefunded")}</span>,
     },
   ]
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Returns & Refunds" description="Process customer returns and refunds" />
+      <PageHeader title={t("returnsAndRefunds")} description={t("processReturnsAndRefunds")} />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <StatCard title={t("sales.totalRevenue")} value={closeout?.totalRevenue.toLocaleString("en-US", { style: "currency", currency: "USD" }) || "$0"} icon={<span />} />
-        <StatCard title={t("sales.refunds") + " (count)"} value={closeout?.refundedCount || 0} icon={<span />} />
-        <StatCard title={t("sales.refunds") + " (total)"} value={closeout?.refundedTotal.toLocaleString("en-US", { style: "currency", currency: "USD" }) || "$0"} icon={<span />} />
+        <StatCard title={t("sales.refunds") + ` (${t("count")})`} value={closeout?.refundedCount || 0} icon={<span />} />
+        <StatCard title={t("sales.refunds") + ` (${t("total")})`} value={closeout?.refundedTotal.toLocaleString("en-US", { style: "currency", currency: "USD" }) || "$0"} icon={<span />} />
       </div>
 
       <Card>
-        <CardHeader className="pb-3"><CardTitle className="text-base">Search Sales for Refund</CardTitle></CardHeader>
+        <CardHeader className="pb-3"><CardTitle className="text-base">{t("searchSalesForRefund")}</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search by invoice number or customer name..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
+            <Input placeholder={t("searchByInvoiceOrCustomer")} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
           </div>
           {sales.length > 0 && (
             <DataTable columns={columns} data={sales} />

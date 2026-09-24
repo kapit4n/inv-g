@@ -111,6 +111,59 @@ Products support multiple cross-reference identifiers:
 
 → See [Cross References](/inventory/cross-references) for searching by identifier.
 
+## Import Reference Template (Example)
+
+A future bulk-import feature needs a stable, complete data shape. The reference
+template below is the **extended version** of the demo catalog table used in
+`npm run db:demo`: it starts from the original source columns (`Código`,
+`Código_2`, `Nombre`, `Precio/u`, `Categoría`, `Marca`, `Cant`) and adds every
+field a full product record requires so the file round-trips with the
+`products` table (and its `product_identifiers` cross-references).
+
+> 📥 [Download the example workbook](/manual/samples/inventory-gear-product-import-example.xlsx)
+> (Open XML `.xlsx`, 2 sheets: `Productos` = 19 real catalog rows, `Maestros de
+> referencia` = the categories/brands/supplier/warehouse/locations the importer
+> must resolve to IDs)
+
+### Column map
+
+| Excel column | Target table/field | Source/example value |
+|--------------|--------------------|----------------------|
+| N° | — (row index) | 1 |
+| Código | `products.oem_number`, `products.internal_code`, `product_identifiers` (type `oem`) | 860067 |
+| Código_2 | `product_identifiers` (type `alternate`) | 124846 |
+| SKU | `products.sku` (unique) | `Código_2` ?; falls back to `Código` |
+| Nombre | `products.name` | MUÑON DIREC. TOY COROLLA/IPSU 84/95 |
+| Descripción | `products.description` | (defaults to name) |
+| Categoría | `categories.name` → `products.category_id` | Dirección / Suspensión |
+| Marca | `brands.name` → `products.brand_id` | Toyota Genuine / TRW |
+| Fabricante | `manufacturers.name` → `products.manufacturer_id` | (empty) |
+| Proveedor | `suppliers.company_name` → `products.supplier_id` | Autorepuestos Demo SRL |
+| Precio de compra (costo) | `products.cost_price` | 70% of price |
+| Precio de venta | `products.sale_price` | price |
+| Precio mayorista | `products.wholesale_price` | 85% of price |
+| Precio sugerido | `products.suggested_retail_price` | 115% of price |
+| Impuesto (%) | `products.tax_rate` | 0 |
+| Stock inicial | `products.stock_quantity` | Cant |
+| Stock mínimo | `products.min_stock_level` | 1 |
+| Stock máximo | `products.max_stock_level` | 3 × stock |
+| Punto de reorden | `products.reorder_point` | 2 |
+| Unidad | `products.unit` | pcs |
+| Peso (kg) | `products.weight` | (empty) |
+| Código de barras | `products.barcode` | (empty) |
+| Almacén | `warehouses.code` → `products.warehouse_id` | WH-001 |
+| Ubicación | `storage_locations.code` → `products.storage_location_id` | WH-001-A-01-A-01 |
+| URL imagen | `products.image_url` | (empty) |
+| Activo | `products.is_active` | 1 |
+| Descontinuado | `products.is_discontinued` | 0 |
+
+### Import rules the importer must honor (from this example)
+
+1. **SKU uniqueness** — `sku` is `UNIQUE`; derive from `Código_2` with fallback to `Código`, and fail on collision.
+2. **Reference resolution** — `Categoría`, `Marca`, `Proveedor`, `Almacén`, `Ubicación` arrive as names/codes and must be resolved to IDs (autocreate categories/brands/suppliers/warehouses when missing).
+3. **Cross-references** — write one `product_identifiers` row with type `oem` for `Código` and type `alternate` for `Código_2` (when present), so both codes are searchable from the Cross References page.
+4. **Defaults** — blank optional fields (description → name, tax → 0, unit → pcs, active → 1) mirror the demo seed behavior.
+
 ## Considerations
 
 - SKUs must be unique across all products

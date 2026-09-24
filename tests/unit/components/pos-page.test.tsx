@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest"
 import { render, screen, fireEvent, waitFor } from "@tests/helpers/render"
 import { within } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
+import { QueryClient } from "@tanstack/react-query"
 import { setupI18n } from "@/i18n"
 import { PosPage } from "@/features/sales/pages/pos-page"
 import { PrintHost } from "@/components/print/print-host"
@@ -208,6 +209,37 @@ describe("PosPage", () => {
     expect(screen.getAllByText("SALE-0005").length).toBeGreaterThanOrEqual(1)
     expect(screen.getByTestId("new-sale-button")).toBeDefined()
     expect(screen.getByTestId("view-sale-button")).toBeDefined()
+    printSpy.mockRestore()
+  })
+
+  it("invalidates the sales KPIs after a successful checkout", async () => {
+    const printSpy = vi.spyOn(window, "print").mockImplementation(() => {})
+    // Reproduce production staleness so invalidation is what triggers refetches.
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { staleTime: 1000 * 60 * 5, retry: false, gcTime: 1000 * 60 * 5 },
+        mutations: { retry: false },
+      },
+    })
+    const invalidateSpy = vi.spyOn(client, "invalidateQueries")
+    render(
+      <MemoryRouter>
+        <PosPage />
+      </MemoryRouter>,
+      { withRouter: false, queryClient: client },
+    )
+    await addProduct()
+
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Payment 1" }), { target: { value: "116" } })
+    fireEvent.click(screen.getByRole("button", { name: "Complete Sale - $116.00" }))
+
+    await screen.findByTestId("checkout-success", {}, { timeout: 3000 })
+
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["sales-summary"] }))
+      expect(invalidateSpy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["dashboard-widgets"] }))
+      expect(invalidateSpy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["sales"] }))
+    }, { timeout: 3000 })
     printSpy.mockRestore()
   })
 

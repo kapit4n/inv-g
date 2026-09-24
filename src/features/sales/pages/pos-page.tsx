@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Search, Plus, Minus, Trash2, ShoppingCart, X, Percent, DollarSign, CreditCard, Banknote, Landmark, Receipt, Pause, Play, Clock, Tag, CheckCircle, ChevronDown, ChevronUp } from "lucide-react"
+import { Search, Plus, Minus, Trash2, ShoppingCart, X, Percent, DollarSign, Receipt, Pause, Play, Clock, Tag, CheckCircle, ChevronDown, ChevronUp } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,13 +10,13 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { CustomerSearchField, TextareaField } from "@/components/forms"
-import { processCheckout, getSaleItems, getHeldSales, getHeldSaleItems, holdSale, resumeHeldSale, deleteHeldSale } from "@/lib/tauri"
+import { processCheckout, getSaleItems, getHeldSales, getHeldSaleItems, holdSale, deleteHeldSale } from "@/lib/tauri"
 import { useNotification } from "@/hooks/use-notification"
 import { usePrint, usePrintConfig, useProductSearch } from "@/hooks"
 import { useBusinessStore } from "@/stores"
 import { buildSaleReceiptModel, type ReceiptLabels } from "@/lib/print"
 import { cn } from "@/lib/utils"
-import type { ProductForPos, PaymentInput, CheckoutResult, HeldSale } from "@/types"
+import type { ProductForPos, PaymentInput, CheckoutResult } from "@/types"
 
 interface CartItem {
   productId: number
@@ -48,7 +48,7 @@ export function PosPage() {
   const config = usePrintConfig()
   const currentStoreId = useBusinessStore((s) => s.currentStoreId)
 
-  const { query: search, setQuery: setSearch, products: searchResults, isLoading: searchLoading } = useProductSearch({ debounceMs: 200, queryAllWhenEmpty: true })
+  const { query: search, setQuery: setSearch, products: searchResults } = useProductSearch({ debounceMs: 200, queryAllWhenEmpty: true })
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [cart, setCart] = useState<CartItem[]>([])
   const [customerId, setCustomerId] = useState<number | undefined>(undefined)
@@ -289,6 +289,8 @@ export function PosPage() {
       queryClient.invalidateQueries({ queryKey: ["sales"] })
       queryClient.invalidateQueries({ queryKey: ["pos-search"] })
       queryClient.invalidateQueries({ queryKey: ["daily-closeout"] })
+      queryClient.invalidateQueries({ queryKey: ["sales-summary"] })
+      queryClient.invalidateQueries({ queryKey: ["dashboard-widgets"] })
       notification.success(t("common.success"), t("sales.invoiceCreated"))
       void printReceiptForSale(result)
       setCompletedSale(result)

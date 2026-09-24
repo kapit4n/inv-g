@@ -43,7 +43,7 @@ export function QuoteDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quote", Number(id)] })
       queryClient.invalidateQueries({ queryKey: ["quotes"] })
-      notification.success(t("common.success"), "Status updated")
+      notification.success(t("common.success"), t("statusUpdated"))
     },
   })
 
@@ -52,12 +52,15 @@ export function QuoteDetailPage() {
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["quotes"] })
       queryClient.invalidateQueries({ queryKey: ["sales"] })
-      notification.success(t("common.success"), "Quote converted to sale")
+      queryClient.invalidateQueries({ queryKey: ["sales-summary"] })
+      queryClient.invalidateQueries({ queryKey: ["daily-closeout"] })
+      queryClient.invalidateQueries({ queryKey: ["dashboard-widgets"] })
+      notification.success(t("common.success"), t("quoteConvertedToSale"))
       navigate(`/sales/${result.sale.id}`)
     },
   })
 
-  if (!quote) return <div className="p-8 text-center text-muted-foreground">Loading...</div>
+  if (!quote) return <div className="p-8 text-center text-muted-foreground">{t("loading")}</div>
 
   const subtotal = items.reduce((s, i) => s + i.total, 0)
   const total = subtotal + quote.taxAmount - quote.discountAmount
@@ -80,11 +83,11 @@ export function QuoteDetailPage() {
     <div className="space-y-6">
       <PageHeader
         title={quote.quoteNumber}
-        description={`Created ${new Date(quote.createdAt).toLocaleDateString()}`}
+        description={`${t("createdAt")} ${new Date(quote.createdAt).toLocaleDateString()}`}
         actions={
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => navigate("/sales/quotes")}>
-              <ArrowLeft className="h-4 w-4 mr-1" /> Back
+              <ArrowLeft className="h-4 w-4 mr-1" /> {t("back")}
             </Button>
           </div>
         }
@@ -92,26 +95,26 @@ export function QuoteDetailPage() {
 
       <div className="flex gap-2 mb-4">
         <Badge className={`${statusColors[quote.status] || "bg-gray-500"} text-white`}>{quote.status}</Badge>
-        {quote.validUntil && <span className="text-sm text-muted-foreground">Valid until: {new Date(quote.validUntil).toLocaleDateString()}</span>}
+        {quote.validUntil && <span className="text-sm text-muted-foreground">{t("validUntil")}: {new Date(quote.validUntil).toLocaleDateString()}</span>}
       </div>
 
       <div className="flex gap-2 flex-wrap">
         {quote.status === "draft" && (
-          <Button size="sm" onClick={() => statusMutation.mutate("sent")}><Send className="h-4 w-4 mr-1" /> Send</Button>
+          <Button size="sm" onClick={() => statusMutation.mutate("sent")}><Send className="h-4 w-4 mr-1" /> {t("send")}</Button>
         )}
         {quote.status === "sent" && (
           <>
-            <Button size="sm" onClick={() => statusMutation.mutate("accepted")}><Check className="h-4 w-4 mr-1" /> Accept</Button>
-            <Button size="sm" variant="destructive" onClick={() => statusMutation.mutate("rejected")}><X className="h-4 w-4 mr-1" /> Reject</Button>
+            <Button size="sm" onClick={() => statusMutation.mutate("accepted")}><Check className="h-4 w-4 mr-1" /> {t("accept")}</Button>
+            <Button size="sm" variant="destructive" onClick={() => statusMutation.mutate("rejected")}><X className="h-4 w-4 mr-1" /> {t("reject")}</Button>
           </>
         )}
         {(quote.status === "accepted" || quote.status === "draft") && (
           <Button size="sm" onClick={() => convertMutation.mutate()}>
-            <ShoppingCart className="h-4 w-4 mr-1" /> Convert to Sale
+            <ShoppingCart className="h-4 w-4 mr-1" /> {t("convertToSale")}
           </Button>
         )}
         <Button size="sm" variant="outline" onClick={handlePrint}>
-          <Printer className="h-4 w-4 mr-1" /> Print
+          <Printer className="h-4 w-4 mr-1" /> {t("print")}
         </Button>
       </div>
 
@@ -123,9 +126,9 @@ export function QuoteDetailPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left text-muted-foreground">
-                    <th className="pb-2">Product</th><th className="pb-2">SKU</th>
-                    <th className="pb-2 text-right">Qty</th><th className="pb-2 text-right">Price</th>
-                    <th className="pb-2 text-right">Disc</th><th className="pb-2 text-right">Total</th>
+                    <th className="pb-2">{t("product")}</th><th className="pb-2">{t("sku")}</th>
+                    <th className="pb-2 text-right">{t("qty")}</th><th className="pb-2 text-right">{t("price")}</th>
+                    <th className="pb-2 text-right">{t("disc")}</th><th className="pb-2 text-right">{t("total")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -164,12 +167,12 @@ export function QuoteDetailPage() {
           </Card>
 
           {quote.notes && (
-            <Card><CardHeader><CardTitle className="text-base">Notes</CardTitle></CardHeader>
+            <Card><CardHeader><CardTitle className="text-base">{t("notes")}</CardTitle></CardHeader>
               <CardContent><p className="text-sm whitespace-pre-wrap">{quote.notes}</p></CardContent>
             </Card>
           )}
           {quote.termsConditions && (
-            <Card><CardHeader><CardTitle className="text-base">Terms & Conditions</CardTitle></CardHeader>
+            <Card><CardHeader><CardTitle className="text-base">{t("termsConditions")}</CardTitle></CardHeader>
               <CardContent><p className="text-sm whitespace-pre-wrap">{quote.termsConditions}</p></CardContent>
             </Card>
           )}

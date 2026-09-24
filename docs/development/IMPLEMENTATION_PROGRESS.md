@@ -1402,3 +1402,50 @@ Toyota Corolla/Ipsu/Caldina/Hiace/Noah/Voxy/Yaris/RAV4 and King Long).
 - `scripts/database/seed-demo-catalog.mjs` (new)
 - `package.json` — `db:demo`, `db:demo:activate` scripts
 - `docs/CHANGELOG.md` — entry
+
+## Sales dashboard KPI fix
+
+The four Ventas KPIs (Ingresos de Hoy, Transacciones de Hoy, Pedido Promedio,
+Ventas del Mes) now update immediately after sales are created/refunded and use
+correct date windows. Logged in `docs/BUG_FIX_LOG.md` (2026-09-24).
+
+### Root cause (two layers)
+1. **Stale query cache** — POS/refund/convert mutations invalidated `["sales"]`,
+   `["pos-search"]`, `["daily-closeout"]` but not `["sales-summary"]` nor
+   `["dashboard-widgets"]`; `staleTime: 5min` kept the summary "fresh" so it
+   never refetched when returning to the dashboard.
+2. **Wrong windows** — `get_sales_summary` compared local `today_date()` vs UTC
+   `date(created_at)` (off by up to ~20h on UTC-4) and month was a rolling 30-day
+   window, not the calendar month.
+
+### Fix
+- Rust: `sales_summary_for(conn, now)` + chrono helpers
+  (`utc_bounds_for_local_day`, `utc_bounds_for_local_month`,
+  `local_day_start_utc`) — local calendar day/month → UTC ranges; `get_sales_summary`
+  calls it with `Local::now()`. Refunded excluded, pending/partial counted, week
+  and top-products stay rolling.
+- Frontend: added `["sales-summary"]` + `["dashboard-widgets"]` invalidations to
+  `pos-page.tsx`, `sale-detail-page.tsx`, `returns-page.tsx`; `quote-detail-page.tsx`
+  also gains `["daily-closeout"]`.
+
+### Files
+- `src-tauri/src/commands/sales.rs` (+ 9 `#[cfg(test)]` tests)
+- `src/features/sales/pages/{pos-page,sale-detail-page,returns-page,quote-detail-page}.tsx`
+- `tests/helpers/render.tsx`, `tests/unit/components/pos-page.test.tsx`,
+  `tests/unit/components/sales-kpi-refresh.test.tsx` (new)
+- `docs/BUG_FIX_LOG.md`, `docs/CHANGELOG.md`
+
+### Verification
+- `npm run typecheck` ✓ · `npm run lint` (0 errors) ✓ · `npx vitest run` 434/434 ✓
+  · `cargo test --lib` 94 passed / 2 pre-existing env-dependent config failures
+- Live SQL sanity check on a copy of the active demo DB (inserted today 100+50,
+  same-month 25, previous-month 40, refunded 200): today=2/$150, month=3/$175,
+  boundary correct (UTC 04:00). Commit: (pending)
+
+### Product import reference template (example workbook)
+- `docs-site/public/samples/inventory-gear-product-import-example.xlsx` — the
+  demo catalog table extended to the full `products` import shape (identity,
+  pricing, stock, org, state + `product_identifiers`), plus a
+  "Maestros de referencia" sheet. Documented with column map + import rules in
+  `docs-site/inventory/products.md` ("Import Reference Template"). Reference
+  format for the future bulk-import feature.

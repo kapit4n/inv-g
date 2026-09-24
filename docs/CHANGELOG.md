@@ -6,6 +6,52 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased] - Product import reference template
+
+### Added
+
+- **Product import example workbook** —
+  `docs-site/public/samples/inventory-gear-product-import-example.xlsx`. The 19-row
+  demo catalog table extended from its original 8 source columns (`Código`,
+  `Código_2`, `Nombre`, `Precio/u`, `Categoría`, `Marca`, `Cant`) into the full
+  `products` shape (identity, pricing, stock, org, state) plus cross-reference
+  identifiers. Sheet `Maestros de referencia` lists the categories/brands/
+  supplier/warehouse/locations to resolve. Documented (column map + import
+  rules) in `docs-site/inventory/products.md` under **Import Reference Template**.
+
+---
+
+## [Unreleased] - Sales dashboard KPI fix
+
+### Fixed
+
+- **Sales dashboard KPIs not updating after a sale.** POS checkout used to
+  invalidate only `["sales"]` / `["pos-search"]` / `["daily-closeout"]`, leaving
+  the `["sales-summary"]` query cache "fresh" for up to 5 minutes — so returning
+  to Ventas re-fetched the table but showed stale KPI cards. All sale-mutating
+  paths (POS checkout, quote→sale conversion, refunds in sale detail / returns)
+  now also invalidate `["sales-summary"]` and `["dashboard-widgets"]`.
+- **Wrong date windows in `get_sales_summary`.** "Today" compared the local date
+  against `date(created_at)` (UTC), mis-tagging near-midnight sales on UTC-4
+  machines (Bolivia); "Ventas del Mes" was a rolling 30-day window instead of the
+  calendar month. The command now translates the local calendar day/month into
+  UTC ranges via chrono (`sales_summary_for(conn, now)` with an injectable
+  clock). Refunded sales remain excluded; pending/partial still count; week and
+  top-products stay rolling windows.
+- Added 9 Rust regression tests (bounds, day/month windows, refund exclusion,
+  accumulation) and 2 frontend regression tests (invalidation spy +
+  Sales→POS→checkout→Sales workflow with a production-like 5-minute-stale
+  `QueryClient`).
+
+### Added
+
+- `tests/unit/components/sales-kpi-refresh.test.tsx` (new end-to-end KPI refresh
+  regression test).
+- `tests/helpers/render.tsx`: `createTestQueryClient()` + optional `queryClient`
+  prop (used to reproduce the stale-cache configuration).
+
+---
+
 ## [Unreleased] - Spanish i18n hardening
 
 ### Added

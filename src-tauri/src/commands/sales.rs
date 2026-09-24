@@ -2,6 +2,7 @@ use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 use crate::db::DbState;
+use chrono::Datelike;
 
 fn get_conn<'r>(state: &'r State<'r, DbState>) -> Result<std::sync::MutexGuard<'r, rusqlite::Connection>, String> {
     state.conn.lock().map_err(|e| format!("Database lock error: {}", e))
@@ -269,9 +270,68 @@ pub struct SalesChartData {
 
 // ── Helpers ──
 
+/// Returns the current local date formatted as YYYY-MM-DD.
+///
+/// NOTE: `created_at` is stored in UTC (`datetime('now')`), so this value must
+/// never be compared against `date(created_at)` directly — use the
+/// `utc_bounds_for_local_*` helpers instead (see `get_sales_summary`).
 fn today_date() -> String {
     let now = chrono::Local::now();
     now.format("%Y-%m-%d").to_string()
+}
+
+/// UTC instant corresponding to local midnight of `now`'s calendar day.
+fn local_day_start_utc(now: chrono::DateTime<chrono::Local>) -> chrono::DateTime<chrono::Utc> {
+    let today = now.date_naive();
+    let midnight = today.and_hms_opt(0, 0, 0).expect("valid midnight");
+    midnight
+        .and_local_timezone(chrono::Local)
+        .earliest()
+        .expect("local midnight resolves")
+        .with_timezone(&chrono::Utc)
+}
+
+/// Inclusive start / exclusive end (as UTC `datetime('now')` strings) of the
+/// LOCAL calendar day in which `now` falls. Sales are stored in UTC, so
+/// matching the business day requires translating the local day into a UTC
+/// range instead of comparing `date(created_at)` against a local date.
+fn utc_bounds_for_local_day(now: chrono::DateTime<chrono::Local>) -> (String, String) {
+    let start = local_day_start_utc(now);
+    let end = start + chrono::Duration::days(1);
+    (
+        start.format("%Y-%m-%d %H:%M:%S").to_string(),
+        end.format("%Y-%m-%d %H:%M:%S").to_string(),
+    )
+}
+
+/// Inclusive start / exclusive end (as UTC `datetime('now')` strings) of the
+/// LOCAL calendar month in which `now` falls.
+fn utc_bounds_for_local_month(now: chrono::DateTime<chrono::Local>) -> (String, String) {
+    let today = now.date_naive();
+    let month_start = chrono::NaiveDate::from_ymd_opt(today.year(), today.month(), 1)
+        .expect("month start is a valid date");
+    let next_month_start = if today.month() == 12 {
+        chrono::NaiveDate::from_ymd_opt(today.year() + 1, 1, 1).expect("january is a valid date")
+    } else {
+        chrono::NaiveDate::from_ymd_opt(today.year(), today.month() + 1, 1)
+            .expect("next month start is a valid date")
+    };
+    let start_local = month_start
+        .and_hms_opt(0, 0, 0)
+        .expect("valid midnight")
+        .and_local_timezone(chrono::Local)
+        .earliest()
+        .expect("local midnight resolves");
+    let end_local = next_month_start
+        .and_hms_opt(0, 0, 0)
+        .expect("valid midnight")
+        .and_local_timezone(chrono::Local)
+        .earliest()
+        .expect("local midnight resolves");
+    (
+        start_local.with_timezone(&chrono::Utc).format("%Y-%m-%d %H:%M:%S").to_string(),
+        end_local.with_timezone(&chrono::Utc).format("%Y-%m-%d %H:%M:%S").to_string(),
+    )
 }
 
 fn next_sale_number(conn: &rusqlite::Connection) -> Result<String, String> {
@@ -803,19 +863,30 @@ pub fn get_daily_closeout(state: State<DbState>) -> Result<DailyCloseout, String
 
 // ── Sales Summary / Stats ──
 
-#[tauri::command]
-pub fn get_sales_summary(state: State<DbState>) -> Result<SalesSummary, String> {
-    let conn = get_conn(&state)?;
-    let today = today_date();
+/// Core sales-summary computation, factored out of the command so it can be
+/// unit-tested against a real connection with a controlled clock.
+///
+/// Accounting rules (kept consistent with `get_sales`, `get_daily_closeout`
+/// and the runtime schema):
+/// - "today" = the LOCAL calendar day that contains `now`, translated into a
+///   UTC range (sales are stored as UTC `datetime('now')` text). This avoids
+///   the previous local-vs-UTC day-boundary mismatch (e.g. UTC-4 Bolivia).
+/// - "month" = the LOCAL calendar month containing `now` (a true
+///   `Ventas del Mes`, previously a rolling 30-day window).
+/// - Only sales with `payment_status != 'refunded'` count toward revenue and
+///   transaction totals (refunds are tracked separately).
+fn sales_summary_for(conn: &rusqlite::Connection, now: chrono::DateTime<chrono::Local>) -> Result<SalesSummary, String> {
+    let (day_start, day_end) = utc_bounds_for_local_day(now);
+    let (month_start, month_end) = utc_bounds_for_local_month(now);
 
     let total_sales_today: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM sales WHERE date(created_at) = ?1 AND payment_status != 'refunded'",
-        params![today], |row| row.get(0)
+        "SELECT COUNT(*) FROM sales WHERE created_at >= ?1 AND created_at < ?2 AND payment_status != 'refunded'",
+        params![day_start, day_end], |row| row.get(0)
     ).map_err(|e| e.to_string())?;
 
     let revenue_today: f64 = conn.query_row(
-        "SELECT COALESCE(SUM(total), 0) FROM sales WHERE date(created_at) = ?1 AND payment_status != 'refunded'",
-        params![today], |row| row.get(0)
+        "SELECT COALESCE(SUM(total), 0) FROM sales WHERE created_at >= ?1 AND created_at < ?2 AND payment_status != 'refunded'",
+        params![day_start, day_end], |row| row.get(0)
     ).map_err(|e| e.to_string())?;
 
     let total_sales_week: i64 = conn.query_row(
@@ -829,13 +900,13 @@ pub fn get_sales_summary(state: State<DbState>) -> Result<SalesSummary, String> 
     ).map_err(|e| e.to_string())?;
 
     let total_sales_month: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM sales WHERE created_at >= datetime('now', '-30 days') AND payment_status != 'refunded'",
-        [], |row| row.get(0)
+        "SELECT COUNT(*) FROM sales WHERE created_at >= ?1 AND created_at < ?2 AND payment_status != 'refunded'",
+        params![month_start, month_end], |row| row.get(0)
     ).map_err(|e| e.to_string())?;
 
     let revenue_month: f64 = conn.query_row(
-        "SELECT COALESCE(SUM(total), 0) FROM sales WHERE created_at >= datetime('now', '-30 days') AND payment_status != 'refunded'",
-        [], |row| row.get(0)
+        "SELECT COALESCE(SUM(total), 0) FROM sales WHERE created_at >= ?1 AND created_at < ?2 AND payment_status != 'refunded'",
+        params![month_start, month_end], |row| row.get(0)
     ).map_err(|e| e.to_string())?;
 
     let average_order_value: f64 = if total_sales_today > 0 { revenue_today / total_sales_today as f64 } else { 0.0 };
@@ -862,6 +933,12 @@ pub fn get_sales_summary(state: State<DbState>) -> Result<SalesSummary, String> 
         total_sales_today, revenue_today, total_sales_week, revenue_week,
         total_sales_month, revenue_month, average_order_value, top_products,
     })
+}
+
+#[tauri::command]
+pub fn get_sales_summary(state: State<DbState>) -> Result<SalesSummary, String> {
+    let conn = get_conn(&state)?;
+    sales_summary_for(&conn, chrono::Local::now())
 }
 
 #[tauri::command]
@@ -1611,4 +1688,182 @@ pub fn search_sales(state: State<DbState>, query: String) -> Result<Vec<Sale>, S
     let mut result = Vec::new();
     for row in rows { result.push(row.map_err(|e| e.to_string())?); }
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::PROFILE_SINGLE_STORE;
+    use crate::db::init_database_with_profile;
+    use chrono::{Datelike, Duration, Local, NaiveDate, TimeZone, Utc};
+
+    fn test_db() -> rusqlite::Connection {
+        let dir = std::env::temp_dir().join(format!("ig_sales_test_{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).expect("create temp dir");
+        let path = dir.join("sales.db");
+        init_database_with_profile(path.to_str().unwrap(), PROFILE_SINGLE_STORE).expect("init db")
+    }
+
+    /// Inserts a sale with an explicit UTC `created_at` string and returns its id.
+    fn insert_sale(conn: &rusqlite::Connection, n: i64, total: f64, status: &str, created_at: &str) -> i64 {
+        conn.execute(
+            "INSERT INTO sales (sale_number, total, payment_status, payment_method, created_at, updated_at)
+             VALUES (?1, ?2, ?3, 'cash', ?4, ?4)",
+            params![format!("INV-T{:05}", n), total, status, created_at],
+        )
+        .expect("insert sale");
+        conn.last_insert_rowid()
+    }
+
+    /// UTC string for `delta` from the start of the local day containing `now`.
+    fn day_offset(now: chrono::DateTime<Local>, delta: Duration) -> String {
+        (local_day_start_utc(now) + delta)
+            .format("%Y-%m-%d %H:%M:%S")
+            .to_string()
+    }
+
+    fn now() -> chrono::DateTime<Local> {
+        chrono::Local::now()
+    }
+
+    #[test]
+    fn empty_db_returns_zero_summary() {
+        let db = test_db();
+        let s = sales_summary_for(&db, now()).unwrap();
+        assert_eq!(s.total_sales_today, 0);
+        assert_eq!(s.revenue_today, 0.0);
+        assert_eq!(s.total_sales_month, 0);
+        assert_eq!(s.revenue_month, 0.0);
+        assert_eq!(s.average_order_value, 0.0);
+    }
+
+    #[test]
+    fn today_sales_drive_all_four_kpis() {
+        let db = test_db();
+        let n = now();
+        // Two paid sales within the local day (mirrors the reported $106 + $90 example).
+        insert_sale(&db, 1, 106.0, "paid", &day_offset(n, Duration::hours(1)));
+        insert_sale(&db, 2, 90.0, "paid", &day_offset(n, Duration::hours(2)));
+
+        let s = sales_summary_for(&db, n).unwrap();
+        assert_eq!(s.total_sales_today, 2);
+        assert_eq!(s.revenue_today, 196.0);
+        assert_eq!(s.average_order_value, 98.0);
+        assert_eq!(s.total_sales_month, 2);
+        assert_eq!(s.revenue_month, 196.0);
+    }
+
+    #[test]
+    fn sequential_sales_accumulate() {
+        let db = test_db();
+        let n = now();
+
+        insert_sale(&db, 1, 100.0, "paid", &day_offset(n, Duration::hours(1)));
+        let s1 = sales_summary_for(&db, n).unwrap();
+        assert_eq!(s1.total_sales_today, 1);
+        assert_eq!(s1.revenue_today, 100.0);
+        assert_eq!(s1.average_order_value, 100.0);
+        assert_eq!(s1.revenue_month, 100.0);
+
+        insert_sale(&db, 2, 50.0, "paid", &day_offset(n, Duration::hours(2)));
+        let s2 = sales_summary_for(&db, n).unwrap();
+        assert_eq!(s2.total_sales_today, 2);
+        assert_eq!(s2.revenue_today, 150.0);
+        assert_eq!(s2.average_order_value, 75.0);
+        assert_eq!(s2.revenue_month, 150.0);
+    }
+
+    #[test]
+    fn refunded_sales_are_excluded() {
+        let db = test_db();
+        let n = now();
+        insert_sale(&db, 1, 100.0, "paid", &day_offset(n, Duration::hours(1)));
+        insert_sale(&db, 2, 50.0, "refunded", &day_offset(n, Duration::hours(2)));
+
+        let s = sales_summary_for(&db, n).unwrap();
+        assert_eq!(s.total_sales_today, 1);
+        assert_eq!(s.revenue_today, 100.0);
+        assert_eq!(s.total_sales_month, 1);
+        assert_eq!(s.revenue_month, 100.0);
+    }
+
+    #[test]
+    fn partial_pending_sales_follow_existing_rule_and_are_counted() {
+        // Existing app rule: only `refunded` is excluded (see get_sales,
+        // get_daily_closeout). A pending/partial non-refunded sale still counts
+        // toward revenue — mirror that here to lock in behaviour.
+        let db = test_db();
+        let n = now();
+        insert_sale(&db, 1, 30.0, "partial", &day_offset(n, Duration::hours(1)));
+
+        let s = sales_summary_for(&db, n).unwrap();
+        assert_eq!(s.total_sales_today, 1);
+        assert_eq!(s.revenue_today, 30.0);
+        assert_eq!(s.revenue_month, 30.0);
+    }
+
+    #[test]
+    fn previous_local_day_is_not_included_today() {
+        let db = test_db();
+        let n = now();
+        insert_sale(&db, 1, 999.0, "paid", &day_offset(n, Duration::seconds(-1)));
+
+        let s = sales_summary_for(&db, n).unwrap();
+        assert_eq!(s.total_sales_today, 0);
+        assert_eq!(s.revenue_today, 0.0);
+    }
+
+    #[test]
+    fn same_calendar_month_other_day_counts_toward_month_not_today() {
+        let db = test_db();
+        let n = now();
+        let today = n.date_naive();
+        let other_day: u32 = if today.day() == 2 { 3 } else { 2 };
+        let other_date = NaiveDate::from_ymd_opt(today.year(), today.month(), other_day).expect("other day valid");
+        let other_start_utc = other_date
+            .and_hms_opt(0, 0, 0)
+            .expect("valid midnight")
+            .and_local_timezone(Local)
+            .earliest()
+            .expect("resolves")
+            .with_timezone(&Utc);
+
+        insert_sale(&db, 1, 60.0, "paid", &other_start_utc.format("%Y-%m-%d %H:%M:%S").to_string());
+
+        let s = sales_summary_for(&db, n).unwrap();
+        assert_eq!(s.total_sales_today, if other_day == today.day() { 1 } else { 0 });
+        assert_eq!(s.revenue_today, if other_day == today.day() { 60.0 } else { 0.0 });
+        assert_eq!(s.total_sales_month, 1);
+        assert_eq!(s.revenue_month, 60.0);
+    }
+
+    #[test]
+    fn previous_local_month_is_excluded_from_day_and_month() {
+        let db = test_db();
+        let n = now();
+        let (month_start, _) = utc_bounds_for_local_month(n);
+        let last_month = format!(
+            "{}",
+            (Utc.datetime_from_str(&month_start, "%Y-%m-%d %H:%M:%S").unwrap() - Duration::seconds(1))
+                .format("%Y-%m-%d %H:%M:%S")
+        );
+        insert_sale(&db, 1, 777.0, "paid", &last_month);
+
+        let s = sales_summary_for(&db, n).unwrap();
+        assert_eq!(s.total_sales_today, 0);
+        assert_eq!(s.revenue_today, 0.0);
+        assert_eq!(s.total_sales_month, 0);
+        assert_eq!(s.revenue_month, 0.0);
+    }
+
+    #[test]
+    fn day_bounds_are_contiguous_and_ordered() {
+        let n = now();
+        let (ds, de) = utc_bounds_for_local_day(n);
+        let (ms, me) = utc_bounds_for_local_month(n);
+        assert!(ds < de);
+        assert!(ms < me);
+        assert!(ds >= ms, "local day must fall within local month");
+        assert!(de <= me, "local day must fall within local month");
+    }
 }

@@ -6,6 +6,198 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-24 — Sales dashboard KPIs (Ingresos de Hoy, Transacciones, Pedido Promedio, Ventas del Mes) did not update after creating a sale, and used wrong date windows
+
+**Symptom:**
+- After completing a sale in POS, returning to Ventas showed the sales table with
+  the new invoice but the four KPI cards stayed at their previous values (e.g.
+  `$0.00` / `0`).
+- KPIs frequently disagreed with the table and the Daily Closeout, and
+  "Ventas del Mes" did not match the calendar month.
+
+**Investigation:**
+1. Traced the frontend flow: `pos-page.tsx` checkout `onSuccess` invalidated
+   `["sales"]`, `["pos-search"]`, `["daily-closeout"]` but **not
+   `["sales-summary"]`** (the KPI query key) nor `["dashboard-widgets"]`. The
+   global `queryClient` uses `staleTime: 5min`, so the summary cache was still
+   considered fresh when the user returned to Ventas → React Query skipped the
+   refetch; only the table refreshed (because `["sales"]` was invalidated).
+2. Checked all sale-mutating paths and found the same gap: `quote-detail-page`
+   (convert quote → sale), `returns-page` (refund), `sale-detail-page` (refund).
+3. Audited the backend summary. `get_sales_summary` compared the **local**
+   `today_date()` against `date(created_at)` (a UTC date). On a UTC-4 machine
+   (Bolivia) the window for "today" was off by up to ~20h at the boundaries.
+4. `revenueMonth`/`totalSalesMonth` used `datetime('now', '-30 days')` — a
+   rolling 30-day window, not the calendar month.
+
+**Root cause:**
+- Missing React Query cache invalidation for the `["sales-summary"]` /
+  `["dashboard-widgets"]` query keys after every sale mutation.
+- `get_sales_summary` used local-vs-UTC date comparison for the "today" window
+  and a rolling window instead of the calendar month for "Ventas del Mes".
+
+**Fix:**
+- Rust (`src-tauri/src/commands/sales.rs`):
+  - Added `utc_bounds_for_local_day`, `utc_bounds_for_local_month`, and
+    `local_day_start_utc` helpers (chrono) that translate the **local calendar
+    day / month** containing `now` into UTC ranges (`created_at` is stored as
+    UTC). Today = local day, Month = local calendar month.
+  - Extracted the computation into a pure `sales_summary_for(conn, now)`
+    (injectable clock), called by the `get_sales_summary` command with
+    `chrono::Local::now()`.
+  - Week (rolling 7 days) and top products (rolling 30 days) kept as rolling
+    windows — only today/month were corrected. Existing accounting rule kept:
+    sales with `payment_status = 'refunded'` are excluded from revenue/transaction
+    totals; pending/partial still count.
+- Frontend (`src/features/sales/pages/…`):
+  - `pos-page.tsx` onSuccess now also invalidates `["sales-summary"]` and
+    `["dashboard-widgets"]`.
+  - `sale-detail-page.tsx` and `returns-page.tsx` refund onSuccess likewise +
+    `["sales-summary"]` / `["dashboard-widgets"]`.
+  - `quote-detail-page.tsx` convert-to-sale onSuccess likewise +
+    `["daily-closeout"]`, `["sales-summary"]`, `["dashboard-widgets"]`.
+
+**Tests:**
+- Rust: 9 new `#[cfg(test)]` tests in `sales.rs` (temp DB with the real schema):
+  empty DB → zero summary; same-day 106+90 → 196/2/avg 98; sequential
+  accumulate; refunded excluded; partial counted; previous local day excluded;
+  same-month/other-day counts month not today; previous month excluded; day
+  bounds contiguous/ordered. `cargo test --lib`: 94 passed, 2 failed (only the
+  pre-existing env-dependent profile.json config tests, see `KNOWN_ISSUES.md`).
+- Frontend: `tests/unit/components/pos-page.test.tsx` — new test asserts checkout
+  invalidates `["sales-summary"]`, `["dashboard-widgets"]`, `["sales"]` via an
+  `invalidateQueries` spy; new `tests/unit/components/sales-kpi-refresh.test.tsx`
+  — full render workflow (Sales → POS → checkout $100 → back to Sales) with a
+  production-like `QueryClient` (`staleTime`/`gcTime` 5 min) reproducing the stale
+  cache, asserting the table + all four KPIs update from persisted data.
+- Manual alive check: inserted sales (today 100+50, same-month 25, previous-month
+  40, refunded 200) into a throwaway copy of the live DB and ran the exact
+  `sales_summary_for` SQL — today=2/$150, month=3/$175, refunded/previous month
+  excluded, local-day UTC boundary = `04:00` for UTC-4.
+
+**Affected files:**
+- `src-tauri/src/commands/sales.rs`
+- `src/features/sales/pages/pos-page.tsx`
+- `src/features/sales/pages/sale-detail-page.tsx`
+- `src/features/sales/pages/returns-page.tsx`
+- `src/features/sales/pages/quote-detail-page.tsx`
+- `tests/helpers/render.tsx` (accepts `queryClient`, exports `createTestQueryClient`)
+- `tests/unit/components/pos-page.test.tsx`, `tests/unit/components/sales-kpi-refresh.test.tsx` (new)
+
+**Commit:** (pending)
+
+---
+
+### 2026-09-20 — `npm run typecheck` was a no-op (compiled 0 files) and hid 158 type errors
+
+**Symptom:**
+- `npm run typecheck` (`tsc --noEmit`) always exited 0 — even after edits that
+  introduced obvious type breakage (e.g. an undefined `setActiveTab` that never
+  crashed builds).
+- `npm run build` (`tsc -b && vite build`) **did** typecheck correctly, so the
+  app still shipped — but the dedicated typecheck gate and `npm run verify`
+  gave false confidence.
+
+**Investigation:**
+- The root `tsconfig.json` is a solution file: `{ "files": [], "references":
+  ["tsconfig.app.json", "tsconfig.node.json"] }`.
+- `tsc --noEmit` / `tsc -p tsconfig.json` runs in *non-build* mode and follows
+  `files` + `include` of that config only → with `files: []` it compiled **0
+  files**. Verified with `tsc --noEmit -p tsconfig.json --listFilesOnly`
+  (count 0) vs `-p tsconfig.app.json` (976 files). Build mode (`-b`) is what
+  follows project references.
+- Because of this, every earlier "typecheck passes" claim (including lines
+  written by localization subagents over the last sessions) was unverified.
+
+**Fix:**
+- `package.json`: `"typecheck": "tsc --noEmit"` → `"typecheck": "tsc -b"`
+  (matches the `build` script; `tsconfig.app.json`/`node.json` are both
+  `noEmit: true` so `-b` only typechecks).
+- Fixed all **158 latent type errors** that the real gate then surfaced:
+  unused imports (most from i18n edits leaving dead `lucide-react`/component
+  imports), possibly-null `dashboard`/indexed-access guards
+  (`noUncheckedIndexedAccess`), report tables needing
+  `as unknown as Record<string, unknown>[]` casts, `TableColumn<T>[]` column
+  alignment in sales pages, renamed/absent `@/types` exports
+  (`InventorySupplier`, `Warehouse`, `SupplierPerformanceReport` →
+  `SupplierPerformance`), `CompatibilityEntry` `brandName`/`modelName`,
+  a Checkbox `id` prop (added `id?: string` to `ui/checkbox.tsx`), and unused
+  `DailyCloseout` `date` (removed; the type has no date field). No runtime
+  behavior changed.
+
+**Affected:** `package.json`, plus ~30 feature page/component files and
+`src/types`, `src/lib/*`, `src/hooks/*`, `src/layouts/*`.
+
+**Commit:** `TBD`
+
+---
+
+### 2026-09-20 — Spanish locale leaked raw keys, missing strings, and English fallbacks across the app
+
+**Symptom:**
+- UI rendered raw keys (e.g. `common.save`, `reports.noData`) and hardcoded
+  English labels in the Spanish locale; `t('key', 'english')` fallbacks and
+  EN-only keys meant English leaked into es.
+- Affected shared components (comboboxes, dialog, table placeholders, print
+  templates), help page, CRM, Admin, Sales/customers, Purchases and Reports
+  pages.
+
+**Investigation:**
+- The app lazily redirects `t("ns.key")` to a namespace only when the first
+  segment is a *registered* namespace; with `nsSeparator === keySeparator ===
+  "."`, missing keys render raw (no `parseMissingKeyHandler`). Many pages
+  predated i18n or were added with literal English strings; audits found
+  hundreds of hardcoded text nodes plus ~600 keys missing from
+  `es`/`en`.
+
+**Fix:**
+- Wrote a project-aware audit (`audit-i18n.mjs`): parses the configured
+  namespace list + resolvable-key set, walks the source for `t()` calls and
+  text attributes, and reports missing-ES / missing-EN / EN-only / fallback
+  calls. Drove totals to 0.
+- Added ~1,250 keys across 16 namespaces (es+en), converted every shared
+  component, help, print template, CRM, Admin, Sales, Purchases, Reports and
+  inventory tab page to `t()`, and documented flat-key conventions (see
+  `docs/I18N.md`).
+
+**Affected:** `src/i18n/locales/{es,en}/*.json`, ~40 page/component files,
+`tests/unit/components/product-search-combobox.test.tsx` (added
+`setupI18n("en")`).
+
+**Commit:** `TBD`
+
+---
+
+### 2026-09-20 — Rust config tests fail on machines whose app-data dir already holds a `profile.json`
+
+**Symptom:**
+- `npm run test:rust` (cargo test) failed 2 tests:
+  `config::tests::test_config_default_profile_db_file` and
+  `config::tests::test_default_config` — `AppConfig::default()` returned
+  `single-store` / `inventory-gear-single.db` instead of the `default` profile
+  `inventory_gear.db`.
+
+**Investigation:**
+- Dev machine's real data dir (`~/.local/share/inventory-gear/profile.json`)
+  contains `{"profile":"single-store"}` (set via `npm run db:single-store` /
+  the Settings developer tools).
+- `AppConfig::default()` reads the real data dir unless the
+  `IG_DATABASE_PROFILE` env var overrides it
+  (`src-tauri/src/config.rs:11`). The two failing tests assumed a clean data
+  dir and are **environment-dependent**, not caused by any frontend change
+  (this session touched no `src-tauri` code; `git status` confirmed).
+  The suite is otherwise 85/87 passing.
+
+**Fix:**
+- None applied (by design — Rust code was out of scope). Affected developers
+  should run with a clean data dir or `IG_DATABASE_PROFILE=default`; a
+  fixture/`temp_dir` rewrite for `AppConfig::default()` is a future task. See
+  `docs/KNOWN_ISSUES.md`.
+
+**Commit:** `TBD`
+
+---
+
 ### 2026-09-18 — Flaky Rust config test: `test_read_active_profile_no_file_falls_back_to_default` intermittently failed
 
 **Symptom:**

@@ -12,6 +12,10 @@ export default defineConfig({
   srcDir: ".",
   cleanUrls: true,
 
+  // Static sample/download assets live in `public/samples/` and are not part of
+  // the markdown route graph, so exclude them from the dead-link check.
+  ignoreDeadLinks: [/^\/manual\/samples\//],
+
   head: [
     ["link", { rel: "icon", type: "image/png", href: "/manual/favicon.png" }],
   ],
