@@ -18,7 +18,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { DataTable } from "@/components/data-table"
-import { SelectField } from "@/components/forms"
 import type { TableColumn } from "@/types/crud"
 import {
   getPurchaseReturns,
@@ -26,7 +25,7 @@ import {
   getPurchaseOrderItems,
   createPurchaseReturn,
 } from "@/lib/tauri"
-import type { PurchaseReturn, PurchaseOrder, PurchaseOrderItem } from "@/types"
+import type { PurchaseReturn, PurchaseOrder } from "@/types"
 import { useNotification } from "@/hooks/use-notification"
 
 const STATUS_VARIANTS: Record<string, "success" | "warning" | "info" | "secondary" | "destructive"> = {
@@ -345,8 +344,11 @@ export function PurchaseReturnsPage() {
                                 onChange={(e) => {
                                   const newItems = [...returnItems]
                                   newItems[idx] = {
-                                    ...newItems[idx],
+                                    productId: item.productId,
+                                    productName: item.productName,
                                     quantity: Number(e.target.value),
+                                    unitCost: item.unitCost,
+                                    reason: item.reason,
                                   }
                                   setReturnItems(newItems)
                                 }}
@@ -359,7 +361,10 @@ export function PurchaseReturnsPage() {
                                 onChange={(e) => {
                                   const newItems = [...returnItems]
                                   newItems[idx] = {
-                                    ...newItems[idx],
+                                    productId: item.productId,
+                                    productName: item.productName,
+                                    quantity: item.quantity,
+                                    unitCost: item.unitCost,
                                     reason: e.target.value,
                                   }
                                   setReturnItems(newItems)

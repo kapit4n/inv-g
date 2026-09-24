@@ -36,8 +36,7 @@ export function AdminRoleFormPage() {
   }, [id])
 
   const grouped = permissions.reduce<Record<string, AdminPermission[]>>((acc, p) => {
-    if (!acc[p.groupName]) acc[p.groupName] = []
-    acc[p.groupName].push(p)
+    (acc[p.groupName] ??= []).push(p)
     return acc
   }, {})
 
@@ -77,12 +76,12 @@ export function AdminRoleFormPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">{isEdit ? t("admin.roles.edit") : t("admin.roles.create")}</h1>
-        <p className="text-sm text-muted-foreground">{isEdit ? `Editing role #${id}` : "Create a new role"}</p>
+        <p className="text-sm text-muted-foreground">{isEdit ? t("admin.roles.editing", { id }) : t("admin.roles.createNew")}</p>
       </div>
 
       <form onSubmit={handleSubmit}>
         <Card>
-          <CardHeader><CardTitle className="text-base">Role Details</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{t("admin.roles.details")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">

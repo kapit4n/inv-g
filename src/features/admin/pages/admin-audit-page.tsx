@@ -1,10 +1,8 @@
 import { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
-import { Search, Filter, Activity, AlertTriangle, Info, XCircle } from "lucide-react"
+import { Search, Activity, AlertTriangle, Info, XCircle } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getAuditEvents, getAuditSummary } from "@/lib/tauri"
 import type { AuditEvent } from "@/types"
@@ -69,8 +67,8 @@ export function AdminAuditPage() {
             <CardTitle className="text-base">{t("admin.audit.timeline")}</CardTitle>
             <div className="flex items-center gap-2">
               <select className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm" value={severity} onChange={(e) => setSeverity(e.target.value)}>
-                <option value="">All Severities</option>
-                <option value="info">Info</option><option value="warning">Warning</option><option value="error">Error</option><option value="critical">Critical</option>
+                <option value="">{t("admin.audit.allSeverities")}</option>
+                <option value="info">{t("admin.audit.info")}</option><option value="warning">{t("admin.audit.warning")}</option><option value="error">{t("admin.audit.error")}</option><option value="critical">{t("admin.audit.critical")}</option>
               </select>
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -89,7 +87,7 @@ export function AdminAuditPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Severity</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("admin.audit.severity")}</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("admin.audit.timestamp")}</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("admin.audit.user")}</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("admin.audit.action")}</th>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
-import { Plus, Printer, Trash2, Star, TestTube, MoreHorizontal } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Plus, Printer, Star, MoreHorizontal } from "lucide-react"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -178,7 +178,7 @@ export function AdminPrintersPage() {
                       <p className="text-xs text-muted-foreground">{printer.printerType} - {printer.interfaceType}</p>
                       {printer.ipAddress && <p className="text-xs text-muted-foreground">{printer.ipAddress}:{printer.port}</p>}
                       <div className="flex items-center gap-2 mt-2">
-                        <Badge variant={printer.isActive ? "success" : "secondary"}>{printer.isActive ? "Active" : "Inactive"}</Badge>
+                        <Badge variant={printer.isActive ? "success" : "secondary"}>{printer.isActive ? t("admin.printers.active") : t("admin.printers.inactive")}</Badge>
                         <span className="text-xs text-muted-foreground">{printer.paperSize} / {printer.orientation}</span>
                       </div>
                     </div>
@@ -190,7 +190,7 @@ export function AdminPrintersPage() {
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => openEdit(printer)}>{t("admin.printers.edit")}</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleTest(printer.id)}>{t("admin.printers.testPrint")}</DropdownMenuItem>
-                      {!printer.isDefault && <DropdownMenuItem onClick={() => handleSetDefault(printer.id)}>Set Default</DropdownMenuItem>}
+                      {!printer.isDefault && <DropdownMenuItem onClick={() => handleSetDefault(printer.id)}>{t("admin.printers.setDefault")}</DropdownMenuItem>}
                       <DropdownMenuItem onClick={() => handleDelete(printer.id)}>{t("admin.printers.delete")}</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

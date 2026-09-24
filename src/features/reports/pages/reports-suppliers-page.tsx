@@ -5,13 +5,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BarChartCard } from "../components/report-charts"
 import { ReportTable, type Column } from "../components/report-table"
 import * as api from "@/lib/tauri"
-import type { SupplierRanking, LeadTimeAnalysis, SupplierPerformanceReport } from "@/types"
-import { Truck, Clock, BarChart3 } from "lucide-react"
+import type { SupplierRanking, LeadTimeAnalysis, SupplierPerformance } from "@/types"
 import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
-
-const currency = (v: number) =>
-  v.toLocaleString("en-US", { style: "currency", currency: "USD" })
 
 function scoreBadge(score: number) {
   if (score > 80) return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
@@ -27,7 +22,7 @@ export function ReportsSuppliersPage() {
 
   const [rankingData, setRankingData] = useState<SupplierRanking[]>([])
   const [leadTimeData, setLeadTimeData] = useState<LeadTimeAnalysis[]>([])
-  const [perfData, setPerfData] = useState<SupplierPerformanceReport[]>([])
+  const [perfData, setPerfData] = useState<SupplierPerformance[]>([])
 
   const fetchData = useCallback(() => {
     setLoading(true)

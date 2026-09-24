@@ -90,15 +90,15 @@ export function CrmDashboardPage() {
                 </div>
                 <div className="h-px bg-border" />
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Workshops</span>
+                  <span className="text-muted-foreground">{t("workshops")}</span>
                   <span className="font-semibold">{data?.workshops ?? 0}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Fleet Companies</span>
+                  <span className="text-muted-foreground">{t("fleetCompanies")}</span>
                   <span className="font-semibold">{data?.fleetCompanies ?? 0}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">{t("customersWithCredit") as string || "With Credit"}</span>
+                  <span className="text-muted-foreground">{t("customersWithCredit")}</span>
                   <span className="font-semibold">{data?.customersWithCredit ?? 0}</span>
                 </div>
               </div>
@@ -108,7 +108,7 @@ export function CrmDashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">{t("customers")} by Type</CardTitle>
+            <CardTitle className="text-base">{t("customersByType")}</CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -118,7 +118,7 @@ export function CrmDashboardPage() {
                 ))}
               </div>
             ) : !data?.customersByType?.length ? (
-              <p className="text-sm text-muted-foreground">No data</p>
+              <p className="text-sm text-muted-foreground">{t("noData")}</p>
             ) : (
               <div className="space-y-3">
                 {data.customersByType.map(([type, count]) => (
@@ -139,7 +139,7 @@ export function CrmDashboardPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">{t("vehicles")} Brands</CardTitle>
+            <CardTitle className="text-base">{t("vehicleBrands")}</CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -149,7 +149,7 @@ export function CrmDashboardPage() {
                 ))}
               </div>
             ) : !data?.vehicleBrands?.length ? (
-              <p className="text-sm text-muted-foreground">No data</p>
+              <p className="text-sm text-muted-foreground">{t("noData")}</p>
             ) : (
               <div className="space-y-3">
                 {data.vehicleBrands.map(([brand, count]) => (
@@ -170,7 +170,7 @@ export function CrmDashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Top Customers</CardTitle>
+            <CardTitle className="text-base">{t("topCustomers")}</CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -180,7 +180,7 @@ export function CrmDashboardPage() {
                 ))}
               </div>
             ) : !data?.topCustomers?.length ? (
-              <p className="text-sm text-muted-foreground">No data</p>
+              <p className="text-sm text-muted-foreground">{t("noData")}</p>
             ) : (
               <div className="space-y-3">
                 {data.topCustomers.map(([name, revenue], idx) => (

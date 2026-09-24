@@ -28,7 +28,8 @@ export function AdminSettingsPage() {
   useEffect(() => {
     getSettingCategories().then((cats) => {
       setCategories(cats)
-      if (cats.length > 0) setActiveCategory(cats[0].category)
+      const first = cats[0]
+      if (first) setActiveCategory(first.category)
     })
   }, [])
 

@@ -1,8 +1,10 @@
 import type { PrintDocumentModel } from "@/lib/print/types"
 import { isThermalPaper, paperWidth } from "@/lib/print/config"
 import { formatCurrency, formatTotalValue } from "@/lib/print"
+import { useTranslation } from "react-i18next"
 
 function ReceiptTemplate({ document }: { document: PrintDocumentModel }) {
+  const { t } = useTranslation()
   const width = paperWidth(document.paperSize)
 
   return (
@@ -63,7 +65,7 @@ function ReceiptTemplate({ document }: { document: PrintDocumentModel }) {
           {document.payments.map((p, i) => (
             <div key={i}>
               {p.method}: {formatCurrency(p.amount, document.store.currency ?? "USD")}
-              {p.change > 0 && ` (change: ${formatCurrency(p.change, document.store.currency ?? "USD")})`}
+              {p.change > 0 && ` (${t("paymentChange")}: ${formatCurrency(p.change, document.store.currency ?? "USD")})`}
             </div>
           ))}
         </div>
@@ -77,6 +79,7 @@ function ReceiptTemplate({ document }: { document: PrintDocumentModel }) {
 }
 
 function DocumentTemplate({ document }: { document: PrintDocumentModel }) {
+  const { t } = useTranslation()
   const currency = document.store.currency ?? "USD"
 
   return (
@@ -113,11 +116,11 @@ function DocumentTemplate({ document }: { document: PrintDocumentModel }) {
         <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ borderBottom: "1px solid #000", textAlign: "left" }}>
-              <th style={{ padding: "6px 0" }}>Product</th>
-              <th style={{ padding: "6px 0", textAlign: "right" }}>Qty</th>
-              <th style={{ padding: "6px 0", textAlign: "right" }}>Price</th>
-              <th style={{ padding: "6px 0", textAlign: "right" }}>Disc</th>
-              <th style={{ padding: "6px 0", textAlign: "right" }}>Total</th>
+              <th style={{ padding: "6px 0" }}>{t("product")}</th>
+              <th style={{ padding: "6px 0", textAlign: "right" }}>{t("qty")}</th>
+              <th style={{ padding: "6px 0", textAlign: "right" }}>{t("price")}</th>
+              <th style={{ padding: "6px 0", textAlign: "right" }}>{t("disc")}</th>
+              <th style={{ padding: "6px 0", textAlign: "right" }}>{t("total")}</th>
             </tr>
           </thead>
           <tbody>

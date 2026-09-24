@@ -8,7 +8,7 @@ import type { ReportHistoryEntry, ReportTemplate } from "@/types"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { FileText, Clock, Database, Download, RefreshCw } from "lucide-react"
+import { FileText, Clock, Database, Download } from "lucide-react"
 
 export function ReportsExportsPage() {
   const { t } = useTranslation("reports")

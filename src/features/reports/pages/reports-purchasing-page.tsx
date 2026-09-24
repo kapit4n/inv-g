@@ -25,55 +25,14 @@ const emptyFilter: FilterState = {
   paymentMethod: "All",
 }
 
-const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
-  { id: "byMonth", label: "By Month", icon: <BarChart3 className="h-4 w-4" /> },
-  { id: "bySupplier", label: "By Supplier", icon: <Truck className="h-4 w-4" /> },
-  { id: "supplierPerformance", label: "Supplier Performance", icon: <BarChart3 className="h-4 w-4" /> },
-  { id: "poStatus", label: "PO Status", icon: <ShoppingBag className="h-4 w-4" /> },
-  { id: "reorder", label: "Reorder", icon: <AlertTriangle className="h-4 w-4" /> },
-  { id: "costHistory", label: "Cost History", icon: <DollarSign className="h-4 w-4" /> },
-]
-
-const monthColumns = [
-  { key: "period", label: "Period" },
-  { key: "orderCount", label: "Orders", format: "number" as const },
-  { key: "total", label: "Total", format: "currency" as const },
-  { key: "itemCount", label: "Items", format: "number" as const },
-  { key: "avgOrderValue", label: "Avg Order", format: "currency" as const },
-]
-
-const supplierColumns = [
-  { key: "supplierName", label: "Supplier" },
-  { key: "orderCount", label: "Orders", format: "number" as const },
-  { key: "total", label: "Total", format: "currency" as const },
-  { key: "avgCost", label: "Avg Cost", format: "currency" as const },
-]
-
-const poStatusColumns = [
-  { key: "status", label: "Status" },
-  { key: "count", label: "Count", format: "number" as const },
-  { key: "total", label: "Total", format: "currency" as const },
-]
-
-const costHistoryColumns = [
-  { key: "productName", label: "Product" },
-  { key: "productSku", label: "SKU" },
-  { key: "supplierName", label: "Supplier" },
-  { key: "oldCost", label: "Old Cost", format: "currency" as const },
-  { key: "newCost", label: "New Cost", format: "currency" as const },
-  { key: "quantity", label: "Qty", format: "number" as const },
-  { key: "createdByName", label: "Changed By" },
-  { key: "createdAt", label: "Date" },
-]
-
 function fmt(v: number) {
   return v.toLocaleString("en-US", { style: "currency", currency: "USD" })
 }
 
 function onTimeRating(pct: number) {
-  if (pct >= 90) return { label: "Excellent", color: "bg-green-100 text-green-800" as const }
-  if (pct >= 75) return { label: "Average", color: "bg-yellow-100 text-yellow-800" as const }
-  return { label: "Poor", color: "bg-red-100 text-red-800" as const }
+  if (pct >= 90) return { labelKey: "excellent" as const, color: "bg-green-100 text-green-800" as const }
+  if (pct >= 75) return { labelKey: "average" as const, color: "bg-yellow-100 text-yellow-800" as const }
+  return { labelKey: "poor" as const, color: "bg-red-100 text-red-800" as const }
 }
 
 function TableSkeleton({ rows = 5, cols = 4 }: { rows?: number; cols?: number }) {
@@ -102,16 +61,18 @@ function TableSkeleton({ rows = 5, cols = 4 }: { rows?: number; cols?: number })
 }
 
 function TableError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  const { t } = useTranslation("reports")
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
       <p className="text-destructive mb-3 text-sm">{message}</p>
-      <Button variant="outline" size="sm" onClick={onRetry}>Retry</Button>
+      <Button variant="outline" size="sm" onClick={onRetry}>{t("retry")}</Button>
     </div>
   )
 }
 
 export function ReportsPurchasingPage() {
   const { t } = useTranslation("reports")
+  const [activeTab, setActiveTab] = useState<TabId>("byMonth")
   const [filters, setFilters] = useState<FilterState>(emptyFilter)
 
   const [monthData, setMonthData] = useState<PurchaseReportRow[]>([])
@@ -137,6 +98,47 @@ export function ReportsPurchasingPage() {
   const [costData, setCostData] = useState<CostHistoryEntry[]>([])
   const [costLoading, setCostLoading] = useState(false)
   const [costError, setCostError] = useState<string | null>(null)
+
+  const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
+    { id: "byMonth", label: t("byMonth"), icon: <BarChart3 className="h-4 w-4" /> },
+    { id: "bySupplier", label: t("bySupplier"), icon: <Truck className="h-4 w-4" /> },
+    { id: "supplierPerformance", label: t("supplierPerformance"), icon: <BarChart3 className="h-4 w-4" /> },
+    { id: "poStatus", label: t("poStatus"), icon: <ShoppingBag className="h-4 w-4" /> },
+    { id: "reorder", label: t("reorder"), icon: <AlertTriangle className="h-4 w-4" /> },
+    { id: "costHistory", label: t("costHistory"), icon: <DollarSign className="h-4 w-4" /> },
+  ]
+
+  const monthColumns = [
+    { key: "period", label: t("period") },
+    { key: "orderCount", label: t("orderCount"), format: "number" as const },
+    { key: "total", label: t("total"), format: "currency" as const },
+    { key: "itemCount", label: t("items"), format: "number" as const },
+    { key: "avgOrderValue", label: t("avgOrderValue"), format: "currency" as const },
+  ]
+
+  const supplierColumns = [
+    { key: "supplierName", label: t("supplierName") },
+    { key: "orderCount", label: t("orderCount"), format: "number" as const },
+    { key: "total", label: t("total"), format: "currency" as const },
+    { key: "avgCost", label: t("avgCost"), format: "currency" as const },
+  ]
+
+  const poStatusColumns = [
+    { key: "status", label: t("status") },
+    { key: "count", label: t("count"), format: "number" as const },
+    { key: "total", label: t("total"), format: "currency" as const },
+  ]
+
+  const costHistoryColumns = [
+    { key: "productName", label: t("productName") },
+    { key: "productSku", label: t("sku") },
+    { key: "supplierName", label: t("supplierName") },
+    { key: "oldCost", label: t("oldCost"), format: "currency" as const },
+    { key: "newCost", label: t("newCost"), format: "currency" as const },
+    { key: "quantity", label: t("quantity"), format: "number" as const },
+    { key: "createdByName", label: t("changedBy") },
+    { key: "createdAt", label: t("date") },
+  ]
 
   const purchaseFilter: PurchaseReportFilter = {
     dateFrom: filters.dateFrom || undefined,
@@ -197,9 +199,9 @@ export function ReportsPurchasingPage() {
     return (
       <div className="space-y-6">
         <BarChartCard
-          title="Purchases by Month"
+          title={t("purchasesByMonth")}
           data={monthData as unknown as Record<string, unknown>[]}
-          dataKeys={{ xKey: "period", bars: [{ key: "total", name: "Total" }, { key: "orderCount", name: "Orders" }] }}
+          dataKeys={{ xKey: "period", bars: [{ key: "total", name: t("total") }, { key: "orderCount", name: t("orders") }] }}
           loading={monthLoading}
         />
         <ReportTable columns={monthColumns} data={monthData as unknown as Record<string, unknown>[]} loading={monthLoading} />
@@ -212,15 +214,28 @@ export function ReportsPurchasingPage() {
     return (
       <div className="space-y-6">
         <BarChartCard
-          title="Purchases by Supplier"
+          title={t("purchasesBySupplier")}
           data={supplierData as unknown as Record<string, unknown>[]}
-          dataKeys={{ xKey: "supplierName", bars: [{ key: "total", name: "Total" }, { key: "orderCount", name: "Orders" }] }}
+          dataKeys={{ xKey: "supplierName", bars: [{ key: "total", name: t("total") }, { key: "orderCount", name: t("orders") }] }}
           loading={supplierLoading}
         />
         <ReportTable columns={supplierColumns} data={supplierData as unknown as Record<string, unknown>[]} loading={supplierLoading} />
       </div>
     )
   }
+
+  const perfHeaders = (
+    <TableRow>
+      <TableHead>{t("supplierName")}</TableHead>
+      <TableHead>{t("orders")}</TableHead>
+      <TableHead>{t("completedCount")}</TableHead>
+      <TableHead>{t("onTime")}</TableHead>
+      <TableHead>{t("avgLeadTimeDays")}</TableHead>
+      <TableHead>{t("returnRate")}</TableHead>
+      <TableHead>{t("totalSpent")}</TableHead>
+      <TableHead>{t("rating")}</TableHead>
+    </TableRow>
+  )
 
   const renderSupplierPerformance = () => {
     if (perfError) return <TableError message={perfError} onRetry={fetchSupplierPerformance} />
@@ -230,20 +245,11 @@ export function ReportsPurchasingPage() {
         <div className="overflow-x-auto rounded-lg border">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Supplier</TableHead>
-                <TableHead>Orders</TableHead>
-                <TableHead>Completed</TableHead>
-                <TableHead>On-Time</TableHead>
-                <TableHead>Avg Lead (Days)</TableHead>
-                <TableHead>Return Rate</TableHead>
-                <TableHead>Total Spent</TableHead>
-                <TableHead>Rating</TableHead>
-              </TableRow>
+              {perfHeaders}
             </TableHeader>
             <TableBody>
               <TableRow>
-                <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">No data</TableCell>
+                <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">{t("noData")}</TableCell>
               </TableRow>
             </TableBody>
           </Table>
@@ -254,16 +260,7 @@ export function ReportsPurchasingPage() {
       <div className="overflow-x-auto rounded-lg border">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Supplier</TableHead>
-              <TableHead>Orders</TableHead>
-              <TableHead>Completed</TableHead>
-              <TableHead>On-Time</TableHead>
-              <TableHead>Avg Lead (Days)</TableHead>
-              <TableHead>Return Rate</TableHead>
-              <TableHead>Total Spent</TableHead>
-              <TableHead>Rating</TableHead>
-            </TableRow>
+            {perfHeaders}
           </TableHeader>
           <TableBody>
             {perfData.map((row) => {
@@ -277,7 +274,7 @@ export function ReportsPurchasingPage() {
                   <TableCell>{row.avgLeadTimeDays}</TableCell>
                   <TableCell>{row.returnRate.toFixed(1)}%</TableCell>
                   <TableCell>{fmt(row.totalSpent)}</TableCell>
-                  <TableCell><Badge className={rating.color}>{rating.label}</Badge></TableCell>
+                  <TableCell><Badge className={rating.color}>{t(rating.labelKey)}</Badge></TableCell>
                 </TableRow>
               )
             })}
@@ -292,7 +289,7 @@ export function ReportsPurchasingPage() {
     return (
       <div className="space-y-6">
         <PieChartCard
-          title="PO Status Distribution"
+          title={t("poStatusDistribution")}
           data={poStatusData as unknown as Record<string, unknown>[]}
           dataKey="count"
           nameKey="status"
@@ -303,6 +300,18 @@ export function ReportsPurchasingPage() {
     )
   }
 
+  const reorderHeaders = (
+    <TableRow>
+      <TableHead>{t("productName")}</TableHead>
+      <TableHead>{t("sku")}</TableHead>
+      <TableHead>{t("stock")}</TableHead>
+      <TableHead>{t("reorderPoint")}</TableHead>
+      <TableHead>{t("supplierName")}</TableHead>
+      <TableHead>{t("lastCost")}</TableHead>
+      <TableHead />
+    </TableRow>
+  )
+
   const renderReorder = () => {
     if (reorderError) return <TableError message={reorderError} onRetry={fetchReorder} />
     if (reorderLoading) return <TableSkeleton rows={5} cols={6} />
@@ -311,19 +320,11 @@ export function ReportsPurchasingPage() {
         <div className="overflow-x-auto rounded-lg border">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Product</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead>Stock</TableHead>
-                <TableHead>Reorder Point</TableHead>
-                <TableHead>Supplier</TableHead>
-                <TableHead>Last Cost</TableHead>
-                <TableHead />
-              </TableRow>
+              {reorderHeaders}
             </TableHeader>
             <TableBody>
               <TableRow>
-                <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">No data</TableCell>
+                <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">{t("noData")}</TableCell>
               </TableRow>
             </TableBody>
           </Table>
@@ -334,15 +335,7 @@ export function ReportsPurchasingPage() {
       <div className="overflow-x-auto rounded-lg border">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Product</TableHead>
-              <TableHead>SKU</TableHead>
-              <TableHead>Stock</TableHead>
-              <TableHead>Reorder Point</TableHead>
-              <TableHead>Supplier</TableHead>
-              <TableHead>Last Cost</TableHead>
-              <TableHead />
-            </TableRow>
+            {reorderHeaders}
           </TableHeader>
           <TableBody>
             {reorderData.map((row) => (
@@ -358,7 +351,7 @@ export function ReportsPurchasingPage() {
                 <TableCell>{row.preferredSupplier ?? "-"}</TableCell>
                 <TableCell>{fmt(row.lastCost)}</TableCell>
                 <TableCell>
-                  <Button size="sm" variant="outline">Create PO</Button>
+                  <Button size="sm" variant="outline">{t("createPO")}</Button>
                 </TableCell>
               </TableRow>
             ))}
@@ -377,9 +370,9 @@ export function ReportsPurchasingPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t("title")} description="Purchasing Reports" />
+      <PageHeader title={t("title")} description={t("purchasingReports")} />
       <ReportFilters filters={filters} onChange={handleFilterChange} onClear={clearFilters} />
-      <Tabs defaultValue="byMonth" onValueChange={(v) => setActiveTab(v as TabId)}>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)}>
         <TabsList>
           {TABS.map((tab) => (
             <TabsTrigger key={tab.id} value={tab.id} className="gap-1.5">

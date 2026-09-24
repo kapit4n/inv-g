@@ -39,7 +39,6 @@ import {
   deleteSupplierProduct,
 } from "@/lib/tauri"
 import type { SupplierProduct, SupplierProductInput } from "@/types"
-import type { InventorySupplier, InventoryProduct } from "@/types/inventory"
 import { useNotification } from "@/hooks/use-notification"
 
 export function SupplierProductsPage() {
@@ -65,7 +64,7 @@ export function SupplierProductsPage() {
   const [formIsPreferred, setFormIsPreferred] = useState(false)
   const [formStatus, setFormStatus] = useState("active")
 
-  const { data: products = [], isLoading: productsLoading } = useQuery({
+  const { data: products } = useQuery({
     queryKey: ["products"],
     queryFn: () => getProducts(1, 1000),
   })
@@ -93,9 +92,9 @@ export function SupplierProductsPage() {
   }, [items, productSearch])
 
   const searchedProducts = useMemo(() => {
-    if (!formProductSearch) return products.data || []
+    if (!formProductSearch) return products?.data ?? []
     const q = formProductSearch.toLowerCase()
-    return (products.data || []).filter(
+    return (products?.data ?? []).filter(
       (p) =>
         p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q),
     )

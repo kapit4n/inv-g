@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { EntityDetailPage } from "@/components/entity"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { getProduct, getCategories, getBrands, getManufacturers, getSuppliers, getWarehouses, getStorageLocations, getProductImages } from "@/lib/tauri"
+import { getProduct, getCategories, getBrands, getManufacturers, getWarehouses, getStorageLocations, getProductImages } from "@/lib/tauri"
 import { ProductOverviewTab } from "../components/product-overview-tab"
 import { ProductInventoryTab } from "../components/product-inventory-tab"
 import { ProductPricingTab } from "../components/product-pricing-tab"
@@ -25,7 +25,6 @@ export function ProductDetailPage() {
   const { data: categories = [] } = useQuery({ queryKey: ["inventory-categories"], queryFn: getCategories })
   const { data: brands = [] } = useQuery({ queryKey: ["inventory-brands"], queryFn: getBrands })
   const { data: manufacturers = [] } = useQuery({ queryKey: ["inventory-manufacturers"], queryFn: getManufacturers })
-  const { data: suppliers = [] } = useQuery({ queryKey: ["inventory-suppliers"], queryFn: getSuppliers })
   const { data: warehouses = [] } = useQuery({ queryKey: ["inventory-warehouses"], queryFn: getWarehouses })
   const { data: storageLocations = [] } = useQuery({ queryKey: ["inventory-storage-locations"], queryFn: () => getStorageLocations() })
   const { data: images = [] } = useQuery({ queryKey: ["inventory-product-images", id], queryFn: () => getProductImages(Number(id)), enabled: !!id })

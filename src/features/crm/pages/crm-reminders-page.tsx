@@ -110,7 +110,7 @@ export function CrmRemindersPage() {
     <div className="space-y-6">
       <PageHeader
         title={t("reminders")}
-        description="Manage service reminders"
+        description={t("manageServiceReminders")}
         actions={
           <Button size="sm" onClick={() => { resetForm(); setDialogOpen(true) }}>
             <Plus className="h-4 w-4 mr-1" /> {t("addReminder")}
@@ -126,7 +126,7 @@ export function CrmRemindersPage() {
             size="sm"
             onClick={() => setStatusFilter(s)}
           >
-            {s === "" ? "All" : t(s === "overdue" ? "overdue" : s)}
+            {s === "" ? t("all") : t(s === "overdue" ? "overdue" : s)}
           </Button>
         ))}
       </div>
@@ -136,14 +136,14 @@ export function CrmRemindersPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b bg-muted/50">
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Title</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("title")}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("customer")}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("vehicle")}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("reminderType")}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("dueDate")}</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">{t("dueMileage")}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("status")}</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">Actions</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">{t("actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -211,7 +211,7 @@ export function CrmRemindersPage() {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label>Customer ID *</Label>
+                <Label>{t("customerId")} *</Label>
                 <Input type="number" value={formCustomerId} onChange={(e) => setFormCustomerId(e.target.value)} />
               </div>
               <div className="grid gap-2">
@@ -221,22 +221,22 @@ export function CrmRemindersPage() {
                   value={formType}
                   onChange={(e) => setFormType(e.target.value)}
                 >
-                  <option value="oil_change">Oil Change</option>
-                  <option value="tire_rotation">Tire Rotation</option>
-                  <option value="brake_inspection">Brake Inspection</option>
-                  <option value="maintenance">General Maintenance</option>
-                  <option value="registration">Registration</option>
-                  <option value="inspection">Inspection</option>
-                  <option value="other">Other</option>
+                  <option value="oil_change">{t("oilChange")}</option>
+                  <option value="tire_rotation">{t("tireRotation")}</option>
+                  <option value="brake_inspection">{t("brakeInspection")}</option>
+                  <option value="maintenance">{t("generalMaintenance")}</option>
+                  <option value="registration">{t("registration")}</option>
+                  <option value="inspection">{t("inspection")}</option>
+                  <option value="other">{t("other")}</option>
                 </select>
               </div>
             </div>
             <div className="grid gap-2">
-              <Label>Title *</Label>
+              <Label>{t("title")} *</Label>
               <Input value={formTitle} onChange={(e) => setFormTitle(e.target.value)} />
             </div>
             <div className="grid gap-2">
-              <Label>Description</Label>
+              <Label>{t("description")}</Label>
               <Textarea value={formDescription} onChange={(e) => setFormDescription(e.target.value)} />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -250,13 +250,13 @@ export function CrmRemindersPage() {
               </div>
             </div>
             <div className="grid gap-2">
-              <Label>Notes</Label>
+              <Label>{t("notes")}</Label>
               <Textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setDialogOpen(false); resetForm() }}>{t("cancel")}</Button>
-            <Button onClick={handleAdd} disabled={saving}>{saving ? "Saving..." : t("save")}</Button>
+            <Button onClick={handleAdd} disabled={saving}>{saving ? t("saving") : t("save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -202,13 +202,13 @@ export function CrmCustomersPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b bg-muted/50">
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Name</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Email</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Phone</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">City</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Type</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("name")}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("email")}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("phone")}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("city")}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("type")}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("status")}</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">Actions</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">{t("actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -257,7 +257,7 @@ export function CrmCustomersPage() {
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant={c.isActive ? "success" : "secondary"}>
-                        {c.isActive ? "Active" : "Inactive"}
+                        {c.isActive ? t("active") : t("inactive")}
                       </Badge>
                     </td>
                     <td className="px-4 py-3">
@@ -282,50 +282,50 @@ export function CrmCustomersPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {editCustomer ? "Edit Customer" : t("newCustomer")}
+              {editCustomer ? t("editCustomer") : t("newCustomer")}
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="name">Name *</Label>
+              <Label htmlFor="name">{t("name")} *</Label>
               <Input id="name" value={formName} onChange={(e) => setFormName(e.target.value)} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">{t("email")}</Label>
                 <Input id="email" type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="phone">Phone</Label>
+                <Label htmlFor="phone">{t("phone")}</Label>
                 <Input id="phone" value={formPhone} onChange={(e) => setFormPhone(e.target.value)} />
               </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="address">Address</Label>
+              <Label htmlFor="address">{t("address")}</Label>
               <Input id="address" value={formAddress} onChange={(e) => setFormAddress(e.target.value)} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="city">City</Label>
+                <Label htmlFor="city">{t("city")}</Label>
                 <Input id="city" value={formCity} onChange={(e) => setFormCity(e.target.value)} />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="state">State</Label>
+                <Label htmlFor="state">{t("state")}</Label>
                 <Input id="state" value={formState} onChange={(e) => setFormState(e.target.value)} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="postalCode">Postal Code</Label>
+                <Label htmlFor="postalCode">{t("postalCode")}</Label>
                 <Input id="postalCode" value={formPostalCode} onChange={(e) => setFormPostalCode(e.target.value)} />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="country">Country</Label>
+                <Label htmlFor="country">{t("country")}</Label>
                 <Input id="country" value={formCountry} onChange={(e) => setFormCountry(e.target.value)} />
               </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="notes">Notes</Label>
+              <Label htmlFor="notes">{t("notes")}</Label>
               <Textarea id="notes" value={formNotes} onChange={(e) => setFormNotes(e.target.value)} />
             </div>
           </div>
@@ -334,7 +334,7 @@ export function CrmCustomersPage() {
               {t("cancel")}
             </Button>
             <Button onClick={handleSave} disabled={saving}>
-              {saving ? "Saving..." : t("save")}
+              {saving ? t("saving") : t("save")}
             </Button>
           </DialogFooter>
         </DialogContent>

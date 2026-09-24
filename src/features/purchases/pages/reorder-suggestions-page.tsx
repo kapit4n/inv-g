@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/loading-skeleton"
 import { getReorderSuggestions } from "@/lib/tauri"
-import type { ReorderSuggestion } from "@/types"
 
 export function ReorderSuggestionsPage() {
   const { t } = useTranslation()

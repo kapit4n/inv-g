@@ -240,7 +240,7 @@ export function ProductFormPage() {
                 {compatibility.length === 0 && <p className="text-sm text-muted-foreground">{t("common.noData")}</p>}
                 {compatibility.map((c) => (
                   <div key={c.id} className="flex items-center justify-between rounded border px-3 py-2 text-sm">
-                    <span>{c.vehicleBrand} {c.vehicleModel}{c.yearStart ? ` (${c.yearStart}${c.yearEnd ? `-${c.yearEnd}` : ""})` : ""}</span>
+                    <span>{c.brandName} {c.modelName}{c.yearStart ? ` (${c.yearStart}${c.yearEnd ? `-${c.yearEnd}` : ""})` : ""}</span>
                     <Button variant="ghost" size="icon" onClick={() => removeCompatMutation.mutate(c.id)}><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 ))}

@@ -17,8 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Plus, Clock, RefreshCw } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { Plus, RefreshCw } from "lucide-react"
 
 const FREQUENCIES = ["daily", "weekly", "monthly"]
 const FORMATS = ["CSV", "Excel", "PDF"]

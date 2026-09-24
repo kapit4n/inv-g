@@ -6,7 +6,7 @@ import { LineChartCard, AreaChartCard, BarChartCard, PieChartCard } from "../com
 import { ReportTable, type Column } from "../components/report-table"
 import * as api from "@/lib/tauri"
 import type { ProfitSummary, ProfitByEntity } from "@/types"
-import { DollarSign, TrendingUp, PieChart, Truck, Building2, Users, Warehouse, Percent } from "lucide-react"
+import { DollarSign, TrendingUp, Percent } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 

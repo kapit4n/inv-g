@@ -2,7 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, fireEvent, waitFor } from "@tests/helpers/render"
 import { ProductSearchCombobox } from "@/components/product-search-combobox"
 import { globalProductSearch } from "@/lib/tauri"
+import { setupI18n } from "@/i18n"
 import type { ProductForPos } from "@/types"
+
+setupI18n("en")
 
 vi.mock("@/lib/tauri", () => ({
   globalProductSearch: vi.fn(),

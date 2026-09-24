@@ -216,32 +216,32 @@ export function ReportsInventoryPage() {
         </TabsList>
 
         <TabsContent value="current-inventory" className="space-y-4 pt-4">
-          <ReportTable columns={invColumns} data={inventoryData} loading={loading} />
+          <ReportTable columns={invColumns} data={inventoryData as unknown as Record<string, unknown>[]} loading={loading} />
         </TabsContent>
 
         <TabsContent value="valuation" className="space-y-4 pt-4">
           <PieChartCard
             title={t("valuationByCategory")}
-            data={valuationData}
+            data={valuationData as unknown as Record<string, unknown>[]}
             dataKey="totalCostValue"
             nameKey="category"
             loading={loading}
           />
-          <ReportTable columns={valuationColumns} data={valuationData} loading={loading} />
+          <ReportTable columns={valuationColumns} data={valuationData as unknown as Record<string, unknown>[]} loading={loading} />
         </TabsContent>
 
         <TabsContent value="low-stock" className="space-y-4 pt-4">
-          <ReportTable columns={stockColumns} data={lowStockData} loading={loading} />
+          <ReportTable columns={stockColumns} data={lowStockData as unknown as Record<string, unknown>[]} loading={loading} />
         </TabsContent>
 
         <TabsContent value="overstock" className="space-y-4 pt-4">
-          <ReportTable columns={stockColumns} data={overstockData} loading={loading} />
+          <ReportTable columns={stockColumns} data={overstockData as unknown as Record<string, unknown>[]} loading={loading} />
         </TabsContent>
 
         <TabsContent value="movements" className="space-y-4 pt-4">
           <AreaChartCard
             title={t("movementTrend")}
-            data={movementData}
+            data={movementData as unknown as Record<string, unknown>[]}
             dataKeys={{
               xKey: "period",
               areas: [
@@ -251,15 +251,15 @@ export function ReportsInventoryPage() {
             }}
             loading={loading}
           />
-          <ReportTable columns={movementColumns} data={movementData} loading={loading} />
+          <ReportTable columns={movementColumns} data={movementData as unknown as Record<string, unknown>[]} loading={loading} />
         </TabsContent>
 
         <TabsContent value="aging" className="space-y-4 pt-4">
-          <ReportTable columns={agingColumns} data={agingData} loading={loading} />
+          <ReportTable columns={agingColumns} data={agingData as unknown as Record<string, unknown>[]} loading={loading} />
         </TabsContent>
 
         <TabsContent value="fast-slow" className="space-y-4 pt-4">
-          <ReportTable columns={agingColumns} data={fastSlowData} loading={loading} />
+          <ReportTable columns={agingColumns} data={fastSlowData as unknown as Record<string, unknown>[]} loading={loading} />
         </TabsContent>
       </Tabs>
     </div>

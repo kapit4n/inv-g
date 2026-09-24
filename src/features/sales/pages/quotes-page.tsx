@@ -1,14 +1,15 @@
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { Plus, FileText, Trash2 } from "lucide-react"
+import { useQuery } from "@tanstack/react-query"
+import { Plus } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { DataTable } from "@/components/data-table"
-import { getQuotes, deleteQuote, updateQuoteStatus } from "@/lib/tauri"
-import { useNotification } from "@/hooks/use-notification"
+import { getQuotes } from "@/lib/tauri"
+import type { TableColumn } from "@/types/crud"
+import type { Quote } from "@/types"
 
 const statusColors: Record<string, string> = {
   draft: "bg-gray-500",
@@ -22,50 +23,32 @@ const statusColors: Record<string, string> = {
 export function QuotesPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
-  const notification = useNotification()
 
   const { data: quotes = [] } = useQuery({
     queryKey: ["quotes"],
     queryFn: getQuotes,
   })
 
-  const deleteMutation = useMutation({
-    mutationFn: deleteQuote,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["quotes"] })
-      notification.success(t("common.success"), "Quote deleted")
-    },
-  })
-
-  const convertMutation = useMutation({
-    mutationFn: (id: number) => updateQuoteStatus(id, "converted"),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["quotes"] })
-      notification.success(t("common.success"), "Quote converted")
-    },
-  })
-
-  const columns = [
-    { header: t("sales.invoice"), accessorKey: "quoteNumber" as const },
-    { header: t("sales.date"), accessorKey: "createdAt" as const, cell: (v: string) => new Date(v).toLocaleDateString() },
-    { header: t("sales.customer"), accessorKey: "customerName" as const },
-    { header: t("sales.total"), accessorKey: "total" as const, cell: (v: number) => v.toLocaleString("en-US", { style: "currency", currency: "USD" }) },
+  const columns: TableColumn<Quote>[] = [
+    { id: "quoteNumber", header: t("sales.invoice"), accessorKey: "quoteNumber" },
+    { id: "createdAt", header: t("sales.date"), accessorKey: "createdAt", cell: (r) => new Date(r.createdAt).toLocaleDateString() },
+    { id: "customerName", header: t("sales.customer"), accessorKey: "customerName" },
+    { id: "total", header: t("sales.total"), accessorKey: "total", cell: (r) => r.total.toLocaleString("en-US", { style: "currency", currency: "USD" }) },
     {
-      header: t("sales.payment"), accessorKey: "status" as const,
-      cell: (v: string) => <Badge className={`${statusColors[v] || "bg-gray-500"} text-white`}>{v}</Badge>,
+      id: "status", header: t("sales.payment"), accessorKey: "status",
+      cell: (r) => <Badge className={`${statusColors[r.status] || "bg-gray-500"} text-white`}>{r.status}</Badge>,
     },
-    { header: t("sales.date"), accessorKey: "validUntil" as const, cell: (v: string) => v ? new Date(v).toLocaleDateString() : "-" },
+    { id: "validUntil", header: t("sales.date"), accessorKey: "validUntil", cell: (r) => r.validUntil ? new Date(r.validUntil).toLocaleDateString() : "-" },
   ]
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Quotes"
-        description="Manage customer quotes and estimates"
+        title={t("quotes")}
+        description={t("manageQuotesAndEstimates")}
         actions={
           <Button size="sm" onClick={() => navigate("/sales/quotes/new")}>
-            <Plus className="h-4 w-4 mr-1" /> New Quote
+            <Plus className="h-4 w-4 mr-1" /> {t("newQuote")}
           </Button>
         }
       />

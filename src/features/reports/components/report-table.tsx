@@ -1,4 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton"
+import { useTranslation } from "react-i18next"
 import type { ReactNode } from "react"
 import {
   Table,
@@ -65,6 +66,7 @@ function TableSkeleton({ columns }: { columns: Column[] }) {
 }
 
 function EmptyTable({ columns }: { columns: Column[] }) {
+  const { t } = useTranslation("reports")
   return (
     <Table>
       <TableHeader>
@@ -80,7 +82,7 @@ function EmptyTable({ columns }: { columns: Column[] }) {
             colSpan={columns.length}
             className="h-32 text-center text-muted-foreground"
           >
-            No data
+            {t("noData")}
           </TableCell>
         </TableRow>
       </TableBody>

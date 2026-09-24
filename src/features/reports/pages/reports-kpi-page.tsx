@@ -8,15 +8,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
-const CATEGORY_ICONS: Record<string, string> = {
-  financial: "bg-blue-100 dark:bg-blue-900/30",
-  sales: "bg-emerald-100 dark:bg-emerald-900/30",
-  inventory: "bg-amber-100 dark:bg-amber-900/30",
-  purchasing: "bg-purple-100 dark:bg-purple-900/30",
-  customers: "bg-cyan-100 dark:bg-cyan-900/30",
-  suppliers: "bg-rose-100 dark:bg-rose-900/30",
-}
-
 const STATUS_DOT: Record<string, string> = {
   good: "bg-green-500",
   warning: "bg-yellow-500",

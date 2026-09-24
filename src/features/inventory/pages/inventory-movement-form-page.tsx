@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { EntityFormPage } from "@/components/entity"
-import { TextField, NumberField, SelectField, TextareaField } from "@/components/forms"
+import { NumberField, SelectField, TextareaField } from "@/components/forms"
 import { EntityActionBar } from "@/components/entity"
 import { getProducts, getWarehouses, createInventoryMovement } from "@/lib/tauri"
 import { useNotification } from "@/hooks/use-notification"
@@ -14,7 +14,7 @@ export function InventoryMovementFormPage() {
   const queryClient = useQueryClient()
   const notification = useNotification()
 
-  const { data: products = [] } = useQuery({
+  const { data: products } = useQuery({
     queryKey: ["inventory-products-all"],
     queryFn: () => getProducts(1, 1000),
   })
@@ -50,7 +50,7 @@ export function InventoryMovementFormPage() {
     })
   }
 
-  const productOptions = (products.data || []).map((p: any) => ({ label: `${p.name} (${p.sku})`, value: p.id }))
+  const productOptions = (products?.data || []).map((p: any) => ({ label: `${p.name} (${p.sku})`, value: p.id }))
   const whOptions = warehouses.map((w) => ({ label: w.name, value: w.id }))
   const typeOptions = [
     { label: t("inventory.movementTypeIn"), value: "in" },

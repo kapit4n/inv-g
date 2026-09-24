@@ -7,7 +7,7 @@ import {
   Layers, Tag, Cog, Briefcase, MapPin, Box, ArrowUpDown,
   FileText, RotateCcw, DollarSign, Printer, Receipt,
   GitCompare, BellRing, ShieldCheck, CreditCard, StickyNote,
-  TrendingUp, Monitor, HardDrive, Wifi, Database, Shield, Activity,
+  Monitor, HardDrive, Wifi, Database, Shield, Activity,
   Smartphone, ScanLine, Link2, Book,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"

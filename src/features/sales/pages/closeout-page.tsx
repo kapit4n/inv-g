@@ -5,7 +5,6 @@ import { DollarSign, CreditCard, Banknote, Receipt, RotateCcw, TrendingUp, Perce
 import { PageHeader } from "@/components/page-header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { StatCard } from "@/components/stat-card"
 import { getDailyCloseout, closeDailyShift, getDailyClosings } from "@/lib/tauri"

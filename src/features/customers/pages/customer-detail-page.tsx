@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { useTranslation } from "react-i18next"
-import { ArrowLeft, Phone, Mail, MapPin, Plus } from "lucide-react"
+import { ArrowLeft, Phone, Mail, MapPin } from "lucide-react"
 import { useAuthStore } from "@/stores"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -64,7 +64,7 @@ export function CustomerDetailPage() {
       const comm = await getCommunications(customerId)
       setCommunications(comm)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to load customer detail")
+      toast.error(e instanceof Error ? e.message : t("customers.failedLoadCustomerDetail"))
     } finally {
       setLoading(false)
     }
@@ -77,16 +77,16 @@ export function CustomerDetailPage() {
   const handleCreateCreditAccount = async () => {
     const limit = parseFloat(creditLimit)
     if (isNaN(limit) || limit <= 0) {
-      toast.error("Invalid credit limit")
+      toast.error(t("customers.invalidCreditLimit"))
       return
     }
     setCreatingCredit(true)
     try {
       const acc = await createCreditAccount(customerId, limit)
       setCreditAccount(acc)
-      toast.success("Credit account created")
+      toast.success(t("customers.creditAccountCreated"))
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to create credit account")
+      toast.error(e instanceof Error ? e.message : t("customers.failedCreateCreditAccount"))
     } finally {
       setCreatingCredit(false)
     }
@@ -96,7 +96,7 @@ export function CustomerDetailPage() {
     if (!creditAccount) return
     const amount = parseFloat(txAmount)
     if (isNaN(amount) || amount <= 0) {
-      toast.error("Invalid amount")
+      toast.error(t("customers.invalidAmount"))
       return
     }
     setTxSaving(true)
@@ -110,9 +110,9 @@ export function CustomerDetailPage() {
       setCreditAccount(updated)
       setTxAmount("")
       setTxNotes("")
-      toast.success("Transaction added")
+      toast.success(t("customers.transactionAdded"))
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to add transaction")
+      toast.error(e instanceof Error ? e.message : t("customers.failedAddTransaction"))
     } finally {
       setTxSaving(false)
     }
@@ -120,7 +120,7 @@ export function CustomerDetailPage() {
 
   const handleAddCommunication = async () => {
     if (!commSubject.trim()) {
-      toast.error("Subject is required")
+      toast.error(t("customers.subjectRequired"))
       return
     }
     setCommSaving(true)
@@ -133,9 +133,9 @@ export function CustomerDetailPage() {
       setCommSubject("")
       setCommMessage("")
       setCommType("note")
-      toast.success("Communication added")
+      toast.success(t("customers.communicationAdded"))
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to add communication")
+      toast.error(e instanceof Error ? e.message : t("customers.failedAddCommunication"))
     } finally {
       setCommSaving(false)
     }
@@ -156,7 +156,7 @@ export function CustomerDetailPage() {
   }
 
   if (!customer) {
-    return <div className="text-center py-12 text-muted-foreground">Customer not found</div>
+    return <div className="text-center py-12 text-muted-foreground">{t("customers.customerNotFound")}</div>
   }
 
   return (
@@ -261,14 +261,14 @@ export function CustomerDetailPage() {
                     <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">{t("customers.total")}</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("customers.paymentMethod")}</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("customers.paymentStatus")}</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">Items</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">{t("customers.items")}</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("customers.date")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sales.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">No sales found</td>
+                      <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">{t("customers.noSalesFound")}</td>
                     </tr>
                   ) : (
                     sales.map((s) => (
@@ -356,13 +356,13 @@ export function CustomerDetailPage() {
                           <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("customers.transactionType")}</th>
                           <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">{t("customers.amount")}</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("customers.reference")}</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Notes</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("customers.notes")}</th>
                         </tr>
                       </thead>
                       <tbody>
                         {transactions.length === 0 ? (
                           <tr>
-                            <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">No transactions</td>
+                            <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">{t("customers.noTransactions")}</td>
                           </tr>
                         ) : (
                           transactions.map((tx) => (
@@ -413,9 +413,9 @@ export function CustomerDetailPage() {
                         />
                       </div>
                       <div className="grid gap-2">
-                        <Label>Notes</Label>
+                        <Label>{t("customers.notes")}</Label>
                         <Input
-                          placeholder="Optional"
+                          placeholder={t("common.optional")}
                           value={txNotes}
                           onChange={(e) => setTxNotes(e.target.value)}
                         />
@@ -479,14 +479,14 @@ export function CustomerDetailPage() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("customers.communicationType")}</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("customers.subject")}</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("customers.message")}</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Created By</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("customers.createdBy")}</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("customers.date")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {communications.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">No communications</td>
+                        <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">{t("customers.noCommunications")}</td>
                       </tr>
                     ) : (
                       communications.map((c) => (

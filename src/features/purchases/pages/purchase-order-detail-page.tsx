@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate, useParams } from "react-router-dom"
-import { ArrowLeft, Edit, Send, Check, X, Truck, Trash2, RotateCcw, Eye } from "lucide-react"
+import { ArrowLeft, Edit, Send, Check, X, Truck, Trash2, RotateCcw } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
-import { Wifi, Package, Download, RefreshCw, Clock } from "lucide-react"
+import { Download, RefreshCw } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -45,7 +45,7 @@ export function AdminUpdatesPage() {
         </div>
         <Button onClick={handleCheck} disabled={checking}>
           <RefreshCw className={`mr-2 h-4 w-4 ${checking ? "animate-spin" : ""}`} />
-          {checking ? "Checking..." : t("admin.updateCenter.checkUpdates")}
+          {checking ? t("admin.updateCenter.checking") : t("admin.updateCenter.checkUpdates")}
         </Button>
       </div>
 
@@ -58,7 +58,7 @@ export function AdminUpdatesPage() {
                   ? `${t("admin.updateCenter.updateAvailable")} (${checkResult.latest_version})`
                   : t("admin.updateCenter.upToDate")}
               </p>
-              <p className="text-xs text-muted-foreground">Current: {checkResult.current_version}</p>
+              <p className="text-xs text-muted-foreground">{t("admin.updateCenter.currentVersion")}: {checkResult.current_version}</p>
             </div>
             {checkResult.has_update && (
               <Button size="sm"><Download className="mr-2 h-4 w-4" /> {t("admin.updateCenter.downloadUpdate")}</Button>
@@ -90,7 +90,7 @@ export function AdminUpdatesPage() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("admin.updateCenter.version")}</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("admin.updateCenter.releaseDate")}</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("admin.updateCenter.type")}</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("admin.backups.status")}</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("admin.updateCenter.installing")}</th>
                     </tr>
                   </thead>

@@ -6,16 +6,8 @@ import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
 import { SelectField } from "@/components/forms"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
 import { getPurchaseRequests } from "@/lib/tauri"
-import type { PurchaseRequest } from "@/types"
-import { useNotification } from "@/hooks/use-notification"
 
 const PRIORITY_VARIANTS: Record<string, "secondary" | "info" | "warning" | "destructive"> = {
   low: "secondary",
@@ -30,12 +22,11 @@ const STATUS_VARIANTS: Record<string, "secondary" | "warning" | "info" | "succes
   approved: "info",
   ordered: "success",
   rejected: "destructive",
-  cancelled: "outline",
+  cancelled: "secondary",
 }
 
 export function PurchaseRequestsPage() {
   const { t } = useTranslation()
-  const notification = useNotification()
 
   const [statusFilter, setStatusFilter] = useState("")
   const [priorityFilter, setPriorityFilter] = useState("")
@@ -50,9 +41,6 @@ export function PurchaseRequestsPage() {
     if (priorityFilter && r.priority !== priorityFilter) return false
     return true
   })
-
-  const formatCurrency = (v: number) =>
-    v.toLocaleString("en-US", { style: "currency", currency: "USD" })
 
   return (
     <div className="space-y-6">

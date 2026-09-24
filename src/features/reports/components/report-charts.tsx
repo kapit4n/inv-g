@@ -1,4 +1,5 @@
 import type { ReactNode } from "react"
+import { useTranslation } from "react-i18next"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -95,9 +96,10 @@ function ChartSkeleton() {
 }
 
 function EmptyState() {
+  const { t } = useTranslation("reports")
   return (
     <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">
-      No data
+      {t("noData")}
     </div>
   )
 }
@@ -237,7 +239,7 @@ export function PieChartCard({ title, data, dataKey, nameKey, loading, height }:
             cx="50%"
             cy="50%"
             outerRadius={100}
-            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+            label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
           >
             {data.map((_, index) => (
               <Cell
@@ -275,7 +277,7 @@ export function DonutChartCard({
             cy="50%"
             innerRadius={innerRadius}
             outerRadius={100}
-            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+            label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
           >
             {data.map((_, index) => (
               <Cell

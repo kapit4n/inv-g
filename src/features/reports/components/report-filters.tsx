@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -34,6 +35,7 @@ interface SelectFieldProps {
 }
 
 function SelectField({ id, label, value, options, onChange }: SelectFieldProps) {
+  const { t } = useTranslation("reports")
   return (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={id}>{label}</Label>
@@ -45,7 +47,7 @@ function SelectField({ id, label, value, options, onChange }: SelectFieldProps) 
       >
         {options.map((option) => (
           <option key={option} value={option}>
-            {option}
+            {t(option)}
           </option>
         ))}
       </select>
@@ -54,6 +56,7 @@ function SelectField({ id, label, value, options, onChange }: SelectFieldProps) 
 }
 
 export function ReportFilters({ filters, onChange, onClear }: ReportFiltersProps) {
+  const { t } = useTranslation("reports")
   const hasAnyFilter =
     filters.dateFrom ||
     filters.dateTo ||
@@ -75,7 +78,7 @@ export function ReportFilters({ filters, onChange, onClear }: ReportFiltersProps
   return (
     <div className="flex flex-wrap items-end gap-4">
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="dateFrom">From</Label>
+        <Label htmlFor="dateFrom">{t("from")}</Label>
         <Input
           id="dateFrom"
           type="date"
@@ -86,7 +89,7 @@ export function ReportFilters({ filters, onChange, onClear }: ReportFiltersProps
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="dateTo">To</Label>
+        <Label htmlFor="dateTo">{t("to")}</Label>
         <Input
           id="dateTo"
           type="date"
@@ -98,7 +101,7 @@ export function ReportFilters({ filters, onChange, onClear }: ReportFiltersProps
 
       <SelectField
         id="warehouse"
-        label="Warehouse"
+        label={t("warehouse")}
         value={filters.warehouse}
         options={SELECT_OPTIONS.warehouse}
         onChange={(v) => onChange("warehouse", v)}
@@ -106,7 +109,7 @@ export function ReportFilters({ filters, onChange, onClear }: ReportFiltersProps
 
       <SelectField
         id="category"
-        label="Category"
+        label={t("category")}
         value={filters.category}
         options={SELECT_OPTIONS.category}
         onChange={(v) => onChange("category", v)}
@@ -114,7 +117,7 @@ export function ReportFilters({ filters, onChange, onClear }: ReportFiltersProps
 
       <SelectField
         id="brand"
-        label="Brand"
+        label={t("brand")}
         value={filters.brand}
         options={SELECT_OPTIONS.brand}
         onChange={(v) => onChange("brand", v)}
@@ -122,7 +125,7 @@ export function ReportFilters({ filters, onChange, onClear }: ReportFiltersProps
 
       <SelectField
         id="paymentMethod"
-        label="Payment"
+        label={t("paymentMethod")}
         value={filters.paymentMethod}
         options={SELECT_OPTIONS.paymentMethod}
         onChange={(v) => onChange("paymentMethod", v)}
@@ -131,7 +134,7 @@ export function ReportFilters({ filters, onChange, onClear }: ReportFiltersProps
       {showClear && (
         <Button variant="outline" size="sm" onClick={onClear}>
           <X className="h-4 w-4" />
-          Clear
+          {t("clear")}
         </Button>
       )}
     </div>

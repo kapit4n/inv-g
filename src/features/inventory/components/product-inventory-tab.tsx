@@ -12,11 +12,11 @@ interface Props {
   storageLocName?: string
 }
 
-function movementTypeBadge(type: string) {
+function movementTypeBadge(type: string, t: (key: string) => string) {
   switch (type) {
-    case "in": return <Badge variant="default">In</Badge>
-    case "out": return <Badge variant="destructive">Out</Badge>
-    default: return <Badge variant="secondary">Adj</Badge>
+    case "in": return <Badge variant="default">{t("inventory.movementTypeIn")}</Badge>
+    case "out": return <Badge variant="destructive">{t("inventory.movementTypeOut")}</Badge>
+    default: return <Badge variant="secondary">{t("inventory.movementTypeAdjustment")}</Badge>
   }
 }
 
@@ -66,7 +66,7 @@ export function ProductInventoryTab({ product, whName, storageLocName }: Props) 
               {movements.slice(0, 20).map((m: InventoryMovement) => (
                 <div key={m.id} className="flex items-center justify-between border-b pb-2 last:border-0">
                   <div className="flex items-center gap-3">
-                    {movementTypeBadge(m.type)}
+                    {movementTypeBadge(m.type, t)}
                     <div>
                       <p className="text-sm font-medium">{m.notes || t(`inventory.movementType${m.type === "in" ? "In" : m.type === "out" ? "Out" : "Adjustment"}`)}</p>
                       <p className="text-xs text-muted-foreground">{whLookup(m.warehouseId)}</p>

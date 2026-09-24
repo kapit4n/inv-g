@@ -9,7 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { SelectField } from "@/components/forms"
 import { getPurchaseOrders, getSuppliers } from "@/lib/tauri"
-import type { PurchaseOrder, InventorySupplier } from "@/types"
+import type { PurchaseOrder } from "@/types"
+import type { InventorySupplier } from "@/types/inventory"
 
 type StatusVariant = "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info"
 

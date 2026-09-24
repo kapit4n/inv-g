@@ -9,12 +9,12 @@ import { getMaintenanceLogs, runMaintenance } from "@/lib/tauri"
 import type { MaintenanceLog } from "@/types"
 
 const operations = [
-  { key: "clear_cache", label: "maintenance.clearCache", icon: Trash2, description: "maintenance.clearCache.description" },
-  { key: "optimize_database", label: "maintenance.optimizeDatabase", icon: RefreshCw, description: "maintenance.optimizeDatabase.description" },
-  { key: "clean_logs", label: "maintenance.cleanLogs", icon: Trash2, description: "maintenance.cleanLogs.description" },
-  { key: "vacuum", label: "Vacuum Database", icon: Database, description: "Reclaim storage space" },
-  { key: "reindex", label: "Reindex Database", icon: Search, description: "Rebuild database indexes" },
-  { key: "integrity_check", label: "Integrity Check", icon: Wrench, description: "Verify database integrity" },
+  { key: "clear_cache", label: "admin.maintenance.clearCache", icon: Trash2, description: "admin.maintenance.clearCache.description" },
+  { key: "optimize_database", label: "admin.maintenance.optimizeDatabase", icon: RefreshCw, description: "admin.maintenance.optimizeDatabase.description" },
+  { key: "clean_logs", label: "admin.maintenance.cleanLogs", icon: Trash2, description: "admin.maintenance.cleanLogs.description" },
+  { key: "vacuum", label: "admin.maintenance.vacuum", icon: Database, description: "admin.maintenance.vacuum.description" },
+  { key: "reindex", label: "admin.maintenance.reindex", icon: Search, description: "admin.maintenance.reindex.description" },
+  { key: "integrity_check", label: "admin.maintenance.integrityCheck", icon: Wrench, description: "admin.maintenance.integrityCheck.description" },
 ]
 
 export function AdminMaintenancePage() {
@@ -69,7 +69,7 @@ export function AdminMaintenancePage() {
                 onClick={() => handleRun(op.key)}
                 disabled={running === op.key}
               >
-                {running === op.key ? "Running..." : t("admin.maintenance.runNow")}
+                {running === op.key ? t("admin.maintenance.running") : t("admin.maintenance.runNow")}
               </Button>
             </CardContent>
           </Card>
@@ -78,24 +78,24 @@ export function AdminMaintenancePage() {
 
       <Card>
         <CardHeader className="flex items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2"><History className="h-4 w-4" /> Maintenance History</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2"><History className="h-4 w-4" /> {t("admin.maintenance.history")}</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
             <div className="p-4 space-y-3">{[1,2,3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
           ) : logs.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">No maintenance logs</div>
+            <div className="p-8 text-center text-sm text-muted-foreground">{t("admin.maintenance.noLogs")}</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Operation</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Details</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Duration</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Rows</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("admin.maintenance.operation")}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("admin.backups.status")}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("admin.audit.details")}</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">{t("admin.maintenance.duration")}</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">{t("admin.database.rows")}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("admin.maintenance.date")}</th>
                   </tr>
                 </thead>
                 <tbody>

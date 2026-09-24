@@ -178,11 +178,11 @@ export function buildCloseoutDocumentModel(
   totals.push({ label: labels.netRevenue, value: closeout.netRevenue, bold: true })
 
   return {
-    id: `closeout-${closeout.date || new Date().toISOString().slice(0, 10)}`,
+    id: `closeout-${new Date().toISOString().slice(0, 10)}`,
     kind: "report",
     paperSize: config.paperSizeDefault,
     title: labels.title,
-    date: formatDate(closeout.date) || formatDate(new Date().toISOString()),
+    date: formatDate(new Date().toISOString()),
     metaLines: [],
     lineItems: [],
     totals,

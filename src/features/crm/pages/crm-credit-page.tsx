@@ -43,13 +43,13 @@ export function CrmCreditPage() {
     <div className="space-y-6">
       <PageHeader
         title={t("credit")}
-        description="Customer credit account overview"
+        description={t("customerCreditOverview")}
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Total Credit Extended</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("totalCreditExtended")}</CardTitle>
             <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900/30">
               <CreditCard className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             </div>
@@ -64,7 +64,7 @@ export function CrmCreditPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Total Outstanding</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("totalOutstanding")}</CardTitle>
             <div className="p-2 rounded-full bg-amber-100 dark:bg-amber-900/30">
               <DollarSign className="h-4 w-4 text-amber-600 dark:text-amber-400" />
             </div>
@@ -79,7 +79,7 @@ export function CrmCreditPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Available Credit</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("availableCredit")}</CardTitle>
             <div className="p-2 rounded-full bg-green-100 dark:bg-green-900/30">
               <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
             </div>
@@ -99,7 +99,7 @@ export function CrmCreditPage() {
           <CardContent className="p-4 flex items-center gap-3">
             <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
             <p className="text-sm text-amber-800 dark:text-amber-200">
-              {atRiskAccounts.length} account(s) at or above 80% of credit limit
+              {t("atRiskAccounts", { count: atRiskAccounts.length })}
             </p>
           </CardContent>
         </Card>
@@ -114,7 +114,7 @@ export function CrmCreditPage() {
                 <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">{t("creditLimit")}</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">{t("currentBalance")}</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">{t("availableCredit")}</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Utilization</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">{t("utilization")}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("status")}</th>
               </tr>
             </thead>
@@ -129,7 +129,7 @@ export function CrmCreditPage() {
                 ))
               ) : accounts.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">No credit accounts found</td>
+                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">{t("noCreditAccountsFound")}</td>
                 </tr>
               ) : (
                 accounts.map((a) => {

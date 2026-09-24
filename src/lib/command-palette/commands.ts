@@ -5,9 +5,9 @@ import {
   Layers, Tag, Cog, Briefcase, MapPin, Box, ArrowUpDown,
   FileText, RotateCcw, DollarSign, Printer, Receipt,
   GitCompare, BellRing, ShieldCheck, CreditCard, StickyNote,
-  TrendingUp, Monitor, HardDrive, Wifi, Database, Shield, Activity,
-  Smartphone, ScanLine, Moon, PanelLeftClose, PanelLeft,
-  Plus, Search,
+  TrendingUp, HardDrive, Database, Shield, Activity,
+  Moon, PanelLeftClose, PanelLeft,
+  Plus,
 } from "lucide-react"
 import type { Command, CommandCategoryConfig } from "./types"
 

@@ -12,11 +12,10 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
   getPurchaseReceipt,
-  getPurchaseOrder,
   getPurchaseOrderItems,
   receivePurchaseOrder,
 } from "@/lib/tauri"
-import type { PurchaseOrderItem, ReceivePOInput } from "@/types"
+import type { ReceivePOInput } from "@/types"
 import { useNotification } from "@/hooks/use-notification"
 
 const STATUS_VARIANTS: Record<string, "success" | "warning" | "info" | "secondary" | "destructive"> = {
@@ -49,12 +48,6 @@ export function PurchaseReceiptDetailPage() {
   const { data: poItems = [], isLoading: itemsLoading } = useQuery({
     queryKey: ["purchase-order-items", receipt?.purchaseOrderId],
     queryFn: () => getPurchaseOrderItems(receipt!.purchaseOrderId),
-    enabled: !!receipt?.purchaseOrderId,
-  })
-
-  const { data: po } = useQuery({
-    queryKey: ["purchase-order", receipt?.purchaseOrderId],
-    queryFn: () => getPurchaseOrder(receipt!.purchaseOrderId),
     enabled: !!receipt?.purchaseOrderId,
   })
 

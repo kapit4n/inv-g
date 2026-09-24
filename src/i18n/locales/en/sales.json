@@ -121,5 +121,10 @@
   "saleHeld": "Sale held successfully",
   "saleResumed": "Sale resumed successfully",
   "saleHoldCancelled": "Held sale cancelled",
-  "items": "{{count}} items"
+  "items": "{{count}} items",
+  "amount": "Amount",
+  "type": "Type",
+  "monthSales": "Month Sales",
+  "noSales": "No sales",
+  "searchSales": "Search sales..."
 }

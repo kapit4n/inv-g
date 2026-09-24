@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { useTranslation } from "react-i18next"
-import { Plus, Search, Copy, Archive, MoreHorizontal } from "lucide-react"
+import { Plus, Search, MoreHorizontal } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,7 +26,7 @@ export function AdminRolesPage() {
   useEffect(() => { loadRoles() }, [search])
 
   const handleClone = async (id: number, name: string) => {
-    const newName = `${name} (Copy)`
+    const newName = `${name} (${t("admin.roles.copySuffix")})`
     await cloneAdminRole(id, newName)
     loadRoles()
   }
@@ -79,7 +79,7 @@ export function AdminRolesPage() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("admin.roles.description")}</th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">{t("admin.roles.isSystem")}</th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">{t("admin.roles.usersCount")}</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">Permissions</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">{t("admin.roles.permissions")}</th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">{t("common.actions")}</th>
                   </tr>
                 </thead>
@@ -89,7 +89,7 @@ export function AdminRolesPage() {
                       <td className="px-4 py-3 text-sm font-medium">{role.name}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">{role.description || "-"}</td>
                       <td className="px-4 py-3 text-center">
-                        {role.isSystem ? <Badge variant="secondary">System</Badge> : <span className="text-muted-foreground">-</span>}
+                        {role.isSystem ? <Badge variant="secondary">{t("admin.roles.system")}</Badge> : <span className="text-muted-foreground">-</span>}
                       </td>
                       <td className="px-4 py-3 text-center text-sm">{role.userCount}</td>
                       <td className="px-4 py-3 text-center text-sm">{role.permissionCount}</td>

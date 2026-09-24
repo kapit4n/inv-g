@@ -53,14 +53,14 @@ export function CrmNotesPage() {
     <div className="space-y-6">
       <PageHeader
         title={t("notes")}
-        description="Customer notes overview"
+        description={t("customerNotesOverview")}
       />
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative w-64">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search notes..."
+            placeholder={t("searchNotes")}
             className="pl-8"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -73,14 +73,14 @@ export function CrmNotesPage() {
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
           >
-            <option value="">All types</option>
+            <option value="">{t("allTypes")}</option>
             {uniqueTypes.map((t) => (
               <option key={t} value={t}>{t}</option>
             ))}
           </select>
         </div>
         <div className="text-sm text-muted-foreground">
-          {filteredNotes.length} of {notes.length} notes
+          {t("notesCount", { count: filteredNotes.length, total: notes.length })}
         </div>
       </div>
 
@@ -106,7 +106,7 @@ export function CrmNotesPage() {
                   <div className="space-y-1 flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className="text-xs capitalize">{n.noteType}</Badge>
-                      {n.isPrivate && <Badge variant="secondary" className="text-xs">Private</Badge>}
+                      {n.isPrivate && <Badge variant="secondary" className="text-xs">{t("private")}</Badge>}
                     </div>
                     <p className="font-medium text-sm">{n.title}</p>
                     {n.content && (

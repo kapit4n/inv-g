@@ -6,12 +6,7 @@ import { BarChartCard, PieChartCard } from "../components/report-charts"
 import { ReportTable, type Column } from "../components/report-table"
 import * as api from "@/lib/tauri"
 import type { WarehouseUtilization, WarehouseAdjustmentSummary, InventoryValuation } from "@/types"
-import { Warehouse, Package, TrendingUp, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
-
-const currency = (v: number) =>
-  v.toLocaleString("en-US", { style: "currency", currency: "USD" })
 
 export function ReportsWarehousesPage() {
   const { t } = useTranslation("reports")

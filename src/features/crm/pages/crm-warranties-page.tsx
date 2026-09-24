@@ -91,10 +91,10 @@ export function CrmWarrantiesPage() {
 
   const statusBadge = (status: string) => {
     switch (status) {
-      case "active": return <Badge variant="success">Active</Badge>
-      case "expired": return <Badge variant="destructive">Expired</Badge>
-      case "pending": return <Badge variant="warning">Pending</Badge>
-      case "void": return <Badge variant="secondary">Void</Badge>
+      case "active": return <Badge variant="success">{t("active")}</Badge>
+      case "expired": return <Badge variant="destructive">{t("expired")}</Badge>
+      case "pending": return <Badge variant="warning">{t("pending")}</Badge>
+      case "void": return <Badge variant="secondary">{t("void")}</Badge>
       default: return <Badge>{status}</Badge>
     }
   }
@@ -111,7 +111,7 @@ export function CrmWarrantiesPage() {
     <div className="space-y-6">
       <PageHeader
         title={t("warranties")}
-        description="Manage product warranties"
+        description={t("manageProductWarranties")}
         actions={
           <Button size="sm" onClick={() => { resetForm(); setDialogOpen(true) }}>
             <Plus className="h-4 w-4 mr-1" /> {t("registerWarranty")}
@@ -127,7 +127,7 @@ export function CrmWarrantiesPage() {
             size="sm"
             onClick={() => setStatusFilter(s)}
           >
-            {s === "" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
+            {s === "" ? t("all") : t(s)}
           </Button>
         ))}
       </div>
@@ -142,10 +142,10 @@ export function CrmWarrantiesPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("product")}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("vehicle")}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("warrantyType")}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Start</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("start")}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("expirationDate")}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("status")}</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">Actions</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">{t("actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -184,14 +184,14 @@ export function CrmWarrantiesPage() {
                       <td className="px-4 py-3 text-sm text-muted-foreground">{new Date(w.startDate).toLocaleDateString()}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">
                         {new Date(w.expirationDate).toLocaleDateString()}
-                        {expiringSoon && <Badge variant="warning" className="ml-2 text-xs">Expiring soon</Badge>}
+                        {expiringSoon && <Badge variant="warning" className="ml-2 text-xs">{t("expiringSoon")}</Badge>}
                       </td>
                       <td className="px-4 py-3">{statusBadge(w.status)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-1">
                           {w.status === "active" && (
                             <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => handleStatusChange(w.id, "expired")}>
-                              Expire
+                              {t("expire")}
                             </Button>
                           )}
                         </div>
@@ -213,11 +213,11 @@ export function CrmWarrantiesPage() {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label>Customer ID *</Label>
+                <Label>{t("customerId")} *</Label>
                 <Input type="number" value={formCustomerId} onChange={(e) => setFormCustomerId(e.target.value)} />
               </div>
               <div className="grid gap-2">
-                <Label>Product ID</Label>
+                <Label>{t("productId")}</Label>
                 <Input type="number" value={formProductId} onChange={(e) => setFormProductId(e.target.value)} />
               </div>
             </div>
@@ -229,29 +229,29 @@ export function CrmWarrantiesPage() {
                   value={formWarrantyType}
                   onChange={(e) => setFormWarrantyType(e.target.value)}
                 >
-                  <option value="standard">Standard</option>
-                  <option value="extended">Extended</option>
-                  <option value="premium">Premium</option>
-                  <option value="manufacturer">Manufacturer</option>
+                  <option value="standard">{t("standard")}</option>
+                  <option value="extended">{t("extended")}</option>
+                  <option value="premium">{t("premium")}</option>
+                  <option value="manufacturer">{t("manufacturer")}</option>
                 </select>
               </div>
               <div className="grid gap-2">
-                <Label>Period (months)</Label>
+                <Label>{t("periodMonths")}</Label>
                 <Input type="number" value={formPeriodMonths} onChange={(e) => setFormPeriodMonths(e.target.value)} />
               </div>
             </div>
             <div className="grid gap-2">
-              <Label>Start Date *</Label>
+              <Label>{t("startDate")} *</Label>
               <Input type="date" value={formStartDate} onChange={(e) => setFormStartDate(e.target.value)} />
             </div>
             <div className="grid gap-2">
-              <Label>Notes</Label>
+              <Label>{t("notes")}</Label>
               <Textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setDialogOpen(false); resetForm() }}>{t("cancel")}</Button>
-            <Button onClick={handleAdd} disabled={saving}>{saving ? "Saving..." : t("save")}</Button>
+            <Button onClick={handleAdd} disabled={saving}>{saving ? t("saving") : t("save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

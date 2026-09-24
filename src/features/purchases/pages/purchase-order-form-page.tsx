@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { SelectField, TextField, TextareaField, NumberField, DateField } from "@/components/forms"
+import { SelectField, TextField, TextareaField, DateField } from "@/components/forms"
 import { Separator } from "@/components/ui/separator"
 import {
   getPurchaseOrder,
@@ -17,7 +17,8 @@ import {
   searchProductsForPos,
 } from "@/lib/tauri"
 import { useNotification } from "@/hooks/use-notification"
-import type { InventorySupplier, Warehouse, ProductForPos } from "@/types"
+import type { ProductForPos } from "@/types"
+import type { InventorySupplier, Warehouse } from "@/types/inventory"
 
 interface LineItem {
   productId: number

@@ -1,5 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card"
 import { EmptyState } from "./empty-state"
+import { useTranslation } from "react-i18next"
 import { Package } from "lucide-react"
 
 interface Column {
@@ -23,14 +24,15 @@ const defaultData: Record<string, string | number>[] = [
 ]
 
 export function TablePlaceholder({ columns, data, emptyTitle, emptyDescription }: TablePlaceholderProps) {
+  const { t } = useTranslation()
   const tableData = data || defaultData
 
   if (!columns.length) {
     return (
       <EmptyState
         icon={<Package className="h-8 w-8 text-muted-foreground" />}
-        title={emptyTitle || "No data yet"}
-        description={emptyDescription || "This feature is coming soon. Stay tuned!"}
+        title={emptyTitle || t("noDataYet")}
+        description={emptyDescription || t("featureComingSoon")}
       />
     )
   }

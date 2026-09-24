@@ -63,29 +63,29 @@ export function AdminDashboardPage() {
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2"><Activity className="h-4 w-4" /> System Health</CardTitle>
+                <CardTitle className="text-base flex items-center gap-2"><Activity className="h-4 w-4" /> {t("admin.dashboard.systemHealth")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm">{t("admin.dashboard.systemHealth")}</span>
-                  <Badge variant={dashboard.systemHealth === "healthy" ? "success" : "warning"}>{dashboard.systemHealth}</Badge>
+                  <Badge variant={dashboard?.systemHealth === "healthy" ? "success" : "warning"}>{dashboard?.systemHealth}</Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm">{t("admin.dashboard.licenseStatus")}</span>
-                  <Badge variant={dashboard.licenseStatus === "active" ? "success" : "secondary"}>{dashboard.licenseStatus}</Badge>
+                  <Badge variant={dashboard?.licenseStatus === "active" ? "success" : "secondary"}>{dashboard?.licenseStatus}</Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm">{t("admin.dashboard.appVersion")}</span>
-                  <span className="text-sm font-medium">{dashboard.appVersion}</span>
+                  <span className="text-sm font-medium">{dashboard?.appVersion}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm">{t("admin.dashboard.backupStatus")}</span>
-                  <Badge variant={dashboard.backupStatus === "completed" ? "success" : "secondary"}>{dashboard.backupStatus}</Badge>
+                  <Badge variant={dashboard?.backupStatus === "completed" ? "success" : "secondary"}>{dashboard?.backupStatus}</Badge>
                 </div>
-                {dashboard.lastBackup && (
+                {dashboard?.lastBackup && (
                   <div className="flex items-center justify-between">
                     <span className="text-sm">{t("admin.dashboard.lastBackup")}</span>
-                    <span className="text-sm text-muted-foreground">{dashboard.lastBackup}</span>
+                    <span className="text-sm text-muted-foreground">{dashboard?.lastBackup}</span>
                   </div>
                 )}
               </CardContent>
@@ -93,7 +93,7 @@ export function AdminDashboardPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2"><Shield className="h-4 w-4" /> Quick Actions</CardTitle>
+                <CardTitle className="text-base flex items-center gap-2"><Shield className="h-4 w-4" /> {t("admin.dashboard.quickActions")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <Button variant="outline" className="w-full justify-start" disabled>
@@ -103,7 +103,7 @@ export function AdminDashboardPage() {
                   <Activity className="mr-2 h-4 w-4" /> {t("admin.dashboard.runDiagnostics")}
                 </Button>
                 <Button variant="outline" className="w-full justify-start" disabled>
-                  <Wifi className="mr-2 h-4 w-4" /> Check for Updates
+                  <Wifi className="mr-2 h-4 w-4" /> {t("admin.updateCenter.checkUpdates")}
                 </Button>
               </CardContent>
             </Card>

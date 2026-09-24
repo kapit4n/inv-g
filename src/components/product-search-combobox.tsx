@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react"
+import { useTranslation } from "react-i18next"
 import { Check, ChevronsUpDown, Search, Loader2, Package } from "lucide-react"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
@@ -16,10 +17,12 @@ interface ProductSearchComboboxProps {
 
 export function ProductSearchCombobox({
   onSelect,
-  placeholder = "Search products by name, SKU, barcode, or brand...",
+  placeholder,
   disabled,
   className,
 }: ProductSearchComboboxProps) {
+  const { t } = useTranslation()
+  const effectivePlaceholder = placeholder ?? t("searchProductsPlaceholder")
   const [open, setOpen] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
   const { query, setQuery, products, isLoading, isTyping } = useProductSearch({ debounceMs: 200 })
@@ -54,7 +57,7 @@ export function ProductSearchCombobox({
         >
           <div className="flex items-center gap-2 min-w-0">
             <Package className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">{placeholder}</span>
+            <span className="truncate">{effectivePlaceholder}</span>
           </div>
           <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -73,17 +76,17 @@ export function ProductSearchCombobox({
                 first?.focus()
               }
             }}
-            placeholder="Type to search..."
+            placeholder={t("typeToSearch")}
             className="flex h-10 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
           {(isLoading || isTyping) && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
         </div>
         <div className="max-h-72 overflow-y-auto p-1">
           {products.length === 0 && !isLoading && query.length > 0 && (
-            <div className="py-6 text-center text-sm text-muted-foreground">No products found</div>
+            <div className="py-6 text-center text-sm text-muted-foreground">{t("noProductsFound")}</div>
           )}
           {products.length === 0 && query.length === 0 && (
-            <div className="py-6 text-center text-sm text-muted-foreground">Type to search products</div>
+            <div className="py-6 text-center text-sm text-muted-foreground">{t("typeToSearchProducts")}</div>
           )}
           {products.map((product) => (
             <button
@@ -124,7 +127,7 @@ export function ProductSearchCombobox({
                   variant={product.stockQuantity <= 0 ? "destructive" : product.stockQuantity <= 5 ? "warning" : "outline"}
                   className="text-[10px] px-1.5 py-0"
                 >
-                  {product.stockQuantity <= 0 ? "Out" : `${product.stockQuantity} ${product.unit}`}
+                  {product.stockQuantity <= 0 ? t("out") : `${product.stockQuantity} ${product.unit}`}
                 </Badge>
                 <span className="text-xs font-bold text-primary whitespace-nowrap">
                   {formatCurrency(product.salePrice)}

@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next"
 import { useQuery } from "@tanstack/react-query"
-import { getProductCompatibility, getProductImages } from "@/lib/tauri"
+import { getProductCompatibility } from "@/lib/tauri"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { CompatibilityEntry } from "@/types"

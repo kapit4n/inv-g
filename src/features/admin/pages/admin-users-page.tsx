@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { useTranslation } from "react-i18next"
-import { Plus, Search, Lock, Unlock, Archive, RotateCcw, KeyRound, MoreHorizontal, ChevronLeft, ChevronRight } from "lucide-react"
+import { Plus, Search, MoreHorizontal, ChevronLeft, ChevronRight } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { getAdminUsers, archiveAdminUser, restoreAdminUser, lockUserAccount, unlockUserAccount, resetUserPassword } from "@/lib/tauri"
+import { getAdminUsers, archiveAdminUser, restoreAdminUser, lockUserAccount, unlockUserAccount } from "@/lib/tauri"
 import type { AdminUser } from "@/types"
 
 export function AdminUsersPage() {

@@ -134,7 +134,7 @@ export function ReportsSalesPage() {
       <TabsContent value={tabKey} className="space-y-4">
         <BarChartCard
           title={t(`${tabKey}Sales`)}
-          data={data}
+          data={data as unknown as Record<string, unknown>[]}
           dataKeys={{
             xKey: "period",
             bars: [
@@ -144,7 +144,7 @@ export function ReportsSalesPage() {
           }}
           loading={loading}
         />
-        <ReportTable columns={reportColumns} data={data} loading={loading} />
+        <ReportTable columns={reportColumns} data={data as unknown as Record<string, unknown>[]} loading={loading} />
       </TabsContent>
     )
   }
@@ -292,7 +292,7 @@ export function ReportsSalesPage() {
         <TabsContent value="by-cashier" className="space-y-4">
           <BarChartCard
             title={t("salesByCashier")}
-            data={cashierData}
+            data={cashierData as unknown as Record<string, unknown>[]}
             dataKeys={{
               xKey: "cashierName",
               bars: [
@@ -301,20 +301,19 @@ export function ReportsSalesPage() {
               ],
             }}
             loading={loading}
-            horizontal
           />
-          <ReportTable columns={cashierColumns} data={cashierData} loading={loading} />
+          <ReportTable columns={cashierColumns} data={cashierData as unknown as Record<string, unknown>[]} loading={loading} />
         </TabsContent>
 
         <TabsContent value="by-payment" className="space-y-4">
           <PieChartCard
             title={t("salesByPayment")}
-            data={paymentData}
+            data={paymentData as unknown as Record<string, unknown>[]}
             dataKey="total"
             nameKey="method"
             loading={loading}
           />
-          <ReportTable columns={paymentColumns} data={paymentData} loading={loading} />
+          <ReportTable columns={paymentColumns} data={paymentData as unknown as Record<string, unknown>[]} loading={loading} />
         </TabsContent>
 
         <TabsContent value="discounts" className="space-y-4">

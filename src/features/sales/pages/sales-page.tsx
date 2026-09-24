@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
-import { Plus, DollarSign, CreditCard, Receipt, ClipboardList, Quote, Search, TrendingUp, ShoppingBag } from "lucide-react"
+import { Plus, DollarSign, CreditCard, Receipt, ClipboardList, Quote, Search, TrendingUp } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -13,17 +13,15 @@ import { StatCard } from "@/components/stat-card"
 import type { TableColumn } from "@/types/crud"
 import { getSales, getSalesSummary, searchSales } from "@/lib/tauri"
 import type { Sale } from "@/types"
-import { useNotification } from "@/hooks/use-notification"
 
 export function SalesPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const notification = useNotification()
 
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
 
-  const { data: summary, isLoading: summaryLoading } = useQuery({
+  const { data: summary } = useQuery({
     queryKey: ["sales-summary"],
     queryFn: getSalesSummary,
   })

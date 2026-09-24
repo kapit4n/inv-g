@@ -1,6 +1,6 @@
 # Known Issues
 
-> **Last updated:** 2026-08-12
+> **Last updated:** 2026-09-20
 > **Source of truth:** Visual QA findings are tracked in detail in
 > [`quality/visual_analysis/BUG_LIST.md`](../quality/visual_analysis/BUG_LIST.md)
 > and the generated report at `quality/dashboard.md`. Bug fixes are logged in
@@ -38,6 +38,12 @@
 10. **Dark theme WCAG contrast unverified** (M-10).
 11. **Inventory dashboard stat cards mismatch** (M-11) — 8 cards vs 5 data
     points.
+12. **Env-dependent Rust config tests** (M-13) — `test_default_config` and
+    `test_config_default_profile_db_file` fail on machines whose real app-data
+    dir already contains a `profile.json` (e.g. `single-store` set via the dev
+    tools). `AppConfig::default()` reads the real data dir. Workaround:
+    `IG_DATABASE_PROFILE=default cargo test` or a clean data dir; fixture
+    rewrite is a future task. Not a code regression (see `docs/BUG_FIX_LOG.md`).
 
 ## Medium
 

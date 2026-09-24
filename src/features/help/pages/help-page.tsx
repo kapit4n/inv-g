@@ -70,7 +70,7 @@ export function HelpPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-sm">
-            <Keyboard className="h-4 w-4" /> Keyboard Shortcuts
+            <Keyboard className="h-4 w-4" /> {t("common.keyboardShortcuts")}
           </CardTitle>
         </CardHeader>
         <CardContent>

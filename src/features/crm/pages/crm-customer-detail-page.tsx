@@ -260,7 +260,7 @@ export function CrmCustomerDetailPage() {
   }
 
   if (!customer) {
-    return <div className="text-center py-12 text-muted-foreground">Customer not found</div>
+    return <div className="text-center py-12 text-muted-foreground">{t("customerNotFound")}</div>
   }
 
   return (
@@ -271,14 +271,14 @@ export function CrmCustomerDetailPage() {
         </Button>
         <h1 className="text-2xl font-bold tracking-tight">{customer.name}</h1>
         <Badge variant={customer.isActive ? "success" : "secondary"}>
-          {customer.isActive ? "Active" : "Inactive"}
+          {customer.isActive ? t("active") : t("inactive")}
         </Badge>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground font-normal">Total Sales</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground font-normal">{t("totalSales")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{detail?.totalSales ?? 0}</p>
@@ -286,7 +286,7 @@ export function CrmCustomerDetailPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground font-normal">Total Spent</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground font-normal">{t("totalSpent")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">${(detail?.totalSpent ?? 0).toFixed(2)}</p>
@@ -294,7 +294,7 @@ export function CrmCustomerDetailPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground font-normal">Last Purchase</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground font-normal">{t("lastPurchase")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{detail?.lastPurchase ? new Date(detail.lastPurchase).toLocaleDateString() : "-"}</p>
@@ -304,12 +304,12 @@ export function CrmCustomerDetailPage() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="vehicles">Vehicles ({vehicles.length})</TabsTrigger>
-          <TabsTrigger value="sales">Purchase History</TabsTrigger>
-          <TabsTrigger value="credit">Credit</TabsTrigger>
-          <TabsTrigger value="notes">Notes ({notes.length})</TabsTrigger>
-          <TabsTrigger value="timeline">Timeline</TabsTrigger>
+          <TabsTrigger value="overview">{t("overview")}</TabsTrigger>
+          <TabsTrigger value="vehicles">{t("vehicles")} ({vehicles.length})</TabsTrigger>
+          <TabsTrigger value="sales">{t("purchaseHistory")}</TabsTrigger>
+          <TabsTrigger value="credit">{t("credit")}</TabsTrigger>
+          <TabsTrigger value="notes">{t("notes")} ({notes.length})</TabsTrigger>
+          <TabsTrigger value="timeline">{t("timeline")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -317,40 +317,40 @@ export function CrmCustomerDetailPage() {
             <CardContent className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-muted-foreground text-xs">Name</Label>
+                  <Label className="text-muted-foreground text-xs">{t("name")}</Label>
                   <p className="text-sm font-medium">{customer.name}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground text-xs">Email</Label>
+                  <Label className="text-muted-foreground text-xs">{t("email")}</Label>
                   <p className="text-sm flex items-center gap-1">{customer.email ? <><Mail className="h-3 w-3" />{customer.email}</> : "-"}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground text-xs">Phone</Label>
+                  <Label className="text-muted-foreground text-xs">{t("phone")}</Label>
                   <p className="text-sm flex items-center gap-1">{customer.phone ? <><Phone className="h-3 w-3" />{customer.phone}</> : "-"}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground text-xs">Address</Label>
+                  <Label className="text-muted-foreground text-xs">{t("address")}</Label>
                   <p className="text-sm flex items-center gap-1">{customer.address ? <><MapPin className="h-3 w-3" />{customer.address}</> : "-"}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground text-xs">City</Label>
+                  <Label className="text-muted-foreground text-xs">{t("city")}</Label>
                   <p className="text-sm">{customer.city || "-"}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground text-xs">State</Label>
+                  <Label className="text-muted-foreground text-xs">{t("state")}</Label>
                   <p className="text-sm">{customer.state || "-"}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground text-xs">Postal Code</Label>
+                  <Label className="text-muted-foreground text-xs">{t("postalCode")}</Label>
                   <p className="text-sm">{customer.postalCode || "-"}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground text-xs">Country</Label>
+                  <Label className="text-muted-foreground text-xs">{t("country")}</Label>
                   <p className="text-sm">{customer.country || "-"}</p>
                 </div>
               </div>
               <div>
-                <Label className="text-muted-foreground text-xs">Notes</Label>
+                <Label className="text-muted-foreground text-xs">{t("notes")}</Label>
                 <p className="text-sm whitespace-pre-wrap">{customer.notes || "-"}</p>
               </div>
             </CardContent>
@@ -367,7 +367,7 @@ export function CrmCustomerDetailPage() {
             {vehicles.length === 0 ? (
               <Card>
                 <CardContent className="p-6 text-center text-sm text-muted-foreground">
-                  No vehicles registered
+                  {t("noVehiclesRegistered")}
                 </CardContent>
               </Card>
             ) : (
@@ -381,11 +381,11 @@ export function CrmCustomerDetailPage() {
                             <Car className="h-4 w-4 text-muted-foreground" />
                             <span className="font-medium">{v.brandName} {v.modelName}</span>
                           </div>
-                          {v.licensePlate && <p className="text-xs text-muted-foreground">Plate: {v.licensePlate}</p>}
-                          {v.nickname && <p className="text-xs text-muted-foreground">Nickname: {v.nickname}</p>}
-                          {v.vin && <p className="text-xs text-muted-foreground">VIN: {v.vin}</p>}
-                          {v.year && <p className="text-xs text-muted-foreground">Year: {v.year}</p>}
-                          <p className="text-xs text-muted-foreground">Mileage: {v.mileage.toLocaleString()} km</p>
+                          {v.licensePlate && <p className="text-xs text-muted-foreground">{t("plate")}: {v.licensePlate}</p>}
+                          {v.nickname && <p className="text-xs text-muted-foreground">{t("nickname")}: {v.nickname}</p>}
+                          {v.vin && <p className="text-xs text-muted-foreground">{t("vin")}: {v.vin}</p>}
+                          {v.year && <p className="text-xs text-muted-foreground">{t("year")}: {v.year}</p>}
+                          <p className="text-xs text-muted-foreground">{t("mileage")}: {v.mileage.toLocaleString()} km</p>
                         </div>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteVehicle(v.id)}>
                           <Trash2 className="h-3.5 w-3.5" />
@@ -405,17 +405,17 @@ export function CrmCustomerDetailPage() {
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
-                      <Label>License Plate</Label>
+                      <Label>{t("licensePlate")}</Label>
                       <Input value={vFormPlate} onChange={(e) => setVFormPlate(e.target.value)} />
                     </div>
                     <div className="grid gap-2">
-                      <Label>Nickname</Label>
+                      <Label>{t("nickname")}</Label>
                       <Input value={vFormNickname} onChange={(e) => setVFormNickname(e.target.value)} />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
-                      <Label>Brand</Label>
+                      <Label>{t("brand")}</Label>
                       <select
                         className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
                         value={vFormBrandId}
@@ -428,7 +428,7 @@ export function CrmCustomerDetailPage() {
                       </select>
                     </div>
                     <div className="grid gap-2">
-                      <Label>Model</Label>
+                      <Label>{t("model")}</Label>
                       <select
                         className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
                         value={vFormModelId}
@@ -443,28 +443,28 @@ export function CrmCustomerDetailPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
-                      <Label>Year</Label>
+                      <Label>{t("year")}</Label>
                       <Input type="number" value={vFormYear} onChange={(e) => setVFormYear(e.target.value)} />
                     </div>
                     <div className="grid gap-2">
-                      <Label>Color</Label>
+                      <Label>{t("color")}</Label>
                       <Input value={vFormColor} onChange={(e) => setVFormColor(e.target.value)} />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
-                      <Label>VIN</Label>
+                      <Label>{t("vin")}</Label>
                       <Input value={vFormVin} onChange={(e) => setVFormVin(e.target.value)} />
                     </div>
                     <div className="grid gap-2">
-                      <Label>Mileage</Label>
+                      <Label>{t("mileage")}</Label>
                       <Input type="number" value={vFormMileage} onChange={(e) => setVFormMileage(e.target.value)} />
                     </div>
                   </div>
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setVehicleDialog(false)}>{t("cancel")}</Button>
-                  <Button onClick={handleAddVehicle} disabled={vSaving}>{vSaving ? "Saving..." : t("save")}</Button>
+                  <Button onClick={handleAddVehicle} disabled={vSaving}>{vSaving ? t("saving") : t("save")}</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -477,18 +477,18 @@ export function CrmCustomerDetailPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Sale #</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Total</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Payment Method</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("saleNumber")}</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">{t("total")}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("paymentMethod")}</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("status")}</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">Items</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Date</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">{t("items")}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("date")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sales.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">No sales found</td>
+                      <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">{t("noSalesFound")}</td>
                     </tr>
                   ) : (
                     sales.map((s) => (
@@ -521,16 +521,16 @@ export function CrmCustomerDetailPage() {
             {!creditAccount ? (
               <Card>
                 <CardContent className="p-6 text-center space-y-4">
-                  <p className="text-muted-foreground">No credit account</p>
+                  <p className="text-muted-foreground">{t("noCreditAccount")}</p>
                   <div className="flex items-center justify-center gap-2 max-w-xs mx-auto">
                     <Input
                       type="number"
-                      placeholder="Credit limit"
+                      placeholder={t("creditLimit")}
                       value={creditLimit}
                       onChange={(e) => setCreditLimit(e.target.value)}
                     />
                     <Button onClick={handleCreateCreditAccount} disabled={creatingCredit}>
-                      {creatingCredit ? "Creating..." : "Create Account"}
+                      {creatingCredit ? t("creating") : t("createAccount")}
                     </Button>
                   </div>
                 </CardContent>
@@ -572,17 +572,17 @@ export function CrmCustomerDetailPage() {
                     <table className="w-full">
                       <thead>
                         <tr className="border-b bg-muted/50">
-                          <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Date</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Type</th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Amount</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Reference</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Notes</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("date")}</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("type")}</th>
+                          <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">{t("amount")}</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("reference")}</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("notes")}</th>
                         </tr>
                       </thead>
                       <tbody>
                         {transactions.length === 0 ? (
                           <tr>
-                            <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">No transactions</td>
+                            <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">{t("noTransactions")}</td>
                           </tr>
                         ) : (
                           transactions.map((tx) => (
@@ -608,31 +608,31 @@ export function CrmCustomerDetailPage() {
 
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-base">Add Payment / Charge</CardTitle>
+                    <CardTitle className="text-base">{t("addPaymentCharge")}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-4 gap-4 items-end">
                       <div className="grid gap-2">
-                        <Label>Type</Label>
+                        <Label>{t("type")}</Label>
                         <select
                           className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
                           value={txType}
                           onChange={(e) => setTxType(e.target.value)}
                         >
-                          <option value="payment">Payment</option>
-                          <option value="charge">Charge</option>
+                          <option value="payment">{t("payment")}</option>
+                          <option value="charge">{t("charge")}</option>
                         </select>
                       </div>
                       <div className="grid gap-2">
-                        <Label>Amount</Label>
+                        <Label>{t("amount")}</Label>
                         <Input type="number" placeholder="0.00" value={txAmount} onChange={(e) => setTxAmount(e.target.value)} />
                       </div>
                       <div className="grid gap-2">
-                        <Label>Notes</Label>
-                        <Input placeholder="Optional" value={txNotes} onChange={(e) => setTxNotes(e.target.value)} />
+                        <Label>{t("notes")}</Label>
+                        <Input placeholder={t("optional")} value={txNotes} onChange={(e) => setTxNotes(e.target.value)} />
                       </div>
                       <Button onClick={handleAddTransaction} disabled={txSaving}>
-                        {txSaving ? "Loading..." : "Save"}
+                        {txSaving ? t("loading") : t("save")}
                       </Button>
                     </div>
                   </CardContent>
@@ -651,7 +651,7 @@ export function CrmCustomerDetailPage() {
             </div>
             {notes.length === 0 ? (
               <Card>
-                <CardContent className="p-6 text-center text-sm text-muted-foreground">No notes</CardContent>
+                <CardContent className="p-6 text-center text-sm text-muted-foreground">{t("noNotes")}</CardContent>
               </Card>
             ) : (
               <div className="grid grid-cols-1 gap-4">
@@ -662,7 +662,7 @@ export function CrmCustomerDetailPage() {
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             <Badge variant="outline" className="text-xs">{n.noteType}</Badge>
-                            {n.isPrivate && <Badge variant="secondary" className="text-xs">Private</Badge>}
+                            {n.isPrivate && <Badge variant="secondary" className="text-xs">{t("private")}</Badge>}
                           </div>
                           <p className="font-medium text-sm">{n.title}</p>
                           {n.content && <p className="text-sm text-muted-foreground">{n.content}</p>}
@@ -682,35 +682,35 @@ export function CrmCustomerDetailPage() {
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="grid gap-2">
-                    <Label>Type</Label>
+                    <Label>{t("type")}</Label>
                     <select
                       className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
                       value={nFormType}
                       onChange={(e) => setNFormType(e.target.value)}
                     >
-                      <option value="general">General</option>
-                      <option value="call">Call</option>
-                      <option value="visit">Visit</option>
-                      <option value="complaint">Complaint</option>
-                      <option value="follow_up">Follow Up</option>
+                      <option value="general">{t("general")}</option>
+                      <option value="call">{t("call")}</option>
+                      <option value="visit">{t("visit")}</option>
+                      <option value="complaint">{t("complaint")}</option>
+                      <option value="follow_up">{t("followUp")}</option>
                     </select>
                   </div>
                   <div className="grid gap-2">
-                    <Label>Title *</Label>
+                    <Label>{t("title")} *</Label>
                     <Input value={nFormTitle} onChange={(e) => setNFormTitle(e.target.value)} />
                   </div>
                   <div className="grid gap-2">
-                    <Label>Content</Label>
+                    <Label>{t("content")}</Label>
                     <Textarea value={nFormContent} onChange={(e) => setNFormContent(e.target.value)} />
                   </div>
                   <label className="flex items-center gap-2 text-sm">
                     <input type="checkbox" checked={nFormPrivate} onChange={(e) => setNFormPrivate(e.target.checked)} />
-                    Private note (only visible to staff)
+                    {t("privateNoteHint")}
                   </label>
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setNoteDialog(false)}>{t("cancel")}</Button>
-                  <Button onClick={handleAddNote} disabled={nSaving}>{nSaving ? "Saving..." : t("save")}</Button>
+                  <Button onClick={handleAddNote} disabled={nSaving}>{nSaving ? t("saving") : t("save")}</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -721,7 +721,7 @@ export function CrmCustomerDetailPage() {
           <Card>
             <CardContent className="p-0">
               {timeline.length === 0 ? (
-                <div className="p-6 text-center text-sm text-muted-foreground">No activity recorded</div>
+                <div className="p-6 text-center text-sm text-muted-foreground">{t("noActivityRecorded")}</div>
               ) : (
                 <div className="divide-y">
                   {timeline.map((entry) => (

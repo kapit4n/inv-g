@@ -235,5 +235,10 @@
   "transferNow": "Transfer Stock",
   "transferCreated": "Inventory transferred between stores.",
   "recentTransfers": "Recent Transfers",
-  "noTransfers": "No transfers yet"
+  "noTransfers": "No transfers yet",
+  "items": "Items",
+  "product": "Product",
+  "minStock": "Min Stock",
+  "maxStock": "Max Stock",
+  "totalCategories": "Total Categories"
 }

@@ -9,7 +9,7 @@ export interface HotkeyDef {
 
 function parseHotkey(hotkey: string): HotkeyDef {
   const parts = hotkey.toLowerCase().split("+")
-  const key = parts[parts.length - 1]
+  const key = parts[parts.length - 1] ?? ""
   return {
     key,
     ctrl: parts.includes("ctrl") || parts.includes("cmd"),

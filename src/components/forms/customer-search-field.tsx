@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react"
+import { useTranslation } from "react-i18next"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { Check, ChevronsUpDown, Plus, Search, Loader2, User } from "lucide-react"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
@@ -22,12 +23,15 @@ interface CustomerSearchFieldProps {
 export function CustomerSearchField({
   value,
   onChange,
-  label = "Customer",
-  placeholder = "Search or select customer...",
+  label,
+  placeholder,
   disabled,
 }: CustomerSearchFieldProps) {
   const notification = useNotification()
   const queryClient = useQueryClient()
+  const { t } = useTranslation()
+  const effectiveLabel = label ?? t("customer")
+  const effectivePlaceholder = placeholder ?? t("searchOrSelectCustomer")
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState("")
   const [selectedName, setSelectedName] = useState("")
@@ -76,7 +80,7 @@ export function CustomerSearchField({
     onSuccess: (customer) => {
       queryClient.invalidateQueries({ queryKey: ["customers"] })
       queryClient.invalidateQueries({ queryKey: ["customer-search"] })
-      notification.success("Customer added", `${customer.name} created successfully`)
+      notification.success(t("customerAdded"), t("customerCreatedSuccessfully", { name: customer.name }))
       setShowQuickAdd(false)
       resetQuickForm()
       onChange?.(customer.id)
@@ -84,7 +88,7 @@ export function CustomerSearchField({
       setOpen(false)
     },
     onError: (err) => {
-      notification.error("Error", String(err))
+      notification.error(t("error"), String(err))
     },
   })
 
@@ -111,7 +115,7 @@ export function CustomerSearchField({
 
   return (
     <div className="space-y-2">
-      {label && <label className="text-sm font-medium">{label}</label>}
+      {effectiveLabel && <label className="text-sm font-medium">{effectiveLabel}</label>}
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -125,7 +129,7 @@ export function CustomerSearchField({
           >
             <div className="flex items-center gap-2 min-w-0">
               <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              <span className="truncate">{value && selectedName ? selectedName : placeholder}</span>
+              <span className="truncate">{value && selectedName ? selectedName : effectivePlaceholder}</span>
             </div>
             <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
           </Button>
@@ -137,7 +141,7 @@ export function CustomerSearchField({
               ref={searchRef}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search customers..."
+              placeholder={t("searchCustomers")}
               className="flex h-10 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
             />
             {isFetching && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
@@ -145,7 +149,7 @@ export function CustomerSearchField({
           <div className="max-h-64 overflow-y-auto p-1">
             {results.length === 0 && !isFetching && (
               <div className="py-6 text-center text-sm text-muted-foreground">
-                {search ? "No customers found" : "Type to search customers"}
+                {search ? t("noCustomersFound") : t("typeToSearchCustomers")}
               </div>
             )}
             {results.map((customer) => (
@@ -184,7 +188,7 @@ export function CustomerSearchField({
               <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
                 <Plus className="h-4 w-4" />
               </span>
-              Quick Add Customer
+              {t("quickAddCustomer")}
             </button>
           </div>
         </PopoverContent>
@@ -195,46 +199,46 @@ export function CustomerSearchField({
           className="text-xs text-muted-foreground hover:text-destructive transition-colors"
           onClick={handleClear}
         >
-          Clear selection
+          {t("clearSelection")}
         </button>
       )}
 
       <Dialog open={showQuickAdd} onOpenChange={(v) => { setShowQuickAdd(v); if (!v) resetQuickForm() }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Quick Add Customer</DialogTitle>
+            <DialogTitle>{t("quickAddCustomer")}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Name *</label>
+              <label className="text-sm font-medium">{t("name")} *</label>
               <Input
                 value={quickName}
                 onChange={(e) => setQuickName(e.target.value)}
-                placeholder="Customer name"
+                placeholder={t("customerName")}
                 autoFocus
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Email</label>
+                <label className="text-sm font-medium">{t("email")}</label>
                 <Input
                   type="email"
                   value={quickEmail}
                   onChange={(e) => setQuickEmail(e.target.value)}
-                  placeholder="Email"
+                  placeholder={t("email")}
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Phone</label>
+                <label className="text-sm font-medium">{t("phone")}</label>
                 <Input
                   value={quickPhone}
                   onChange={(e) => setQuickPhone(e.target.value)}
-                  placeholder="Phone"
+                  placeholder={t("phone")}
                 />
               </div>
             </div>
             <TextareaField
-              label="Notes"
+              label={t("notes")}
               value={quickNotes}
               onChange={(e) => setQuickNotes(e.target.value)}
               className="text-xs"
@@ -242,7 +246,7 @@ export function CustomerSearchField({
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setShowQuickAdd(false); resetQuickForm() }}>
-              Cancel
+              {t("cancel")}
             </Button>
             <Button
               onClick={() => quickAddMutation.mutate()}
@@ -251,10 +255,10 @@ export function CustomerSearchField({
               {quickAddMutation.isPending ? (
                 <span className="flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Saving...
+                  {t("saving")}
                 </span>
               ) : (
-                "Add Customer"
+                `${t("add")} ${t("customer")}`
               )}
             </Button>
           </DialogFooter>

@@ -108,11 +108,11 @@ export function CrmVehiclesPage() {
     <div className="space-y-6">
       <PageHeader
         title={t("vehicles")}
-        description="Vehicle database management"
+        description={t("vehicleDatabaseManagement")}
         actions={
           <div className="flex gap-2">
             <Button size="sm" variant="outline" onClick={() => { setSelectedBrandId(null); setBrandDialog(true) }}>
-              <Plus className="h-4 w-4 mr-1" /> Add Brand
+              <Plus className="h-4 w-4 mr-1" /> {t("addBrand")}
             </Button>
           </div>
         }
@@ -122,7 +122,7 @@ export function CrmVehiclesPage() {
         <div className="relative w-64">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search brands..."
+            placeholder={t("searchBrands")}
             className="pl-8"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -165,7 +165,7 @@ export function CrmVehiclesPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant={brand.isActive ? "success" : "secondary"}>
-                      {brand.isActive ? "Active" : "Inactive"}
+                      {brand.isActive ? t("active") : t("inactive")}
                     </Badge>
                     <Button
                       variant="ghost"
@@ -176,7 +176,7 @@ export function CrmVehiclesPage() {
                         setModelDialog(true)
                       }}
                     >
-                      <Plus className="h-3.5 w-3.5 mr-1" /> Add Model
+                      <Plus className="h-3.5 w-3.5 mr-1" /> {t("addModel")}
                     </Button>
                   </div>
                 </div>
@@ -184,14 +184,14 @@ export function CrmVehiclesPage() {
                   <div className="border-t px-4 py-3 space-y-2">
                     {!models[brand.id] ? (
                       <Skeleton className="h-8 w-full" />
-                    ) : models[brand.id].length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No models</p>
+                    ) : (models[brand.id] ?? []).length === 0 ? (
+                      <p className="text-sm text-muted-foreground">{t("noModels")}</p>
                     ) : (
-                      models[brand.id].map((model) => (
+                      (models[brand.id] ?? []).map((model) => (
                         <div key={model.id} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/30">
                           <span className="text-sm">{model.name}</span>
                           <Badge variant={model.isActive ? "success" : "secondary"} className="text-xs">
-                            {model.isActive ? "Active" : "Inactive"}
+                            {model.isActive ? t("active") : t("inactive")}
                           </Badge>
                         </div>
                       ))
@@ -207,25 +207,25 @@ export function CrmVehiclesPage() {
       <Dialog open={brandDialog} onOpenChange={setBrandDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Brand</DialogTitle>
+            <DialogTitle>{t("addBrand")}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label>Name *</Label>
+              <Label>{t("name")} *</Label>
               <Input value={formName} onChange={(e) => setFormName(e.target.value)} />
             </div>
             <div className="grid gap-2">
-              <Label>Description</Label>
+              <Label>{t("description")}</Label>
               <Input value={formDescription} onChange={(e) => setFormDescription(e.target.value)} />
             </div>
             <div className="grid gap-2">
-              <Label>Country</Label>
+              <Label>{t("country")}</Label>
               <Input value={formCountry} onChange={(e) => setFormCountry(e.target.value)} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setBrandDialog(false)}>{t("cancel")}</Button>
-            <Button onClick={handleAddBrand} disabled={saving}>{saving ? "Saving..." : t("create")}</Button>
+            <Button onClick={handleAddBrand} disabled={saving}>{saving ? t("saving") : t("create")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -233,17 +233,17 @@ export function CrmVehiclesPage() {
       <Dialog open={modelDialog} onOpenChange={setModelDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Model</DialogTitle>
+            <DialogTitle>{t("addModel")}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label>Model Name *</Label>
+              <Label>{t("modelName")} *</Label>
               <Input value={formModelName} onChange={(e) => setFormModelName(e.target.value)} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setModelDialog(false)}>{t("cancel")}</Button>
-            <Button onClick={handleAddModel} disabled={saving}>{saving ? "Saving..." : t("create")}</Button>
+            <Button onClick={handleAddModel} disabled={saving}>{saving ? t("saving") : t("create")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

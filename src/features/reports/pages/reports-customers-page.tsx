@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from "react"
 import { PageHeader } from "@/components/page-header"
 import { StatCard } from "@/components/stat-card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BarChartCard, PieChartCard, LineChartCard } from "../components/report-charts"
+import { PieChartCard, LineChartCard } from "../components/report-charts"
 import { ReportTable, type Column } from "../components/report-table"
 import * as api from "@/lib/tauri"
 import type {
@@ -13,7 +13,7 @@ import type {
   CustomerCreditSummary,
   CustomerServiceSummary,
 } from "@/types"
-import { Users, TrendingUp, MapPin, Clock, CreditCard, Wrench } from "lucide-react"
+import { Users, TrendingUp, Clock, CreditCard, Wrench } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 

@@ -96,7 +96,7 @@ export function QuoteFormPage() {
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["quotes"] })
-      notification.success(t("common.success"), isEditing ? "Quote updated" : "Quote created")
+      notification.success(t("common.success"), isEditing ? t("quoteUpdated") : t("quoteCreated"))
       navigate(`/sales/quotes/${result.id}`)
     },
   })
@@ -104,8 +104,8 @@ export function QuoteFormPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={isEditing ? "Edit Quote" : "New Quote"}
-        actions={<Button variant="outline" size="sm" onClick={() => navigate(-1)}>Cancel</Button>}
+        title={isEditing ? t("editQuote") : t("newQuote")}
+        actions={<Button variant="outline" size="sm" onClick={() => navigate(-1)}>{t("cancel")}</Button>}
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -114,7 +114,7 @@ export function QuoteFormPage() {
             <CardContent className="p-4 space-y-3">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input placeholder="Search products..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
+                <Input placeholder={t("searchProducts")} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
               </div>
               {searchResults.length > 0 && (
                 <div className="border rounded-md max-h-48 overflow-y-auto">
@@ -137,9 +137,9 @@ export function QuoteFormPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left text-muted-foreground">
-                    <th className="p-3">Product</th><th className="p-3 text-right w-20">Qty</th>
-                    <th className="p-3 text-right w-24">Price</th><th className="p-3 text-right w-24">Disc</th>
-                    <th className="p-3 text-right w-24">Total</th><th className="p-3 w-10"></th>
+                    <th className="p-3">{t("product")}</th><th className="p-3 text-right w-20">{t("qty")}</th>
+                    <th className="p-3 text-right w-24">{t("price")}</th><th className="p-3 text-right w-24">{t("disc")}</th>
+                    <th className="p-3 text-right w-24">{t("total")}</th><th className="p-3 w-10"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -155,7 +155,7 @@ export function QuoteFormPage() {
                   ))}
                 </tbody>
               </table>
-              {items.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No items added yet</p>}
+              {items.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">{t("noItemsAddedYet")}</p>}
             </CardContent>
           </Card>
         </div>
@@ -163,25 +163,25 @@ export function QuoteFormPage() {
         <div className="space-y-4">
           <Card><CardContent className="p-4 space-y-3">
             <CustomerSearchField label={t("sales.customer")} value={customerId} onChange={setCustomerId} />
-            <TextField label="Tax Rate (%)" type="number" value={taxRate * 100} onChange={(v) => setTaxRate(Number(v) / 100)} />
-            <TextField label="Discount" type="number" value={discountAmount} onChange={(v) => setDiscountAmount(Number(v))} />
-            <TextField label="Valid Until" type="date" value={validUntil} onChange={(v) => setValidUntil(v)} />
+            <TextField label={t("taxRate")} type="number" value={taxRate * 100} onChange={(v) => setTaxRate(Number(v) / 100)} />
+            <TextField label={t("discount")} type="number" value={discountAmount} onChange={(v) => setDiscountAmount(Number(v))} />
+            <TextField label={t("validUntil")} type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
           </CardContent></Card>
 
           <Card><CardContent className="p-4 space-y-1 text-sm">
-            <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Tax</span><span>${taxAmount.toFixed(2)}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span>-${discountAmount.toFixed(2)}</span></div>
-            <div className="flex justify-between font-bold text-base pt-1 border-t"><span>Total</span><span>${total.toFixed(2)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">{t("subtotal")}</span><span>${subtotal.toFixed(2)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">{t("tax")}</span><span>${taxAmount.toFixed(2)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">{t("discount")}</span><span>-${discountAmount.toFixed(2)}</span></div>
+            <div className="flex justify-between font-bold text-base pt-1 border-t"><span>{t("total")}</span><span>${total.toFixed(2)}</span></div>
           </CardContent></Card>
 
           <Card><CardContent className="p-4 space-y-3">
-            <TextareaField label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
-            <TextareaField label="Terms & Conditions" value={termsConditions} onChange={(e) => setTermsConditions(e.target.value)} />
+            <TextareaField label={t("notes")} value={notes} onChange={(e) => setNotes(e.target.value)} />
+            <TextareaField label={t("termsConditions")} value={termsConditions} onChange={(e) => setTermsConditions(e.target.value)} />
           </CardContent></Card>
 
           <Button className="w-full" size="lg" onClick={() => saveMutation.mutate()} disabled={items.length === 0 || saveMutation.isPending}>
-            {saveMutation.isPending ? "Saving..." : isEditing ? "Update Quote" : "Create Quote"}
+            {saveMutation.isPending ? t("saving") : isEditing ? t("updateQuote") : t("createQuote")}
           </Button>
         </div>
       </div>

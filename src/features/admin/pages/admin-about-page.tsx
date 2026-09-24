@@ -36,27 +36,27 @@ export function AdminAboutPage() {
                 <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-2xl">IG</div>
                 <div>
                   <p className="text-lg font-bold">Inventory Gear</p>
-                  <p className="text-sm text-muted-foreground">Desktop Inventory Management</p>
+                  <p className="text-sm text-muted-foreground">{t("admin.about.desktopDescription")}</p>
                 </div>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t("admin.about.version")}</span><span className="font-medium">{version || "0.1.0"}</span></div>
                 <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t("admin.about.buildNumber")}</span><span className="font-medium">1</span></div>
-                <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t("admin.about.environment")}</span><span className="font-medium">Development</span></div>
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t("admin.about.environment")}</span><span className="font-medium">{t("admin.about.development")}</span></div>
                 <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t("admin.about.databaseVersion")}</span><span className="font-medium">{sysInfo?.db_version || "-"}</span></div>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Server className="h-4 w-4" /> System Information</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Server className="h-4 w-4" /> {t("admin.dashboard.systemInfo")}</CardTitle></CardHeader>
             <CardContent className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground flex items-center gap-2"><Cpu className="h-3.5 w-3.5" /> OS</span>
                 <span>{sysInfo?.operating_system || "-"} ({sysInfo?.architecture || "-"})</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground flex items-center gap-2"><HardDrive className="h-3.5 w-3.5" /> Hostname</span>
+                <span className="text-muted-foreground flex items-center gap-2"><HardDrive className="h-3.5 w-3.5" /> {t("admin.about.hostname")}</span>
                 <span>{sysInfo?.hostname || "-"}</span>
               </div>
               <div className="flex justify-between text-sm">
@@ -71,7 +71,7 @@ export function AdminAboutPage() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Globe className="h-4 w-4" /> Resources</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Globe className="h-4 w-4" /> {t("admin.about.resources")}</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               <a href="#" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors" onClick={(e) => e.preventDefault()}>
                 <Globe className="h-4 w-4" /> {t("admin.about.officialWebsite")}

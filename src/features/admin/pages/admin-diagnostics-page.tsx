@@ -53,7 +53,7 @@ export function AdminDiagnosticsPage() {
           <p className="text-sm text-muted-foreground">{t("admin.diagnostics.description")}</p>
         </div>
         <Button onClick={handleRun} disabled={running}>
-          <Play className="mr-2 h-4 w-4" /> {running ? "Running..." : t("admin.diagnostics.runAll")}
+          <Play className="mr-2 h-4 w-4" /> {running ? t("admin.diagnostics.running") : t("admin.diagnostics.runAll")}
         </Button>
       </div>
 
@@ -61,26 +61,26 @@ export function AdminDiagnosticsPage() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
           <Card><CardContent className="p-4 flex items-center gap-3">
             <Activity className="h-8 w-8 text-primary" />
-            <div><p className="text-xs text-muted-foreground">Total</p><p className="text-lg font-bold">{summary.total}</p></div>
+            <div><p className="text-xs text-muted-foreground">{t("admin.diagnostics.total")}</p><p className="text-lg font-bold">{summary.total}</p></div>
           </CardContent></Card>
           <Card><CardContent className="p-4 flex items-center gap-3">
             <CheckCircle2 className="h-8 w-8 text-green-500" />
-            <div><p className="text-xs text-muted-foreground">Healthy</p><p className="text-lg font-bold">{summary.healthy}</p></div>
+            <div><p className="text-xs text-muted-foreground">{t("admin.diagnostics.healthy")}</p><p className="text-lg font-bold">{summary.healthy}</p></div>
           </CardContent></Card>
           <Card><CardContent className="p-4 flex items-center gap-3">
             <AlertTriangle className="h-8 w-8 text-amber-500" />
-            <div><p className="text-xs text-muted-foreground">Warning</p><p className="text-lg font-bold">{summary.warning}</p></div>
+            <div><p className="text-xs text-muted-foreground">{t("admin.diagnostics.warning")}</p><p className="text-lg font-bold">{summary.warning}</p></div>
           </CardContent></Card>
           <Card><CardContent className="p-4 flex items-center gap-3">
             <XCircle className="h-8 w-8 text-red-500" />
-            <div><p className="text-xs text-muted-foreground">Critical</p><p className="text-lg font-bold">{summary.critical}</p></div>
+            <div><p className="text-xs text-muted-foreground">{t("admin.diagnostics.critical")}</p><p className="text-lg font-bold">{summary.critical}</p></div>
           </CardContent></Card>
         </div>
       )}
 
       {checks.length > 0 && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Latest Results</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{t("admin.diagnostics.latestResults")}</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             {checks.map((check) => (
               <div key={check.name} className="flex items-start gap-3 p-3 rounded-lg border">
@@ -101,7 +101,7 @@ export function AdminDiagnosticsPage() {
 
       <Card>
         <CardHeader className="flex items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2"><History className="h-4 w-4" /> History</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2"><History className="h-4 w-4" /> {t("admin.diagnostics.history")}</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
@@ -113,11 +113,11 @@ export function AdminDiagnosticsPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Type</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Summary</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Issues</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("admin.diagnostics.type")}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("admin.backups.status")}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("admin.diagnostics.summary")}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("admin.diagnostics.issues")}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("admin.diagnostics.date")}</th>
                   </tr>
                 </thead>
                 <tbody>

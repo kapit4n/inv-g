@@ -25,7 +25,7 @@ export function CommandPalette() {
     const idx = themes.indexOf(current)
     const next = themes[(idx + 1) % themes.length]
     root.classList.remove("light", "dark")
-    root.setAttribute("data-theme", next)
+    root.setAttribute("data-theme", next ?? "")
     if (next === "dark") root.classList.add("dark")
     else if (next === "light") root.classList.remove("dark")
   }, [])

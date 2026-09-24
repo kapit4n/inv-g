@@ -1,17 +1,17 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { DollarSign, CreditCard, Building2, History } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
 import { DataTable } from "@/components/data-table"
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { TextField, TextareaField } from "@/components/forms"
 import { getCashRegisterStatus, getCashRegisterSessions, openCashRegister, closeCashRegister, getDailyCloseout } from "@/lib/tauri"
 import { useNotification } from "@/hooks/use-notification"
+import type { TableColumn } from "@/types/crud"
+import type { CashRegisterSession } from "@/types"
 
 export function CashRegisterPage() {
   const { t } = useTranslation()
@@ -45,7 +45,7 @@ export function CashRegisterPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cash-register-status"] })
       queryClient.invalidateQueries({ queryKey: ["cash-register-sessions"] })
-      notification.success(t("common.success"), "Register opened")
+      notification.success(t("common.success"), t("registerOpened"))
       setOpenDialog(false)
     },
   })
@@ -55,40 +55,40 @@ export function CashRegisterPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cash-register-status"] })
       queryClient.invalidateQueries({ queryKey: ["cash-register-sessions"] })
-      notification.success(t("common.success"), "Register closed")
+      notification.success(t("common.success"), t("registerClosed"))
       setCloseDialog(false)
     },
   })
 
-  const columns = [
-    { header: "Opened At", accessorKey: "openedAt" as const, cell: (v: string) => new Date(v).toLocaleString() },
-    { header: "Closed At", accessorKey: "closedAt" as const, cell: (v: string) => v ? new Date(v).toLocaleString() : "-" },
-    { header: "User", accessorKey: "userName" as const },
-    { header: "Opening", accessorKey: "openingBalance" as const, cell: (v: number) => v.toLocaleString("en-US", { style: "currency", currency: "USD" }) },
-    { header: "Closing", accessorKey: "closingBalance" as const, cell: (v: number) => v ? v.toLocaleString("en-US", { style: "currency", currency: "USD" }) : "-" },
-    { header: "Expected", accessorKey: "expectedBalance" as const, cell: (v: number) => v ? v.toLocaleString("en-US", { style: "currency", currency: "USD" }) : "-" },
+  const columns: TableColumn<CashRegisterSession>[] = [
+    { id: "openedAt", header: t("openedAt"), accessorKey: "openedAt", cell: (r) => new Date(r.openedAt).toLocaleString() },
+    { id: "closedAt", header: t("closedAt"), accessorKey: "closedAt", cell: (r) => r.closedAt ? new Date(r.closedAt).toLocaleString() : "-" },
+    { id: "user", header: t("user"), accessorKey: "userName" },
+    { id: "opening", header: t("opening"), accessorKey: "openingBalance", cell: (r) => r.openingBalance.toLocaleString("en-US", { style: "currency", currency: "USD" }) },
+    { id: "closing", header: t("closing"), accessorKey: "closingBalance", cell: (r) => r.closingBalance ? r.closingBalance.toLocaleString("en-US", { style: "currency", currency: "USD" }) : "-" },
+    { id: "expected", header: t("expected"), accessorKey: "expectedBalance", cell: (r) => r.expectedBalance ? r.expectedBalance.toLocaleString("en-US", { style: "currency", currency: "USD" }) : "-" },
     {
-      header: "Difference", accessorKey: "difference" as const,
-      cell: (v: number) => v !== null && v !== undefined ? (
-        <span className={v >= 0 ? "text-green-600" : "text-red-600"}>{v.toLocaleString("en-US", { style: "currency", currency: "USD" })}</span>
+      id: "difference", header: t("difference"), accessorKey: "difference",
+      cell: (r) => r.difference !== null && r.difference !== undefined ? (
+        <span className={r.difference >= 0 ? "text-green-600" : "text-red-600"}>{r.difference.toLocaleString("en-US", { style: "currency", currency: "USD" })}</span>
       ) : "-",
     },
-    { header: "Status", accessorKey: "status" as const, cell: (v: string) => <Badge variant={v === "open" ? "default" : "secondary"}>{v}</Badge> },
+    { id: "status", header: t("status"), accessorKey: "status", cell: (r) => <Badge variant={r.status === "open" ? "default" : "secondary"}>{r.status}</Badge> },
   ]
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Cash Register"
-        description="Manage cash register sessions"
+        title={t("cashRegister")}
+        description={t("manageCashRegisterSessions")}
         actions={
           activeSession ? (
             <Button variant="destructive" size="sm" onClick={() => { setClosingBalance(0); setCloseDialog(true) }}>
-              Close Register
+              {t("closeRegister")}
             </Button>
           ) : (
             <Button size="sm" onClick={() => { setOpeningBalance(0); setOpenDialog(true) }}>
-              Open Register
+              {t("openRegister")}
             </Button>
           )
         }
@@ -98,22 +98,22 @@ export function CashRegisterPage() {
         <Card className="border-green-500">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Badge variant="default" className="bg-green-500">Open Session</Badge>
-              <span className="text-sm font-normal text-muted-foreground">Since {new Date(activeSession.openedAt).toLocaleString()}</span>
+              <Badge variant="default" className="bg-green-500">{t("openSession")}</Badge>
+              <span className="text-sm font-normal text-muted-foreground">{t("since", { date: new Date(activeSession.openedAt).toLocaleString() })}</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div>
-                <p className="text-sm text-muted-foreground">Opening Balance</p>
+                <p className="text-sm text-muted-foreground">{t("openingBalance")}</p>
                 <p className="text-2xl font-bold">{activeSession.openingBalance.toLocaleString("en-US", { style: "currency", currency: "USD" })}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Cash Sales Today</p>
+                <p className="text-sm text-muted-foreground">{t("cashSalesToday")}</p>
                 <p className="text-2xl font-bold">{closeout?.cashTotal.toLocaleString("en-US", { style: "currency", currency: "USD" }) || "$0.00"}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Expected</p>
+                <p className="text-sm text-muted-foreground">{t("expected")}</p>
                 <p className="text-2xl font-bold">{((activeSession.openingBalance || 0) + (closeout?.cashTotal || 0)).toLocaleString("en-US", { style: "currency", currency: "USD" })}</p>
               </div>
             </div>
@@ -122,7 +122,7 @@ export function CashRegisterPage() {
       )}
 
       <Card>
-        <CardHeader className="pb-3"><CardTitle className="text-base">Session History</CardTitle></CardHeader>
+        <CardHeader className="pb-3"><CardTitle className="text-base">{t("sessionHistory")}</CardTitle></CardHeader>
         <CardContent className="p-0">
           <DataTable columns={columns} data={sessions} />
         </CardContent>
@@ -130,24 +130,24 @@ export function CashRegisterPage() {
 
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Open Cash Register</DialogTitle></DialogHeader>
-          <TextField label="Opening Balance" type="number" value={openingBalance} onChange={(v) => setOpeningBalance(Number(v))} />
-          <TextareaField label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          <DialogHeader><DialogTitle>{t("openCashRegister")}</DialogTitle></DialogHeader>
+          <TextField label={t("openingBalance")} type="number" value={openingBalance} onChange={(v) => setOpeningBalance(Number(v))} />
+          <TextareaField label={t("notes")} value={notes} onChange={(e) => setNotes(e.target.value)} />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenDialog(false)}>Cancel</Button>
-            <Button onClick={() => openMutation.mutate()} disabled={openMutation.isPending}>Open Register</Button>
+            <Button variant="outline" onClick={() => setOpenDialog(false)}>{t("cancel")}</Button>
+            <Button onClick={() => openMutation.mutate()} disabled={openMutation.isPending}>{t("openRegister")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={closeDialog} onOpenChange={setCloseDialog}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Close Cash Register</DialogTitle></DialogHeader>
-          <TextField label="Closing Balance (actual cash count)" type="number" value={closingBalance} onChange={(v) => setClosingBalance(Number(v))} />
-          <TextareaField label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          <DialogHeader><DialogTitle>{t("closeCashRegister")}</DialogTitle></DialogHeader>
+          <TextField label={t("closingBalanceCount")} type="number" value={closingBalance} onChange={(v) => setClosingBalance(Number(v))} />
+          <TextareaField label={t("notes")} value={notes} onChange={(e) => setNotes(e.target.value)} />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCloseDialog(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={() => closeMutation.mutate()} disabled={closeMutation.isPending}>Close Register</Button>
+            <Button variant="outline" onClick={() => setCloseDialog(false)}>{t("cancel")}</Button>
+            <Button variant="destructive" onClick={() => closeMutation.mutate()} disabled={closeMutation.isPending}>{t("closeRegister")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

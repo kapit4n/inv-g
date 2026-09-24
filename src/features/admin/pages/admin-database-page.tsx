@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
-import { Database, Table2, CheckCircle2, AlertTriangle, Wrench, Activity, RefreshCw } from "lucide-react"
+import { Database, Table2, CheckCircle2, Wrench, Activity, RefreshCw } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -92,8 +92,8 @@ export function AdminDatabasePage() {
               <CardContent className="p-4 flex items-center gap-3">
                 <CheckCircle2 className={`h-8 w-8 ${stats.integrityOk ? "text-green-500" : "text-red-500"}`} />
                 <div>
-                  <p className="text-xs text-muted-foreground">Integrity</p>
-                  <Badge variant={stats.integrityOk ? "success" : "destructive"}>{stats.integrityOk ? "OK" : "Issues"}</Badge>
+                  <p className="text-xs text-muted-foreground">{t("admin.database.integrity")}</p>
+                  <Badge variant={stats.integrityOk ? "success" : "destructive"}>{stats.integrityOk ? t("admin.database.ok") : t("admin.diagnostics.issues")}</Badge>
                 </div>
               </CardContent>
             </Card>
@@ -103,15 +103,15 @@ export function AdminDatabasePage() {
             <Card>
               <CardHeader><CardTitle className="text-base">{t("admin.database.stats")}</CardTitle></CardHeader>
               <CardContent className="space-y-2">
-                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Page Size</span><span>{stats.pageSize} bytes</span></div>
-                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Page Count</span><span>{stats.pageCount}</span></div>
-                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Freelist Count</span><span>{stats.freelistCount}</span></div>
-                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Schema Version</span><span>{stats.schemaVersion}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t("admin.database.pageSize")}</span><span>{stats.pageSize} bytes</span></div>
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t("admin.database.pageCount")}</span><span>{stats.pageCount}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t("admin.database.freelistCount")}</span><span>{stats.freelistCount}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t("admin.database.schemaVersion")}</span><span>{stats.schemaVersion}</span></div>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader><CardTitle className="text-base">Maintenance Actions</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-base">{t("admin.database.maintenanceActions")}</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 <Button variant="outline" className="w-full justify-start" onClick={() => handleAction(vacuumDatabase)}>
                   <Wrench className="mr-2 h-4 w-4" /> {t("admin.database.runVacuum")}
@@ -123,7 +123,7 @@ export function AdminDatabasePage() {
                   <Activity className="mr-2 h-4 w-4" /> {t("admin.database.runIntegrityCheck")}
                 </Button>
                 <Button variant="outline" className="w-full justify-start" onClick={() => handleAction(reindexDatabase)}>
-                  <RefreshCw className="mr-2 h-4 w-4" /> Reindex Database
+                  <RefreshCw className="mr-2 h-4 w-4" /> {t("admin.database.reindex")}
                 </Button>
               </CardContent>
             </Card>

@@ -235,5 +235,10 @@
   "transferNow": "Transferir Stock",
   "transferCreated": "Inventario transferido entre tiendas.",
   "recentTransfers": "Transferencias Recientes",
-  "noTransfers": "Aún no hay transferencias"
+  "noTransfers": "Aún no hay transferencias",
+  "items": "Artículos",
+  "product": "Producto",
+  "minStock": "Stock Mínimo",
+  "maxStock": "Stock Máximo",
+  "totalCategories": "Total de Categorías"
 }

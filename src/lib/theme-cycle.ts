@@ -12,7 +12,7 @@ export function cycleTheme(): Theme {
       ? "light"
       : "system"
   const idx = THEMES.indexOf(current)
-  const next = THEMES[(idx + 1) % THEMES.length]
+  const next = THEMES[(idx + 1) % THEMES.length] ?? "light"
   root.classList.remove("light", "dark")
   root.setAttribute("data-theme", next)
   if (next === "dark") root.classList.add("dark")

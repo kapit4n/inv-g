@@ -121,5 +121,10 @@
   "saleHeld": "Venta retenida correctamente",
   "saleResumed": "Venta reanudada correctamente",
   "saleHoldCancelled": "Venta retenida cancelada",
-  "items": "{{count}} artículos"
+  "items": "{{count}} artículos",
+  "amount": "Monto",
+  "type": "Tipo",
+  "monthSales": "Ventas del Mes",
+  "noSales": "Sin ventas",
+  "searchSales": "Buscar ventas..."
 }

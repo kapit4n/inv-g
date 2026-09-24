@@ -1,10 +1,8 @@
 import { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
-import { Shield, Key, CheckCircle2, AlertTriangle, Building2, Users, Store, Calendar } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getLicenseInfo, activateLicense, deactivateLicense, validateLicense } from "@/lib/tauri"
@@ -84,7 +82,7 @@ export function AdminLicensePage() {
               <CardHeader><CardTitle className="text-base">{t("admin.licensing.status")}</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Status</span>
+                  <span className="text-sm text-muted-foreground">{t("admin.backups.status")}</span>
                   <Badge variant={validation?.valid ? "success" : validation?.status === "unlicensed" ? "secondary" : "destructive"}>
                     {validation?.status || "unknown"}
                   </Badge>
@@ -101,12 +99,12 @@ export function AdminLicensePage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">{t("admin.licensing.seats")}</span>
-                      <span className="text-sm">{license.maxUsers} users / {license.maxStores} stores</span>
+                      <span className="text-sm">{t("admin.licensing.usersStores", { users: license.maxUsers, stores: license.maxStores })}</span>
                     </div>
                     {license.expirationDate && (
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-muted-foreground">{t("admin.licensing.expiry")}</span>
-                        <Badge variant={license.expirationDate < new Date().toISOString().split('T')[0] ? "destructive" : "success"}>
+                        <Badge variant={license.expirationDate < (new Date().toISOString().split('T')[0] ?? "") ? "destructive" : "success"}>
                           {license.expirationDate}
                         </Badge>
                       </div>

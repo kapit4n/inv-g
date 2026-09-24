@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
-import { Plus, Smartphone, Trash2, TestTube, MoreHorizontal } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Plus, MoreHorizontal } from "lucide-react"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -102,11 +102,11 @@ export function AdminDevicesPage() {
               <div className="space-y-2">
                 <Label>{t("admin.devices.connectionType")}</Label>
                 <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.interfaceType} onChange={(e) => setForm({ ...form, interfaceType: e.target.value })}>
-                  <option value="usb">USB</option><option value="bluetooth">Bluetooth</option><option value="network">Network</option><option value="serial">Serial</option>
+                  <option value="usb">USB</option><option value="bluetooth">Bluetooth</option><option value="network">Network</option><option value="serial">{t("admin.devices.serial")}</option>
                 </select>
               </div>
               <div className="space-y-2">
-                <Label>Identifier / Serial</Label>
+                <Label>{t("admin.devices.identifierSerial")}</Label>
                 <Input value={form.identifier} onChange={(e) => setForm({ ...form, identifier: e.target.value })} />
               </div>
               <div className="flex justify-end gap-2">
@@ -137,7 +137,7 @@ export function AdminDevicesPage() {
                       <p className="text-xs text-muted-foreground">{device.deviceType} ({device.interfaceType})</p>
                       {device.identifier && <p className="text-xs text-muted-foreground">ID: {device.identifier}</p>}
                       <Badge className="mt-2" variant={device.isActive ? "success" : "secondary"}>
-                        {device.isActive ? "Active" : "Inactive"}
+                        {device.isActive ? t("admin.devices.active") : t("admin.devices.inactive")}
                       </Badge>
                     </div>
                   </div>

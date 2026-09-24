@@ -183,10 +183,10 @@ export function CrmCompatibilityPage() {
               </select>
             </div>
             <div className="grid gap-2">
-              <label className="text-sm font-medium">Search</label>
+              <label className="text-sm font-medium">{t("search")}</label>
               <div className="flex gap-2">
                 <Input
-                  placeholder="Part name / SKU"
+                  placeholder={t("partNameSku")}
                   value={searchText}
                   onChange={(e) => setSearchText(e.target.value)}
                 />
@@ -211,7 +211,7 @@ export function CrmCompatibilityPage() {
             ) : !searchDone ? (
               <Card>
                 <CardContent className="p-6 text-center text-sm text-muted-foreground">
-                  Select a vehicle and click search
+                  {t("selectVehicleAndSearch")}
                 </CardContent>
               </Card>
             ) : results.length === 0 ? (
@@ -237,7 +237,7 @@ export function CrmCompatibilityPage() {
                           <div className="flex items-center justify-between mt-2">
                             <span className="text-sm font-bold">${p.salePrice.toFixed(2)}</span>
                             <Badge variant={p.stockQuantity > 0 ? "success" : "destructive"} className="text-xs">
-                              {p.stockQuantity > 0 ? `${p.stockQuantity} in stock` : "Out of stock"}
+                              {p.stockQuantity > 0 ? t("inStock", { count: p.stockQuantity }) : t("outOfStock")}
                             </Badge>
                           </div>
                         </div>
@@ -261,7 +261,7 @@ export function CrmCompatibilityPage() {
             ) : !selectedBrand && !selectedModel ? (
               <Card>
                 <CardContent className="p-6 text-center text-sm text-muted-foreground">
-                  Select a vehicle for recommendations
+                  {t("selectVehicleForRecommendations")}
                 </CardContent>
               </Card>
             ) : recommendations.length === 0 ? (

@@ -23,7 +23,7 @@ export function CostHistoryPage() {
     queryFn: () => getSuppliers(),
   })
 
-  const { data: products = [] } = useQuery({
+  const { data: products } = useQuery({
     queryKey: ["products"],
     queryFn: () => getProducts(1, 1000),
   })
@@ -38,9 +38,9 @@ export function CostHistoryPage() {
   })
 
   const searchedProducts = useMemo(() => {
-    if (!productSearch) return products.data || []
+    if (!productSearch) return products?.data ?? []
     const q = productSearch.toLowerCase()
-    return (products.data || []).filter(
+    return (products?.data ?? []).filter(
       (p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q),
     )
   }, [products, productSearch])
