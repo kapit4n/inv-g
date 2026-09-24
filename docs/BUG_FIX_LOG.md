@@ -84,7 +84,7 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 - `tests/helpers/render.tsx` (accepts `queryClient`, exports `createTestQueryClient`)
 - `tests/unit/components/pos-page.test.tsx`, `tests/unit/components/sales-kpi-refresh.test.tsx` (new)
 
-**Commit:** (pending)
+**Commit:** 9f02059
 
 ---
 

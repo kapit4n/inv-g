@@ -1440,7 +1440,7 @@ correct date windows. Logged in `docs/BUG_FIX_LOG.md` (2026-09-24).
   · `cargo test --lib` 94 passed / 2 pre-existing env-dependent config failures
 - Live SQL sanity check on a copy of the active demo DB (inserted today 100+50,
   same-month 25, previous-month 40, refunded 200): today=2/$150, month=3/$175,
-  boundary correct (UTC 04:00). Commit: (pending)
+  boundary correct (UTC 04:00). Commit: 9f02059
 
 ### Product import reference template (example workbook)
 - `docs-site/public/samples/inventory-gear-product-import-example.xlsx` — the
