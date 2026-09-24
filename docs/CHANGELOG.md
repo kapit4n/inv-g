@@ -8,6 +8,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased] - Product Import / Export (Excel)
 
+> Shipped in `f284fdd` (TASK 15).
+
 ### Added
 
 - **Bulk Excel import/export module.** New *Inventory → Import / Export* page

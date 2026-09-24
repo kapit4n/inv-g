@@ -1454,7 +1454,7 @@ correct date windows. Logged in `docs/BUG_FIX_LOG.md` (2026-09-24).
 
 ## TASK 15 — Bulk Excel product import / export ✅
 
-**Completed:** 2026-09-24
+**Completed:** 2026-09-24 · **Commit:** f284fdd
 
 ### Summary
 Bulk Excel (.xlsx) import/export for products and stock in Inventory Gear:
