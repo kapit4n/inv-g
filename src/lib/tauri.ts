@@ -15,6 +15,7 @@ import type {
   InventoryCategory, Brand, Manufacturer, InventorySupplier,
   Warehouse, StorageLocation, InventoryProduct, ProductImage,
   ProductCompatibility, InventoryMovement, DashboardStats, InventoryPaginatedResult,
+  ImportPreview, ImportResult, ImportHistoryRow, ExportResult, ExportScope, ImportMode,
 } from "@/types/inventory"
 import type {
   Customer, CustomerDetail, CustomerSale, CreditAccount, CreditTransaction,
@@ -302,6 +303,43 @@ export async function createInventoryMovement(data: {
   referenceType?: string; referenceId?: string; notes?: string; createdBy?: number
 }): Promise<InventoryMovement> {
   return invoke<InventoryMovement>("create_inventory_movement", data)
+}
+
+// ── Import / Export (Excel) ──
+
+export async function exportProductsXlsx(input: {
+  path: string
+  scope?: ExportScope
+  createdBy?: number
+}): Promise<ExportResult> {
+  return invoke<ExportResult>("export_products_xlsx", input)
+}
+
+export async function exportProductsTemplate(input: {
+  path: string
+}): Promise<ExportResult> {
+  return invoke<ExportResult>("export_products_template", input)
+}
+
+export async function previewProductImport(input: {
+  path: string
+  mode?: ImportMode
+  storeId?: number | null
+}): Promise<ImportPreview> {
+  return invoke<ImportPreview>("preview_product_import", input)
+}
+
+export async function executeProductImport(input: {
+  path: string
+  mode?: ImportMode
+  storeId?: number | null
+  createdBy?: number | null
+}): Promise<ImportResult> {
+  return invoke<ImportResult>("execute_product_import", input)
+}
+
+export async function getImportHistory(): Promise<ImportHistoryRow[]> {
+  return invoke<ImportHistoryRow[]>("get_import_history")
 }
 
 // ── Customers ──

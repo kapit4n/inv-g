@@ -6,6 +6,43 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased] - Product Import / Export (Excel)
+
+### Added
+
+- **Bulk Excel import/export module.** New *Inventory → Import / Export* page
+  (`/inventory/import-export`) with three cards:
+  - **Export inventory** — generates a `.xlsx` workbook with the `Productos`
+    sheet (27 official columns) plus a `Maestros de referencia` sheet; scope
+    *Active* (only `is_active = 1`) or *All*. Gated by `inventory.export`.
+  - **Download template** — the same official workbook with an empty
+    `Productos` sheet; available without permissions.
+  - **Import inventory** — select a `.xlsx`, choose *Append* (skip existing) or
+    *Update* (non-empty columns only; *Stock inicial* is absolute resulting
+    stock), preview every row (create/update/skip/error, current vs new stock),
+    review the blocking error list, then execute. Gated by `inventory.import`.
+- **Tauri backend** (`src-tauri/src/commands/import_export.rs`): `export_products_xlsx`,
+  `export_products_template`, `preview_product_import`, `execute_product_import`
+  and `get_import_history`. All-or-nothing execution: the file is re-validated
+  server-side and inserts/updates + stock movements run in a single
+  `BEGIN IMMEDIATE` transaction with rollback on any error. Rows match by
+  SKU → Código → barcode; references resolve against the *Maestros de
+  referencia* sheet with accent-insensitive suggestions for near-miss values.
+  Multi-store aware: stores == active warehouses, store scope validated against
+  each row's Almacén.
+- **Schema:** `import_history` table (filename, mode, counts, errors, stock
+  delta, created_by, created_at) and `inventory.export` / `inventory.import`
+  permissions. Owner, Administrator and Warehouse get both; Purchasing gets
+  export only.
+- **Import history** panel and per-product stock movements of type `import`
+  (reference `Importación Excel`).
+- **Docs:** `docs-site/inventory/import-export.md` (reference format, import
+  rules, permissions, modes), sidebar + inventory index updated.
+- **Tests:** 9 Rust `#[cfg(test)]` tests for the backend module; 6 Vitest
+  component tests for the new page.
+
+---
+
 ## [Unreleased] - Product import reference template
 
 ### Added

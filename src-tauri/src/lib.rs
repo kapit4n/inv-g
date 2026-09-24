@@ -27,6 +27,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(tauri_state)
         .invoke_handler(tauri::generate_handler![
             commands::app::get_app_version,
@@ -84,6 +85,11 @@ pub fn run() {
             commands::inventory::get_product_images,
             commands::inventory::create_product_image,
             commands::inventory::delete_product_image,
+            commands::import_export::export_products_xlsx,
+            commands::import_export::export_products_template,
+            commands::import_export::preview_product_import,
+            commands::import_export::execute_product_import,
+            commands::import_export::get_import_history,
             commands::customers::get_customers,
             commands::customers::get_customer,
             commands::customers::create_customer,

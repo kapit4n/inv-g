@@ -170,3 +170,79 @@ export interface InventoryPaginatedResult<T> {
   pageSize: number
   totalPages: number
 }
+
+export type ImportAction = "insert" | "update" | "skip" | "error"
+export type ImportMode = "append" | "update"
+export type ExportScope = "active" | "all"
+
+export interface RowPreview {
+  rowNumber: number
+  sku: string
+  name: string
+  action: ImportAction
+  reason: string | null
+  errors: string[]
+  currentStock: number | null
+  newStock: number | null
+  stockChange: number | null
+}
+
+export interface RowError {
+  rowNumber: number
+  sku: string
+  message: string
+}
+
+export interface ImportPreview {
+  filename: string
+  storeId: number | null
+  mode: string
+  totalRows: number
+  insertCount: number
+  updateCount: number
+  skipCount: number
+  errorCount: number
+  stockIncreaseCount: number
+  stockDecreaseCount: number
+  stockUnchangedCount: number
+  rows: RowPreview[]
+  errorRows: RowError[]
+  rowsTruncated: boolean
+}
+
+export interface ImportResult {
+  ok: boolean
+  filename: string
+  mode: string
+  totalRows: number
+  inserted: number
+  updated: number
+  skipped: number
+  errors: number
+  stockIncreased: number
+  stockDecreased: number
+  errorRows: RowError[]
+  importId: number | null
+  message: string | null
+}
+
+export interface ExportResult {
+  path: string
+  filename: string
+  productCount: number
+}
+
+export interface ImportHistoryRow {
+  id: number
+  filename: string
+  importMode: string
+  totalRows: number
+  inserted: number
+  updated: number
+  skipped: number
+  errors: number
+  stockIncreased: number
+  stockDecreased: number
+  createdBy: string | null
+  createdAt: string
+}

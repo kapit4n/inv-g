@@ -1449,3 +1449,84 @@ correct date windows. Logged in `docs/BUG_FIX_LOG.md` (2026-09-24).
   "Maestros de referencia" sheet. Documented with column map + import rules in
   `docs-site/inventory/products.md` ("Import Reference Template"). Reference
   format for the future bulk-import feature.
+
+---
+
+## TASK 15 — Bulk Excel product import / export ✅
+
+**Completed:** 2026-09-24
+
+### Summary
+Bulk Excel (.xlsx) import/export for products and stock in Inventory Gear:
+export the catalog or an empty template workbook, and import with Append /
+Update modes through a preview-then-execute wizard that is transactional and
+multi-store aware. Uses the `tauri-plugin-dialog` file dialogs.
+
+### Backend (Rust)
+- **Schema v12:** added `import_history` table (id, filename, import_mode,
+  insert_count, update_count, skip_count, error_count, stock_increase_count,
+  stock_decrease_count, created_by, created_at) and permissions
+  `inventory.export` / `inventory.import`.
+- **`src-tauri/src/commands/import_export.rs`** (new, ~2000 lines incl. tests):
+  - `export_products_xlsx(state, path, scope?, created_by?)` — workbook with
+    sheet `Productos` (27 official columns in reference order) + sheet
+    `Maestros de referencia` (Tabla destino | Campo | Valor). Scope `all`
+    includes inactive/discontinued; default `active`.
+  - `export_products_template(state, path)` — same workbook, empty rows.
+  - `preview_product_import(state, path, mode?, store_id?)` —
+    re-parses + validates the file; classifies every row (insert/update/skip/
+    error); capped preview at 500 rows (`rows_truncated`); errors uncapped.
+  - `execute_product_import(state, path, mode?, store_id?, created_by?)` —
+    re-validates server-side; all writes in one `BEGIN IMMEDIATE` transaction,
+    rollback on any error (all-or-nothing); writes `product_identifiers`
+    (type `oem` for Código, `alternate` for Código_2), stock movements of type
+    `import` (notes `Importación Excel`), and an `import_history` row.
+  - `get_import_history(state)` — most recent first.
+- Matching identity order: SKU → Código (oem/identifier/internal_code) →
+  barcode. Append = skip existing; Update = only non-empty columns, *Stock
+  inicial* is absolute resulting stock (movement = difference). References
+  (Categoría/Marca/Fabricante/Proveedor/Almacén/Ubicación) resolve against the
+  refs sheet; near-miss values get accent-insensitive suggestions via
+  `normalize_word`.
+- Store semantics: stores == active warehouses; single store ⇒ optional/empty
+  store_id; multi-store ⇒ `store_id` must match each row's Almacén.
+- 9 `#[cfg(test)]` tests (`cargo test --lib import_export` — 9 passed).
+
+### Frontend
+- `src/types/inventory.ts` — `ImportAction`, `ImportMode`, `ExportScope`,
+  `RowPreview`, `RowError`, `ImportPreview`, `ImportResult`, `ExportResult`,
+  `ImportHistoryRow` (camelCase matching serde).
+- `src/lib/tauri.ts` — wrappers `exportProductsXlsx`, `exportProductsTemplate`,
+  `previewProductImport`, `executeProductImport`, `getImportHistory`.
+- `src/features/inventory/pages/import-export-page.tsx` (new) — 3 cards
+  (Export / Template / Import), file picker, mode + store selectors, preview
+  DataTable with action badges (insert/update/skip/error) and stock change,
+  per-row error list (blocks Import now when errorCount > 0), result panel,
+  import-history DataTable. Gated by `usePermission("inventory.export" /
+  "inventory.import")`; page shows a permission message when neither. After a
+  successful import invalidates `inventory-products`, `inventory-movements`,
+  `inventory-dashboard`, `import-history`.
+- Registered in `src/features/inventory/index.ts`, route `inventory/import-export`
+  in `src/routes/index.tsx`, sidebar child with `FileSpreadsheet` icon.
+- i18n keys added in `src/i18n/locales/{es,en}/inventory.json` (importExport
+  block) and `createdBy` in `{es,en}/common.json`. Interpolation placeholders
+  use `{{var}}` (single braces are NOT interpolated by i18next).
+
+### Files
+- `src-tauri/src/db/schema.rs`, `src-tauri/src/db/seed.rs`,
+  `src-tauri/src/commands/import_export.rs` (new), `src-tauri/src/commands/mod.rs`,
+  `src-tauri/src/lib.rs`, `src-tauri/Cargo.toml` (rust_xlsxwriter,
+  tauri-plugin-dialog), `src-tauri/capabilities/default.json`
+- `src/types/inventory.ts`, `src/lib/tauri.ts`,
+  `src/features/inventory/pages/import-export-page.tsx` (new),
+  `src/features/inventory/index.ts`, `src/routes/index.tsx`,
+  `src/layouts/sidebar.tsx`
+- `src/i18n/locales/{es,en}/{inventory,common}.json`
+- `tests/unit/components/import-export-page.test.tsx` (new, 6 tests)
+- `docs-site/inventory/import-export.md` (new), `docs-site/inventory/index.md`,
+  `docs-site/.vitepress/config.ts`, `docs/CHANGELOG.md`
+
+### Verification
+- `npm run typecheck` ✓ (0 errors) · `npm run lint` ✓ (0 errors, 35
+  pre-existing warnings) · `npx vitest run tests/unit` — 384/384 ✓ ·
+  `cargo test --lib` — 9/9 import/export tests ✓

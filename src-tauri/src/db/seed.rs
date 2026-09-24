@@ -7,6 +7,8 @@ const DEFAULT_PERMISSIONS: &[(&str, &str, &str, &str)] = &[
     ("inventory.create", "Crear Producto", "inventory", "Create products"),
     ("inventory.update", "Actualizar Producto", "inventory", "Update products"),
     ("inventory.delete", "Eliminar Producto", "inventory", "Delete products"),
+    ("inventory.export", "Exportar Inventario", "inventory", "Export products and inventory to Excel"),
+    ("inventory.import", "Importar Inventario", "inventory", "Import products and inventory from Excel"),
     ("sales.view", "Ver Ventas", "sales", "View sales"),
     ("sales.create", "Crear Venta", "sales", "Create sales"),
     ("sales.refund", "Reembolsar Venta", "sales", "Refund sales"),
@@ -83,6 +85,7 @@ const ROLES: &[(&str, &str, bool, &[&str])] = &[
     ("owner", "Propietario", true, &[
         "dashboard.view",
         "inventory.view", "inventory.create", "inventory.update", "inventory.delete",
+        "inventory.export", "inventory.import",
         "inventory.categories.manage", "inventory.brands.manage", "inventory.manufacturers.manage",
         "inventory.suppliers.manage", "inventory.warehouses.manage", "inventory.storage.manage",
         "sales.view", "sales.create", "sales.refund", "sales.quotes", "sales.register", "sales.closeout", "sales.receipts",
@@ -110,6 +113,7 @@ const ROLES: &[(&str, &str, bool, &[&str])] = &[
     ("administrator", "Administrador", true, &[
         "dashboard.view",
         "inventory.view", "inventory.create", "inventory.update", "inventory.delete",
+        "inventory.export", "inventory.import",
         "inventory.categories.manage", "inventory.brands.manage", "inventory.manufacturers.manage",
         "inventory.suppliers.manage", "inventory.warehouses.manage", "inventory.storage.manage",
         "sales.view", "sales.create", "sales.refund", "sales.quotes", "sales.register", "sales.closeout", "sales.receipts",
@@ -144,12 +148,13 @@ const ROLES: &[(&str, &str, bool, &[&str])] = &[
     ("warehouse", "Almacén", true, &[
         "dashboard.view",
         "inventory.view", "inventory.create", "inventory.update",
+        "inventory.export", "inventory.import",
         "purchases.view", "purchases.receive",
         "warehouse.view",
     ]),
     ("purchasing", "Compras", true, &[
         "dashboard.view",
-        "inventory.view", "inventory.create",
+        "inventory.view", "inventory.create", "inventory.export",
         "purchases.view", "purchases.create", "purchases.update",
         "purchases.approve", "purchases.receive", "purchases.returns", "purchases.requests",
         "purchases.supplier_products", "purchases.cost_history",

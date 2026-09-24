@@ -23,6 +23,7 @@ Click **Inventory** in the sidebar. Route: `/inventory`.
 | [Warehouses & Locations](/inventory/warehouses) | `/inventory/warehouses` | Storage management |
 | [Stock & Movements](/inventory/stock-movements) | `/inventory/movements` | Stock tracking |
 | [Cross References](/inventory/cross-references) | `/inventory/cross-references` | OEM/cross-reference lookup |
+| [Import / Export](/inventory/import-export) | `/inventory/import-export` | Bulk Excel import/export |
 
 ## Inventory Dashboard
 

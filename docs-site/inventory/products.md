@@ -181,6 +181,7 @@ field a full product record requires so the file round-trips with the
 
 ## Related
 
+- [Import / Export](/inventory/import-export) — bulk Excel import/export
 - [Categories & Brands](/inventory/categories-brands) — Organize products
 - [Cross References](/inventory/cross-references) — OEM number lookup
 - [Point of Sale](/sales/pos) — Sell products

@@ -7,6 +7,7 @@ pub mod cross_references;
 pub mod crm;
 pub mod customers;
 pub mod inventory;
+pub mod import_export;
 pub mod purchases;
 pub mod reminders;
 pub mod reports;

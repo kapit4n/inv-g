@@ -14,6 +14,7 @@ import {
   InventoryMovementsPage, InventoryMovementFormPage,
   CrossReferencesPage,
   TransfersPage,
+  ImportExportPage,
 } from "@/features/inventory"
 import { SalesPage, PosPage, SaleDetailPage, CloseoutPage, QuotesPage, QuoteDetailPage, QuoteFormPage, ReturnsPage, CashRegisterPage, ReceiptsPage } from "@/features/sales"
 import {
@@ -110,6 +111,7 @@ export const router = createBrowserRouter([
       { path: "inventory/movements/new", element: <InventoryMovementFormPage /> },
       { path: "inventory/transfers", element: <TransfersPage /> },
       { path: "inventory/cross-references", element: <CrossReferencesPage /> },
+      { path: "inventory/import-export", element: <ImportExportPage /> },
       { path: "inventory/products", element: <ProductsPage /> },
       { path: "inventory/products/new", element: <ProductFormPage /> },
       { path: "inventory/products/:id", element: <ProductDetailPage /> },
