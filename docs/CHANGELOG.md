@@ -6,6 +6,54 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased] - Spanish i18n hardening
+
+### Added
+
+- **Demo catalog database** (`inventory-gear-demo.db`): dedicated demo DB whose
+  product catalog is exactly a 19-item steering/suspension list (muñones,
+  terminales, brazos de cremallera, rótulas, barras estabilizadoras, juntas y
+  capuchones). Built by `scripts/database/seed-demo-catalog.mjs`
+  (`npm run db:demo`), which clones the schema + users from an initialized
+  profile DB, wipes all business data, and inserts the catalog with
+  `sku = Código_2` (fallback `Código`), `oem_number = Código`, `sale_price =
+  Precio/u`, `cost ≈ 70%`, stock from `Cant`, plus `product_identifiers` rows
+  for both codes. `npm run db:demo:activate` swaps it in as the active
+  single-store profile DB (previous file backed up as `.bak-demo-<ts>`).
+
+### Changed
+
+- Localized every remaining hardcoded English user-facing string in the Spanish
+  (`es`) locale: shared components (product-search / customer-search comboboxes,
+  table placeholders, dialog sr-only text, print receipt/document templates),
+  help page, CRM pages (9), Admin pages (10+), Sales/customers pages, Purchases
+  pages and Reports pages (incl. purchasing report rewrite with `setActiveTab`).
+- Added ~1,250 flat keys across `es` and `en` in 16 namespaces
+  (`common`, `inventory`, `sales`, `purchases`, `customers`, `crm`, `admin`,
+  `reports`, `report` UI, etc.) and documented flat-key conventions and the
+  audit methodology in `docs/I18N.md`.
+- `tests/unit/components/product-search-combobox.test.tsx` now calls
+  `setupI18n("en")` before asserting English UI copy.
+
+### Fixed
+
+- **`npm run typecheck` was a no-op** — `tsc --noEmit` on the solution-style
+  root `tsconfig.json` (with `files: []`) compiled 0 files. Script now uses
+  `tsc -b` and the 158 latent type errors it surfaced were all fixed (unused
+  imports, null-guards, report-table casts, `TableColumn` alignment,
+  `@/types` export renames, Checkbox `id` prop, removed invalid `closeout.date`).
+- **Spanish i18n hardening** — 0 missing ES keys, 0 missing EN keys, 0 EN-only
+  keys, 0 `t('key', 'english')` fallback calls project-wide (verified by the
+  new audit script).
+
+### Known issue added
+
+- `cargo test` fails 2 config tests on machines whose real app-data dir already
+  contains a `profile.json` (environment-dependent, not a code regression).
+  See `docs/KNOWN_ISSUES.md`.
+
+---
+
 ## [Unreleased] - Database Profiles
 
 ### Added

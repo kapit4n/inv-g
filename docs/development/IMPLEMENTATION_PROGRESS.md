@@ -1245,3 +1245,160 @@ A new Cross References search page lets users find products by any identifier.
 - The identifiers tab could show a "supersedes" chain visualization for
   supersession-type identifiers.
 - Bulk import of cross-references from CSV/Excel is not yet supported.
+
+## CRM pages i18n cleanup
+
+Localized all remaining hardcoded English user-facing strings across the 9 CRM
+pages (dashboard, customers, customer detail, vehicles, warranties, reminders,
+notes, credit, compatibility). Every JSX text node and label/title/placeholder
+now resolves through the `crm` i18n namespace.
+
+### Files modified
+- `src/features/crm/pages/crm-dashboard-page.tsx`
+- `src/features/crm/pages/crm-customers-page.tsx`
+- `src/features/crm/pages/crm-customer-detail-page.tsx`
+- `src/features/crm/pages/crm-vehicles-page.tsx`
+- `src/features/crm/pages/crm-warranties-page.tsx`
+- `src/features/crm/pages/crm-reminders-page.tsx`
+- `src/features/crm/pages/crm-notes-page.tsx`
+- `src/features/crm/pages/crm-credit-page.tsx`
+- `src/features/crm/pages/crm-compatibility-page.tsx`
+- `src/i18n/locales/en/crm.json` — ~90 new flat keys
+- `src/i18n/locales/es/crm.json` — matching Spanish translations
+
+### Test results
+- `npm run typecheck` — passing
+- `node /tmp/opencode/audit-i18n.mjs` — 0 missing in ES, 0 missing in EN
+
+## Admin pages i18n cleanup
+
+Localized all remaining hardcoded English user-facing strings across the Admin
+pages (audit, database, devices, license, printers, roles, role form, settings,
+updates, user form, users, about, diagnostics, maintenance). Every JSX text
+node and label/title/placeholder now resolves through the `admin` i18n
+namespace.
+
+### Files modified
+- `src/features/admin/pages/admin-audit-page.tsx` … `admin-users-page.tsx`
+  (12+ pages)
+- `src/i18n/locales/en/admin.json`, `es/admin.json` — ~45 new flat keys each
+
+### Test results
+- audit script — 0 missing in ES, 0 missing in EN
+
+## Sales / customers i18n cleanup
+
+Localized remaining hardcoded English in Sales pages (POS, cash register,
+closeout, quotes, quote form/detail, receipts, returns, sale detail, sales)
+and customers pages; added ~59 `common` + `customers` keys (es+en), including
+payment-method icons and the quote workflow labels.
+
+### Files modified
+- `src/features/sales/pages/*.tsx`, `src/features/customers/pages/customer-detail-page.tsx`
+- `src/i18n/locales/{en,es}/common.json`, `customers.json`, `sales.json`
+
+### Test results
+- audit script — 0 missing in ES, 0 missing in EN
+
+## Shared components + Reports i18n cleanup
+
+Localized shared components (customer-search-field, product-search-combobox,
+table-placeholder, dialog sr-only close, print templates, help page
+keyboard-shortcuts) under the `common` namespace, and all Reports pages under
+the `reports` namespace. Rewrote `reports-purchasing-page.tsx` to move
+TABS/columns into the component with `t()` — this also fixed an undefined
+`setActiveTab` (the previous typecheck gate had been silently passing).
+
+### Files modified
+- `src/components/forms/customer-search-field.tsx`,
+  `src/components/product-search-combobox.tsx`,
+  `src/components/table-placeholder.tsx`, `src/components/ui/dialog.tsx`,
+  `src/components/print/templates.tsx`, `src/features/help/pages/help-page.tsx`
+- `src/features/reports/components/report-charts.tsx`, `report-table.tsx`,
+  `report-filters.tsx`
+- `src/features/reports/pages/reports-purchasing-page.tsx` (+8 other reports pages)
+- `src/features/inventory/components/product-inventory-tab.tsx`
+- `src/i18n/locales/{en,es}/common.json`, `reports.json` (+~90 keys)
+- `tests/unit/components/product-search-combobox.test.tsx` — added `setupI18n("en")`
+
+### Test results
+- audit script — 0 missing in ES, 0 missing in EN
+
+## Typecheck gate was a no-op — fixed and 158 latent errors resolved
+
+`npm run typecheck` (`tsc --noEmit`) silently compiled **0 files**: the root
+`tsconfig.json` is a solution file with `files: []`, and `tsc --noEmit` in
+non-build mode ignores project references. `npm run build` already used `tsc -b`
+and typechecked correctly. Root cause verified with `--listFilesOnly`
+(0 vs 976 files). Fixed by changing the script to `tsc -b`
+(both referenced configs are `noEmit: true`, so it only typechecks).
+
+The now-real gate surfaced **158 genuine type errors**, all fixed across 5
+parallel cleanup batches — no runtime behavior changes:
+
+- **Admin** — 8 `dashboard` possibly-null guards; removed unused
+  `Filter/Button/Badge/AlertTriangle/Smartphone/Trash2/CardHeader/...`; guarded
+  `noUncheckedIndexedAccess`; added `id?: string` to `ui/checkbox.tsx`.
+- **Sales** — removed unused `DialogTrigger/Separator/Badge/CreditCard/...`;
+  aligned DataTable columns as `TableColumn<X>[]` (cell fns now read the row);
+  `setValidUntil(e.target.value)` fix; `if (!sale) return` print guard.
+- **Purchases** — removed unused `Eye/NumberField/SelectField/...`;
+  `InventorySupplier`/`Warehouse` imported from `@/types/inventory`;
+  `products?.data ?? []` fixes the `never[]` query typing; rebuilt two return
+  items with explicit fields; `cancelled` badge variant `outline`→`secondary`.
+- **Reports** — `percent` `?? 0` guards; report data arrays cast
+  `as unknown as Record<string, unknown>[]`; removed non-existent `horizontal`
+  prop on `BarChartCard` (was inert at runtime); `SupplierPerformanceReport` →
+  `SupplierPerformance`.
+- **Misc** — `use-hotkey`/`theme-cycle`/`command-palette` `?? ""`/`?? "light"`
+  index guards; removed unused lucide imports (`sidebar`, `commands`);
+  removed invalid `DailyCloseout.date` references (type has no date field);
+  `CompatibilityEntry` uses `brandName`/`modelName`; `cross-references-page`
+  Section got the missing `title={t("common.search")}`.
+
+### Test results
+- `npm run typecheck` — **exit 0, 0 errors** (real gate)
+- `npm run lint` — exit 0, 0 errors (35 pre-existing warnings)
+- `vitest run` — 55 files / 431 tests passing
+- audit script — 0 missing in ES, 0 missing in EN, 0 EN-only, no fallbacks
+- All 42 locale JSON files parse
+
+### Known issue (not fixed by design)
+- `cargo test` fails 2 env-dependent config tests on this machine because
+  `~/.local/share/inventory-gear/profile.json` = `single-store`; no `src-tauri`
+  changes made. Logged in `docs/BUG_FIX_LOG.md`, `docs/KNOWN_ISSUES.md`.
+
+### Docs updated
+- `docs/I18N.md` (21 namespaces, flat-key convention, audit methodology),
+  `docs/CHANGELOG.md`, `docs/KNOWN_ISSUES.md`, `docs/BUG_FIX_LOG.md`.
+
+## Demo catalog database (`inventory-gear-demo.db`)
+
+Added a dedicated demo database whose product catalog is exactly a 19-item
+steering/suspension parts list (real-world invoice data: muñones, terminales,
+brazos de cremallera, rótulas, barras estabilizadoras, juntas y capuchones for
+Toyota Corolla/Ipsu/Caldina/Hiace/Noah/Voxy/Yaris/RAV4 and King Long).
+
+### How it works
+- `scripts/database/seed-demo-catalog.mjs` (`npm run db:demo`) clones the app
+  schema + users/roles/permissions/settings from an already-initialized profile
+  DB (via `VACUUM INTO`), wipes ALL business/reference rows, then inserts:
+  - 2 categories (`Dirección`, `Suspensión`), 2 brands (`Toyota Genuine`,
+    `TRW`), 1 supplier, 1 warehouse (WH-001) with 12 storage locations
+  - exactly the 19 products, mapped per the owner's decisions:
+    `sku = Código_2` (falls back to `Código` when empty), `oem_number = Código`,
+    `internal_code = Código`, `sale_price = Precio/u`, `cost_price ≈ 70%` of
+    sale, `stock_quantity = Cant`, plus `product_identifiers` rows (`oem` for
+    `Código`, `alternate` for `Código_2`) so both codes are searchable from the
+    Cross References page
+- Output lands at `~/.local/share/inventory-gear/inventory-gear-demo.db`
+  (integrity_check OK, catalog value 5,628.00 matches the invoice total).
+- `npm run db:demo:activate` copies the demo file over the active profile DB
+  (`single-store`), keeps a `.bak-demo-<ts>` backup, and points `profile.json`
+  at it — restart the app to browse the demo.
+- Reversible: `npm run db:reset:single-store` restores the regular seed.
+
+### Files
+- `scripts/database/seed-demo-catalog.mjs` (new)
+- `package.json` — `db:demo`, `db:demo:activate` scripts
+- `docs/CHANGELOG.md` — entry

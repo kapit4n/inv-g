@@ -42,6 +42,8 @@ npm run dev:tauri
 | `npm run db:generate` | Generate Drizzle migrations |
 | `npm run db:migrate` | Run database migrations |
 | `npm run db:studio` | Open Drizzle Studio |
+| `npm run db:demo` | Build the demo catalog DB (19 real steering/suspension products, `inventory-gear-demo.db`) |
+| `npm run db:demo:activate` | Activate the demo catalog as the single-store profile DB (previous DB backed up) |
 
 ## IDE Setup
 
