@@ -62,11 +62,19 @@ in the docs shows the format filled with real data.
 
 ## How to Import
 
-### Step 1: Select a file
+### Step 1: Choose a data source
 
-Click **Select file** and pick an `.xlsx` workbook. It must contain a
-*Productos* sheet whose first row has the official headers (order flexible,
-unused columns ignored).
+Pick what the import will read:
+
+| Source | What it does |
+|--------|--------------|
+| **File (Excel)** | Opens a file dialog to pick an `.xlsx` workbook (default). |
+| **Demo catalog** | Uses the bundled example workbook — the same 19-product catalog as the
+[sample file](/manual/samples/inventory-gear-product-import-example.xlsx) — without needing to select a file. Useful to try the import flow or to seed a fresh catalog. |
+
+When **File (Excel)** is selected, the workbook must contain a *Productos*
+sheet whose first row has the official headers (order flexible, unused columns
+ignored).
 
 ### Step 2: Choose the mode
 

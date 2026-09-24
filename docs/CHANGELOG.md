@@ -19,13 +19,22 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
     *Active* (only `is_active = 1`) or *All*. Gated by `inventory.export`.
   - **Download template** — the same official workbook with an empty
     `Productos` sheet; available without permissions.
-  - **Import inventory** — select a `.xlsx`, choose *Append* (skip existing) or
-    *Update* (non-empty columns only; *Stock inicial* is absolute resulting
-    stock), preview every row (create/update/skip/error, current vs new stock),
-    review the blocking error list, then execute. Gated by `inventory.import`.
+  - **Import inventory** — choose a data source (*File (Excel)* or *Demo
+    catalog*), select a `.xlsx` when using a file, choose *Append* (skip
+    existing) or *Update* (non-empty columns only; *Stock inicial* is absolute
+    resulting stock), preview every row (create/update/skip/error, current vs
+    new stock), review the blocking error list, then execute. Gated by
+    `inventory.import`.
+- **Demo catalog import source.** The Import card can switch to *Demo
+  catalog*, which loads the bundled example workbook (the 19-product demo
+  catalog) without a file dialog — handy to try the flow or seed a fresh
+  catalog. Backed by `preview_demo_catalog` / `execute_demo_catalog`, which
+  materialize the embedded `inventory-gear-product-import-example.xlsx` to a
+  temp file and reuse the normal preview/execute pipeline.
 - **Tauri backend** (`src-tauri/src/commands/import_export.rs`): `export_products_xlsx`,
-  `export_products_template`, `preview_product_import`, `execute_product_import`
-  and `get_import_history`. All-or-nothing execution: the file is re-validated
+  `export_products_template`, `preview_product_import`, `execute_product_import`,
+  `preview_demo_catalog`, `execute_demo_catalog`, and `get_import_history`.
+  All-or-nothing execution: the file is re-validated
   server-side and inserts/updates + stock movements run in a single
   `BEGIN IMMEDIATE` transaction with rollback on any error. Rows match by
   SKU → Código → barcode; references resolve against the *Maestros de
@@ -40,7 +49,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   (reference `Importación Excel`).
 - **Docs:** `docs-site/inventory/import-export.md` (reference format, import
   rules, permissions, modes), sidebar + inventory index updated.
-- **Tests:** 9 Rust `#[cfg(test)]` tests for the backend module; 6 Vitest
+- **Tests:** 10 Rust `#[cfg(test)]` tests for the backend module; 8 Vitest
   component tests for the new page.
 
 ---

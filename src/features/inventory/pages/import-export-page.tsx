@@ -15,6 +15,8 @@ import {
   exportProductsTemplate,
   previewProductImport,
   executeProductImport,
+  previewDemoCatalog,
+  executeDemoCatalog,
   getImportHistory,
 } from "@/lib/tauri"
 import type {
@@ -24,6 +26,8 @@ import { useAuthStore, useBusinessStore } from "@/stores"
 import { useBusinessCapabilities, usePermission } from "@/hooks"
 import { useNotification } from "@/hooks/use-notification"
 import { StoreSelector } from "@/components/store-selector"
+
+type ImportSource = "file" | "demo"
 
 export function ImportExportPage() {
   const { t } = useTranslation()
@@ -37,6 +41,7 @@ export function ImportExportPage() {
 
   const [exportScope, setExportScope] = useState<ExportScope>("active")
   const [importFile, setImportFile] = useState<string | null>(null)
+  const [importSource, setImportSource] = useState<ImportSource>("file")
   const [importMode, setImportMode] = useState<ImportMode>("append")
   const [preview, setPreview] = useState<ImportPreview | null>(null)
   const [result, setResult] = useState<ImportResult | null>(null)
@@ -67,7 +72,10 @@ export function ImportExportPage() {
   })
 
   const previewMutation = useMutation({
-    mutationFn: previewProductImport,
+    mutationFn: (args: { path: string | null; mode: ImportMode; storeId: number | null }) =>
+      importSource === "demo"
+        ? previewDemoCatalog({ mode: args.mode, storeId: args.storeId })
+        : previewProductImport({ path: args.path ?? "", mode: args.mode, storeId: args.storeId }),
     onSuccess: (data) => {
       setPreview(data)
       setResult(null)
@@ -82,7 +90,10 @@ export function ImportExportPage() {
   })
 
   const importMutation = useMutation({
-    mutationFn: executeProductImport,
+    mutationFn: (args: { path: string | null; mode: ImportMode; storeId: number | null }) =>
+      importSource === "demo"
+        ? executeDemoCatalog({ mode: args.mode, storeId: args.storeId, createdBy: user?.id ?? null })
+        : executeProductImport({ path: args.path ?? "", mode: args.mode, storeId: args.storeId, createdBy: user?.id ?? null }),
     onSuccess: (res) => {
       setResult(res)
       if (res.ok) {
@@ -112,6 +123,7 @@ export function ImportExportPage() {
     })
     if (typeof selected === "string") {
       setImportFile(selected)
+      setImportSource("file")
       setPreview(null)
       setResult(null)
     }
@@ -136,7 +148,7 @@ export function ImportExportPage() {
   }
 
   const handlePreview = () => {
-    if (!importFile) {
+    if (importSource === "file" && !importFile) {
       notification.warning(t("inventory.importInventory"), t("inventory.noFileSelected"))
       return
     }
@@ -144,8 +156,9 @@ export function ImportExportPage() {
   }
 
   const handleImport = () => {
-    if (!importFile || !preview) return
-    importMutation.mutate({ path: importFile, mode: importMode, storeId: currentStoreId, createdBy: user?.id ?? null })
+    if (!preview) return
+    if (importSource === "file" && !importFile) return
+    importMutation.mutate({ path: importFile, mode: importMode, storeId: currentStoreId })
   }
 
   const previewSlice = useMemo(() => {
@@ -285,16 +298,38 @@ export function ImportExportPage() {
               <CardDescription>{t("inventory.importInventoryCardDescription")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={handlePickFile}>
-                  <FileUp className="h-4 w-4" /> {t("inventory.selectFile")}
-                </Button>
-                {importFile ? (
-                  <Badge variant="secondary" className="max-w-56 truncate" title={importFile}>
-                    {importFile.split(/[\\/]/).pop()}
+              <SelectField
+                label={t("inventory.importSource")}
+                value={importSource}
+                onChange={(v) => {
+                  setImportSource((v as ImportSource) || "file")
+                  setPreview(null)
+                  setResult(null)
+                }}
+                options={[
+                  { label: t("inventory.importSourceFile"), value: "file" },
+                  { label: t("inventory.importSourceDemo"), value: "demo" },
+                ]}
+              />
+              {importSource === "demo" ? (
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="truncate">
+                    {t("inventory.demoCatalogName")}
                   </Badge>
-                ) : null}
-              </div>
+                  <span className="text-xs text-muted-foreground">{t("inventory.demoCatalogNotice")}</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" onClick={handlePickFile}>
+                    <FileUp className="h-4 w-4" /> {t("inventory.selectFile")}
+                  </Button>
+                  {importFile ? (
+                    <Badge variant="secondary" className="max-w-56 truncate" title={importFile}>
+                      {importFile.split(/[\\/]/).pop()}
+                    </Badge>
+                  ) : null}
+                </div>
+              )}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <SelectField
                   label={t("inventory.importMode")}
@@ -311,7 +346,7 @@ export function ImportExportPage() {
               </div>
               <Button
                 onClick={handlePreview}
-                disabled={!importFile || previewMutation.isPending}
+                disabled={(importSource === "file" && !importFile) || previewMutation.isPending}
               >
                 {previewMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}
                 {preview ? t("inventory.previewAgain") : t("inventory.preview")}

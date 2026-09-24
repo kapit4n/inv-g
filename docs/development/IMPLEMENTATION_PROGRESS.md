@@ -1530,3 +1530,31 @@ multi-store aware. Uses the `tauri-plugin-dialog` file dialogs.
 - `npm run typecheck` ✓ (0 errors) · `npm run lint` ✓ (0 errors, 35
   pre-existing warnings) · `npx vitest run tests/unit` — 384/384 ✓ ·
   `cargo test --lib` — 9/9 import/export tests ✓
+
+### Follow-up: Demo catalog import source
+**Commit:** (pending) · **Date:** 2026-09-24
+
+The Import card gained a **Source** selector: *File (Excel)* (default) or
+*Demo catalog* — the latter previews/executes the bundled 19-product example
+workbook without a file dialog (user request, confirmation asked and answered).
+
+- `src-tauri/src/commands/import_export.rs`: `DEMO_WORKBOOK` embedded via
+  `include_bytes!` from `docs-site/public/samples/inventory-gear-product-import-example.xlsx`;
+  `demo_workbook_file()` materializes it to `$TMP/inventory-gear/…` at first use
+  (overwrites each call to avoid stale copies); new commands
+  `preview_demo_catalog` + `execute_demo_catalog` reuse `preview_internal` /
+  `execute_internal`. Registered in `src-tauri/src/lib.rs`.
+- Frontend: `previewDemoCatalog` / `executeDemoCatalog` wrappers in
+  `src/lib/tauri.ts`; `ImportSource` state (`file` | `demo`) + selector on the
+  Import card; preview/import mutations branch on the source; picking a file
+  resets the source to `file`.
+- i18n: `importSource`, `importSourceFile`, `importSourceDemo`,
+  `demoCatalogName`, `demoCatalogNotice` in `{es,en}/inventory.json`.
+- Tests: +1 Rust (`test_demo_workbook_parses_nineteen_rows`, 10 total) and +2
+  Vitest (demo-source flow, preview disabled without file — 8 total).
+- Docs: `docs-site/inventory/import-export.md` Step 1 now "Choose a data
+  source"; `docs/CHANGELOG.md` updated.
+- Verification: `cargo test --lib import_export` 10/10 ✓ · vitest 386/386 ✓ ·
+  typecheck ✓ · lint 0 errors ✓ · `npm run build` ✓ · `npm run docs:build` ✓ ·
+  full `cargo test --lib` 104 passed / 2 pre-existing env-dependent config
+  failures (unchanged, `config.rs` untouched).

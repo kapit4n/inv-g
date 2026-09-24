@@ -5,7 +5,7 @@ import { ImportExportPage } from "@/features/inventory/pages/import-export-page"
 import { useAuthStore } from "@/stores"
 import {
   exportProductsXlsx, exportProductsTemplate, previewProductImport,
-  executeProductImport, getImportHistory,
+  executeProductImport, previewDemoCatalog, executeDemoCatalog, getImportHistory,
 } from "@/lib/tauri"
 import { open, save } from "@tauri-apps/plugin-dialog"
 import type { ImportPreview, ImportResult } from "@/types/inventory"
@@ -15,6 +15,8 @@ vi.mock("@/lib/tauri", () => ({
   exportProductsTemplate: vi.fn(),
   previewProductImport: vi.fn(),
   executeProductImport: vi.fn(),
+  previewDemoCatalog: vi.fn(),
+  executeDemoCatalog: vi.fn(),
   getImportHistory: vi.fn(),
 }))
 
@@ -133,7 +135,7 @@ describe("ImportExportPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /preview/i }))
 
     await waitFor(() => {
-      expect(previewProductImport).toHaveBeenCalledWith(expect.objectContaining({ mode: "append", storeId: null }), expect.anything())
+      expect(previewProductImport).toHaveBeenCalledWith(expect.objectContaining({ mode: "append", storeId: null }))
     })
     expect(screen.getAllByText("catalog.xlsx").length).toBeGreaterThan(0)
     expect(screen.getByText("NEW PART")).toBeInTheDocument()
@@ -141,7 +143,7 @@ describe("ImportExportPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /import now/i }))
 
     await waitFor(() => {
-      expect(executeProductImport).toHaveBeenCalledWith(expect.objectContaining({ mode: "append", createdBy: 1 }), expect.anything())
+      expect(executeProductImport).toHaveBeenCalledWith(expect.objectContaining({ mode: "append", createdBy: 1 }))
       expect(screen.getByText(/1 created, 0 updated, 1 skipped/i)).toBeInTheDocument()
     })
   })
@@ -183,7 +185,44 @@ describe("ImportExportPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /preview/i }))
 
     await waitFor(() => {
-      expect(previewProductImport).toHaveBeenCalledWith(expect.objectContaining({ mode: "update" }), expect.anything())
+      expect(previewProductImport).toHaveBeenCalledWith(expect.objectContaining({ mode: "update" }))
     })
+  })
+
+  it("previews and imports the bundled demo catalog without selecting a file", async () => {
+    useAuthStore.getState().setSession(user, "token", ["inventory.import"])
+    ;(previewDemoCatalog as ReturnType<typeof vi.fn>).mockResolvedValue(preview)
+    ;(executeDemoCatalog as ReturnType<typeof vi.fn>).mockResolvedValue(importResult)
+
+    render(<ImportExportPage />)
+
+    fireEvent.click(screen.getByText("File (Excel)"))
+    fireEvent.click(await screen.findByText("Demo catalog"))
+
+    expect(screen.getByText("Demo catalog (19 products)")).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: /preview/i }))
+
+    await waitFor(() => {
+      expect(previewDemoCatalog).toHaveBeenCalledWith(expect.objectContaining({ mode: "append", storeId: null }))
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: /import now/i }))
+
+    await waitFor(() => {
+      expect(executeDemoCatalog).toHaveBeenCalledWith(expect.objectContaining({ mode: "append", createdBy: 1 }))
+      expect(screen.getByText(/1 created, 0 updated, 1 skipped/i)).toBeInTheDocument()
+    })
+    expect(previewProductImport).not.toHaveBeenCalled()
+    expect(executeProductImport).not.toHaveBeenCalled()
+  })
+
+  it("disables the preview button when no file is selected and the source is file", () => {
+    useAuthStore.getState().setSession(user, "token", ["inventory.import"])
+
+    render(<ImportExportPage />)
+
+    expect(screen.getByRole("button", { name: /preview/i })).toBeDisabled()
+    expect(screen.queryByRole("button", { name: /import now/i })).not.toBeInTheDocument()
   })
 })

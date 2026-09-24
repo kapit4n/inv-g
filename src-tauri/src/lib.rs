@@ -89,6 +89,8 @@ pub fn run() {
             commands::import_export::export_products_template,
             commands::import_export::preview_product_import,
             commands::import_export::execute_product_import,
+            commands::import_export::preview_demo_catalog,
+            commands::import_export::execute_demo_catalog,
             commands::import_export::get_import_history,
             commands::customers::get_customers,
             commands::customers::get_customer,

@@ -13,6 +13,19 @@ fn get_conn<'r>(
     state.conn.lock().map_err(|e| format!("Database lock error: {}", e))
 }
 
+// Bundled example workbook so the UI can offer an instant "Demo catalog"
+// import source without requiring the user to pick a file.
+const DEMO_WORKBOOK: &[u8] = include_bytes!("../../../docs-site/public/samples/inventory-gear-product-import-example.xlsx");
+
+fn demo_workbook_file() -> Result<std::path::PathBuf, String> {
+    let dir = std::env::temp_dir().join("inventory-gear");
+    std::fs::create_dir_all(&dir).map_err(|e| format!("No se pudo crear el directorio temporal: {}", e))?;
+    let path = dir.join("inventory-gear-product-import-example.xlsx");
+    std::fs::write(&path, DEMO_WORKBOOK)
+        .map_err(|e| format!("No se pudo escribir el catálogo de demostración: {}", e))?;
+    Ok(path)
+}
+
 const SHEET_PRODUCTOS: &str = "Productos";
 
 const COL_NUM: usize = 0;
@@ -895,6 +908,19 @@ pub fn preview_product_import(
     preview_internal(&conn, &path, &mode, store_id, raw_rows)
 }
 
+#[tauri::command]
+pub fn preview_demo_catalog(
+    state: State<DbState>,
+    mode: Option<String>,
+    store_id: Option<i64>,
+) -> Result<ImportPreview, String> {
+    let conn = get_conn(&state)?;
+    let mode = mode.unwrap_or_else(|| "append".into());
+    let path = demo_workbook_file()?;
+    let raw_rows = parse_workbook(&path.to_string_lossy())?;
+    preview_internal(&conn, &path.to_string_lossy(), &mode, store_id, raw_rows)
+}
+
 fn preview_internal(
     conn: &Connection,
     path: &str,
@@ -1041,6 +1067,19 @@ pub fn execute_product_import(
     let conn = get_conn(&state)?;
     let mode = mode.unwrap_or_else(|| "append".into());
     execute_internal(&conn, &path, &mode, store_id, created_by)
+}
+
+#[tauri::command]
+pub fn execute_demo_catalog(
+    state: State<DbState>,
+    mode: Option<String>,
+    store_id: Option<i64>,
+    created_by: Option<i64>,
+) -> Result<ImportResult, String> {
+    let conn = get_conn(&state)?;
+    let mode = mode.unwrap_or_else(|| "append".into());
+    let path = demo_workbook_file()?;
+    execute_internal(&conn, &path.to_string_lossy(), &mode, store_id, created_by)
 }
 
 fn execute_internal(
@@ -2040,6 +2079,15 @@ mod tests {
         assert_eq!(parse_flex_number("1.234,56"), Some(1234.56));
         assert_eq!(parse_flex_number("1,234.56"), Some(1234.56));
         assert_eq!(parse_flex_number("abc"), None);
+    }
+
+    #[test]
+    fn test_demo_workbook_parses_nineteen_rows() {
+        let path = demo_workbook_file().unwrap();
+        let rows = parse_workbook(&path.to_string_lossy()).unwrap();
+        assert_eq!(rows.len(), 19);
+        assert!(rows.iter().all(|r| r.errors.is_empty()));
+        assert_eq!(rows[0].codigo.as_deref(), Some("860067"));
     }
 
     #[test]

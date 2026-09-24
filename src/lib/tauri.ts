@@ -338,6 +338,21 @@ export async function executeProductImport(input: {
   return invoke<ImportResult>("execute_product_import", input)
 }
 
+export async function previewDemoCatalog(input: {
+  mode?: ImportMode
+  storeId?: number | null
+}): Promise<ImportPreview> {
+  return invoke<ImportPreview>("preview_demo_catalog", input)
+}
+
+export async function executeDemoCatalog(input: {
+  mode?: ImportMode
+  storeId?: number | null
+  createdBy?: number | null
+}): Promise<ImportResult> {
+  return invoke<ImportResult>("execute_demo_catalog", input)
+}
+
 export async function getImportHistory(): Promise<ImportHistoryRow[]> {
   return invoke<ImportHistoryRow[]>("get_import_history")
 }
