@@ -1532,7 +1532,7 @@ multi-store aware. Uses the `tauri-plugin-dialog` file dialogs.
   `cargo test --lib` — 9/9 import/export tests ✓
 
 ### Follow-up: Demo catalog import source
-**Commit:** (pending) · **Date:** 2026-09-24
+**Commit:** 93863d4 · **Date:** 2026-09-24
 
 The Import card gained a **Source** selector: *File (Excel)* (default) or
 *Demo catalog* — the latter previews/executes the bundled 19-product example
