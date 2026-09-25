@@ -6,6 +6,36 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased] - Demo catalog as the default seed
+
+> Shipped in `<pending>` — see "Seed = demo catalog" in
+> `docs/development/IMPLEMENTATION_PROGRESS.md`.
+
+### Changed
+
+- The app's default seed data is now the **19-item demo catalog** instead of
+  the generic English catalog. On a fresh (or `SCHEMA_VERSION`-bumped) DB the
+  Product table opens showing: 2 categories (Dirección, Suspensión), 2 brands
+  (Toyota Genuine, TRW), 1 supplier (Autorepuestos Demo SRL), 1 warehouse
+  (WH-001) with its 12 storage locations, and the 19 products from
+  `scripts/database/seed-demo-catalog.mjs`, each with
+  `sku = Código_2` (fallback `Código`), `oem_number`/`internal_code`,
+  `cost ≈ 70%`, `wholesale ≈ 85%`, `suggested = round(price × 1.15)`, stock
+  from `Cant`, and `product_identifiers` rows for both codes.
+- `SCHEMA_VERSION` bumped 12 → 13 so existing databases are rebuilt and
+  reseeded with the demo catalog on next launch (destructive migration).
+
+### Added
+
+- Rust seed now also inserts `product_identifiers` (oem + alternate) and the
+  extended price fields, mirroring the mjs demo script
+  (`src-tauri/src/db/seed.rs`).
+- Rust seed tests: `fresh_db_seeds_demo_catalog_products` (19),
+  `fresh_db_seeds_demo_reference_data` (2 categories / 2 brands / 1 supplier),
+  `fresh_db_seeds_product_identifiers` (34 rows).
+
+---
+
 ## [Unreleased] - Product Import / Export (Excel)
 
 > Shipped in `f284fdd` (TASK 15).

@@ -70,7 +70,7 @@ Pick what the import will read:
 |--------|--------------|
 | **File (Excel)** | Opens a file dialog to pick an `.xlsx` workbook (default). |
 | **Demo catalog** | Uses the bundled example workbook — the same 19-product catalog as the
-[sample file](/manual/samples/inventory-gear-product-import-example.xlsx) — without needing to select a file. Useful to try the import flow or to seed a fresh catalog. |
+[sample file](/manual/samples/inventory-gear-product-import-example.xlsx) — without needing to select a file. Useful to try the import flow or to seed a fresh catalog. The same 19 products are also the **default seed** shown when the app is installed / after a schema-major upgrade, so this source simply re-imports the starter catalog. |
 
 When **File (Excel)** is selected, the workbook must contain a *Productos*
 sheet whose first row has the official headers (order flexible, unused columns

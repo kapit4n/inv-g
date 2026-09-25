@@ -1,6 +1,6 @@
 use rusqlite::{Connection, Result};
 
-const SCHEMA_VERSION: i32 = 12;
+const SCHEMA_VERSION: i32 = 13;
 
 fn get_user_version(conn: &Connection) -> Result<i32> {
     let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
@@ -1367,6 +1367,45 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM products", [], |row| row.get(0))
             .unwrap();
         assert!(count >= 15, "Expected at least 15 products, got {count}");
+    }
+
+    #[test]
+    fn fresh_db_seeds_demo_catalog_products() {
+        let td = TestDb::new();
+        let conn = td.conn();
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM products", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(count, 19, "Expected the 19-item demo catalog, got {count}");
+    }
+
+    #[test]
+    fn fresh_db_seeds_demo_reference_data() {
+        let td = TestDb::new();
+        let conn = td.conn();
+        let categories: i64 = conn
+            .query_row("SELECT COUNT(*) FROM categories", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(categories, 2, "Expected the 2 demo categories (Dirección/Suspensión), got {categories}");
+        let brands: i64 = conn
+            .query_row("SELECT COUNT(*) FROM brands", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(brands, 2, "Expected the 2 demo brands (Toyota Genuine/TRW), got {brands}");
+        let suppliers: i64 = conn
+            .query_row("SELECT COUNT(*) FROM suppliers", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(suppliers, 1, "Expected the single demo supplier, got {suppliers}");
+    }
+
+    #[test]
+    fn fresh_db_seeds_product_identifiers() {
+        let td = TestDb::new();
+        let conn = td.conn();
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM product_identifiers", [], |row| row.get(0))
+            .unwrap();
+        // 19 OEM rows + 15 alternate rows (products with an alt code).
+        assert_eq!(count, 34, "Expected 34 demo product identifiers, got {count}");
     }
 
     // ── Foreign key integrity tests ──────────────────────────────────

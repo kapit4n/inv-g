@@ -199,77 +199,76 @@ const DEFAULT_SETTINGS: &[(&str, &str, &str, &str, &str)] = &[
 ];
 
 const SEED_CATEGORIES: &[(&str, &str, i32, Option<&str>)] = &[
-    ("Engine", "Engine parts and components", 1, None),
-    ("Brakes", "Braking system parts", 2, None),
-    ("Electrical", "Electrical system components", 3, None),
-    ("Suspension", "Suspension and steering parts", 4, None),
-    ("Cooling", "Cooling system parts", 5, None),
-    ("Filters", "Oil, air, fuel filters", 6, None),
-    ("Lubricants", "Oils and lubricants", 7, None),
-    ("Accessories", "Vehicle accessories", 8, None),
-    ("Transmission", "Transmission and clutch parts", 9, None),
-    ("Exhaust", "Exhaust system parts", 10, None),
+    ("Dirección", "Terminales, cremalleras, muñones y brazos", 1, None),
+    ("Suspensión", "Rótulas, barras estabilizadoras y muñones", 2, None),
 ];
 
 const SEED_BRANDS: &[(&str, &str, &str, &str)] = &[
-    ("Bosch", "German engineering and electronics", "Germany", "https://www.bosch.com"),
-    ("NGK", "Leading spark plug manufacturer", "Japan", "https://www.ngk.com"),
-    ("SKF", "Bearings and seals specialist", "Sweden", "https://www.skf.com"),
-    ("Valeo", "French automotive supplier", "France", "https://www.valeo.com"),
-    ("Denso", "Japanese automotive components", "Japan", "https://www.denso.com"),
-    ("ACDelco", "GM original equipment parts", "USA", "https://www.acdelco.com"),
-    ("Mann-Filter", "German filtration specialist", "Germany", "https://www.mann-filter.com"),
-    ("Continental", "German automotive parts", "Germany", "https://www.continental.com"),
+    ("Toyota Genuine", "Marca Toyota Genuine - Japón", "Japón", "https://www.toyota.com"),
+    ("TRW", "Marca TRW - EEUU", "EEUU", "https://www.zf.com"),
 ];
 
 const SEED_MANUFACTURERS: &[(&str, &str, &str, &str, &str)] = &[
-    ("Bosch GmbH", "Germany", "+49 711 8110", "info@bosch.com", "https://www.bosch.com"),
-    ("NGK Spark Plug Co.", "Japan", "+81 52 872 8211", "info@ngk.co.jp", "https://www.ngk.com"),
-    ("Denso Corporation", "Japan", "+81 566 25 5511", "info@denso.com", "https://www.denso.com"),
-    ("Valeo SA", "France", "+33 1 40 55 20 20", "contact@valeo.com", "https://www.valeo.com"),
-    ("SKF Group", "Sweden", "+46 31 337 1000", "info@skf.com", "https://www.skf.com"),
-    ("Mann+Hummel GmbH", "Germany", "+49 7141 98 0", "info@mann-hummel.com", "https://www.mann-filter.com"),
+    ("Toyota Motor Corp.", "Japón", "+81 3 3817 7111", "info@toyota.com", "https://www.toyota.com"),
+    ("ZF Group (TRW)", "EEUU", "+1 734 855 2000", "info@zf.com", "https://www.zf.com"),
 ];
 
 const SEED_SUPPLIERS: &[(&str, &str, &str, &str, &str, &str, &str, &str, &str)] = &[
-    ("AutoParts Express", "Carlos Mendoza", "+52 55 1234 5678", "+52 55 9876 5432", "carlos@autopartsexpress.com", "www.autopartsexpress.com", "AUT-123456", "Av. Reforma 123, Col. Centro", "Ciudad de México"),
-    ("Importadora de Partes", "María García", "+52 33 2345 6789", "+52 33 8765 4321", "maria@importadorapartes.com", "www.importadorapartes.com", "IMP-234567", "Calle Independencia 456", "Guadalajara"),
-    ("Distribuidora Automotriz", "Juan López", "+52 81 3456 7890", "+52 81 7654 3210", "juan@distautomotriz.com", "www.distautomotriz.com", "DIS-345678", "Av. Constitución 789", "Monterrey"),
-    ("Suministros del Motor", "Ana Martínez", "+52 55 4567 8901", "+52 55 6543 2109", "ana@suministrosmotor.com", "www.suministrosmotor.com", "SUM-456789", "Calle Industria 321", "Ciudad de México"),
+    ("Autorepuestos Demo SRL", "María Condori", "+591 4 4455667", "", "demo@autorepuestos.bo", "", "10203040", "Av. Ayacucho #1234", "Cochabamba"),
 ];
 
 const SEED_WAREHOUSES: &[(&str, &str, &str, &str, &str)] = &[
-    ("Almacén Principal", "WH-001", "Av. Principal 1000, Col. Industrial", "Ciudad de México", "CDMX"),
-    ("Almacén Secundario", "WH-002", "Calle Secundaria 500, Col. La Villa", "Ciudad de México", "CDMX"),
-    ("Almacén Norte", "WH-003", "Av. Norte 200, Col. San Juan", "Monterrey", "Nuevo León"),
+    ("Almacén Principal", "WH-001", "Zona Industrial, Calle WH-001", "Cochabamba", "Bolivia"),
+    ("Almacén Norte", "WH-002", "Calle Secundaria 500", "Cochabamba", "Bolivia"),
+    ("Almacén Sur", "WH-003", "Av. Sur 200", "Santa Cruz", "Bolivia"),
 ];
 
 const SEED_STORAGE_LOCATIONS: &[(&str, &str, &str, &str, &str, i32)] = &[
-    ("A", "1", "A", "01", "WH-001-A-1-A-01", 1),
-    ("A", "1", "B", "01", "WH-001-A-1-B-01", 1),
-    ("A", "2", "A", "01", "WH-001-A-2-A-01", 1),
-    ("B", "1", "A", "01", "WH-001-B-1-A-01", 1),
-    ("A", "1", "A", "01", "WH-002-A-1-A-01", 2),
-    ("A", "1", "B", "01", "WH-002-A-1-B-01", 2),
-    ("A", "1", "A", "01", "WH-003-A-1-A-01", 3),
+    ("A", "01", "A", "01", "WH-001-A-01-A-01", 1),
+    ("A", "01", "B", "01", "WH-001-A-01-B-01", 1),
+    ("A", "02", "A", "01", "WH-001-A-02-A-01", 1),
+    ("A", "02", "B", "01", "WH-001-A-02-B-01", 1),
+    ("B", "01", "A", "01", "WH-001-B-01-A-01", 1),
+    ("B", "01", "B", "01", "WH-001-B-01-B-01", 1),
+    ("B", "02", "A", "01", "WH-001-B-02-A-01", 1),
+    ("B", "02", "B", "01", "WH-001-B-02-B-01", 1),
+    ("C", "01", "A", "01", "WH-001-C-01-A-01", 1),
+    ("C", "01", "B", "01", "WH-001-C-01-B-01", 1),
+    ("C", "02", "A", "01", "WH-001-C-02-A-01", 1),
+    ("C", "02", "B", "01", "WH-001-C-02-B-01", 1),
+    ("A", "01", "A", "01", "WH-002-A-01-A-01", 2),
+    ("A", "01", "B", "01", "WH-002-A-01-B-01", 2),
+    ("A", "01", "A", "01", "WH-003-A-01-A-01", 3),
 ];
 
-const SEED_PRODUCTS: &[(&str, &str, &str, f64, f64, i32, i32, i32, &str, i32, i32, i32)] = &[
-    ("Oil Filter - Bosch P3100", "OIL-BOSCH-001", "Filtro de aceite Bosch", 3.50, 8.50, 150, 10, 200, "pcs", 6, 1, 1),
-    ("Air Filter - Mann C 25 008", "AIR-MANN-001", "Filtro de aire Mann", 5.00, 12.00, 80, 5, 100, "pcs", 6, 7, 1),
-    ("Brake Pads Ceramic - Bosch", "BRK-BOSCH-001", "Pastillas de freno cerámicas Bosch", 15.00, 35.00, 60, 5, 100, "set", 2, 1, 1),
-    ("Spark Plug Iridium - NGK", "SPK-NGK-001", "Bujía de iridio NGK", 4.00, 12.00, 200, 20, 300, "pcs", 3, 2, 1),
-    ("Alternator 120A - Bosch", "ALT-BOSCH-001", "Alternador 120 amperios Bosch", 80.00, 180.00, 15, 3, 30, "pcs", 3, 1, 1),
-    ("Battery 60Ah - Bosch", "BAT-BOSCH-001", "Batería 60Ah Bosch", 55.00, 120.00, 30, 5, 50, "pcs", 3, 1, 1),
-    ("Radiator Aluminum - Valeo", "RAD-VALEO-001", "Radiador de aluminio Valeo", 45.00, 95.00, 20, 3, 40, "pcs", 5, 3, 1),
-    ("Fuel Pump Electric - Denso", "FLP-DENSO-001", "Bomba de gasolina eléctrica Denso", 35.00, 85.00, 25, 3, 50, "pcs", 3, 5, 1),
-    ("Water Pump - SKF", "WAP-SKF-001", "Bomba de agua SKF", 25.00, 55.00, 30, 5, 60, "pcs", 5, 3, 1),
-    ("Timing Belt Kit - Continental", "TBK-CONT-001", "Kit de banda de tiempo Continental", 30.00, 75.00, 15, 3, 30, "kit", 9, 8, 1),
-    ("Ball Joint - SKF", "BLJ-SKF-001", "Rótula de suspensión SKF", 8.00, 22.00, 40, 5, 80, "pcs", 4, 3, 1),
-    ("Shock Absorber - Monroe", "SHK-MONROE-001", "Amortiguador Monroe", 25.00, 60.00, 20, 3, 40, "pcs", 4, 1, 1),
-    ("Oxygen Sensor - Bosch", "O2S-BOSCH-001", "Sensor de oxígeno Bosch", 18.00, 45.00, 10, 2, 25, "pcs", 3, 1, 1),
-    ("Starter Motor - Denso", "STR-DENSO-001", "Motor de arranque Denso", 60.00, 140.00, 10, 2, 20, "pcs", 3, 5, 1),
-    ("Engine Oil 5W30 Synthetic", "OIL-MOBIL-001", "Aceite de motor sintético 5W30", 8.00, 22.00, 100, 10, 150, "ltr", 7, 1, 1),
+// Demo catalog — mirrors scripts/database/seed-demo-catalog.mjs:
+// (code, alt, name, price, category, brand, qty)
+//   sku          = alt || code
+//   oem_number   = code
+//   internal_code= code
+//   sale_price   = price
+//   cost_price   ≈ round2(price * 0.70)
+//   stock        = qty
+const SEED_PRODUCTS: &[(&str, Option<&str>, &str, f64, &str, &str, i32)] = &[
+    ("860067", None, "MUÑON DIREC. TOY COROLLA/IPSU 84/95", 35.0, "Dirección", "Toyota Genuine", 4),
+    ("860068", Some("124846"), "TERMINAL DE DIRECCION IPSU/CALDINA L", 77.0, "Dirección", "Toyota Genuine", 4),
+    ("860069", Some("124847"), "TERMINAL DE DIRECCION IPSU/CALDINA R", 77.0, "Dirección", "Toyota Genuine", 4),
+    ("860090", None, "MUÑON DIR. TOY. HIACE 2002 14X15", 68.0, "Dirección", "Toyota Genuine", 4),
+    ("860030", Some("RACK-H-Y"), "BRAZO DE CREMALLERA HIDRAULICO TOY. 16X14 (16X14X1.5)", 45.0, "Dirección", "TRW", 4),
+    ("860029", Some("RACK-L-Y"), "BRAZO DE CREMALLERA MECANICA 14X14", 45.0, "Dirección", "TRW", 4),
+    ("860093", None, "BRAZO/PRECAP DIR. TOY. COROLLA/CALDINA/HIACE 14X15", 58.0, "Dirección", "Toyota Genuine", 4),
+    ("860039", Some("124192"), "ROTULA/MUÑON SUSP. TOY. COROLLA 92/PSU", 53.0, "Suspensión", "Toyota Genuine", 4),
+    ("860153", Some("43330-29075"), "MUÑON/ROTULA INF. DE KING LONG 2016-2020", 110.0, "Suspensión", "TRW", 4),
+    ("860154", Some("43350-29095"), "MUÑON/ROTULA SUP KING LONG 2016-2020", 114.0, "Suspensión", "TRW", 4),
+    ("860144", Some("HQ-T26204"), "TERMINAL/MUÑON DIR. KING LONG 99/2004 14X15 MM", 57.0, "Dirección", "TRW", 4),
+    ("860056", Some("YOI-241"), "ROTULA/MUÑON INF. NOAH PATENTADO", 89.0, "Suspensión", "Toyota Genuine", 4),
+    ("860057", Some("YOI-240"), "ROTULA/MUÑON SUP. NOAH SIN GRASERA BLINDADO", 71.0, "Suspensión", "Toyota Genuine", 4),
+    ("860026", Some("YOI-237"), "BARRA ESTABILIZADORA NOAH TRAS. 99 MUÑON/PERNO", 60.0, "Suspensión", "Toyota Genuine", 4),
+    ("120714", Some("YOI-192"), "BARRA ESTAB. NOAH DEL 96", 46.0, "Suspensión", "Toyota Genuine", 4),
+    ("850027", None, "JUNTA COROLLA DIESEL/IPSUCALDINA ABS 26X24 (26X56X24)", 172.0, "Dirección", "Toyota Genuine", 4),
+    ("850020", Some("TO-1-1010A"), "JUNTA GASOLINA ABS COROLLA 26X23 (26X56X23)", 162.0, "Dirección", "Toyota Genuine", 4),
+    ("850136", Some("RF4950021"), "CAPUCHON TRICETA TOY. NOAH/VOXY 2000 YARIS/CALDINA/RAV4", 40.0, "Dirección", "Toyota Genuine", 4),
+    ("850000", Some("850070"), "CAPUCHON JUNTA C/PRECINTO MET.", 28.0, "Dirección", "Toyota Genuine", 4),
 ];
 
 /// Seeds the database using the `default` profile (legacy behaviour).
@@ -653,7 +652,7 @@ fn seed_storage_locations(conn: &Connection, profile: &str) -> Result<()> {
     }
 
     let locations: &[(&str, &str, &str, &str, &str, i32)] = if profile == crate::config::PROFILE_SINGLE_STORE {
-        &SEED_STORAGE_LOCATIONS[..5]
+        &SEED_STORAGE_LOCATIONS[..12]
     } else {
         &SEED_STORAGE_LOCATIONS[..]
     };
@@ -692,20 +691,35 @@ fn seed_products(conn: &Connection, profile: &str) -> Result<()> {
     let default_warehouse_id = warehouses.first().copied().unwrap_or(1);
     let multi_store = profile == crate::config::PROFILE_MULTI_STORE;
 
-    let default_category = |idx: i32| -> Option<i64> {
-        conn.query_row("SELECT id FROM categories WHERE sort_order = ?1", rusqlite::params![idx], |row| row.get(0)).ok()
+    let round2 = |n: f64| (n * 100.0).round() / 100.0;
+
+    let category_by_name = |name: &str| -> Option<i64> {
+        conn.query_row("SELECT id FROM categories WHERE name = ?1", rusqlite::params![name], |row| row.get(0)).ok()
     };
-    let default_supplier = |idx: i32| -> Option<i64> {
-        conn.query_row("SELECT id FROM suppliers WHERE id = ?1", rusqlite::params![idx], |row| row.get(0)).ok()
+    let brand_by_name = |name: &str| -> Option<i64> {
+        conn.query_row("SELECT id FROM brands WHERE name = ?1", rusqlite::params![name], |row| row.get(0)).ok()
     };
-    let default_brand = |idx: i32| -> Option<i64> {
-        conn.query_row("SELECT id FROM brands WHERE id = ?1", rusqlite::params![idx], |row| row.get(0)).ok()
+    let default_supplier = || -> Option<i64> {
+        conn.query_row("SELECT id FROM suppliers WHERE company_name = ?1", rusqlite::params!["Autorepuestos Demo SRL"], |row| row.get(0)).ok()
     };
 
-    for (i, (name, sku, description, cost_price, sale_price, stock_qty, min_stock, max_stock, unit, cat_idx, brand_idx, supplier_idx)) in SEED_PRODUCTS.iter().enumerate() {
-        let category_id = default_category(*cat_idx);
-        let brand_id = default_brand(*brand_idx);
-        let supplier_id = default_supplier(*supplier_idx);
+    let locations_for = |wh: i64| -> Vec<i64> {
+        let mut stmt = match conn.prepare("SELECT id FROM storage_locations WHERE warehouse_id = ?1 ORDER BY id") {
+            Ok(s) => s,
+            Err(_) => return Vec::new(),
+        };
+        stmt.query_map([wh], |row| row.get::<_, i64>(0))
+            .map(|rows| rows.filter_map(|r| r.ok()).collect())
+            .unwrap_or_default()
+    };
+
+    let default_locations: Vec<i64> = locations_for(default_warehouse_id);
+
+    for (i, (code, alt, name, price, category, brand, qty)) in SEED_PRODUCTS.iter().enumerate() {
+        let category_id = category_by_name(category);
+        let brand_id = brand_by_name(brand);
+        let supplier_id = default_supplier();
+        let sku = alt.as_ref().unwrap_or(code).trim();
 
         // multi-store distributes products round-robin across stores; any
         // other profile pins everything to the first (only) warehouse.
@@ -715,10 +729,56 @@ fn seed_products(conn: &Connection, profile: &str) -> Result<()> {
             default_warehouse_id
         };
 
+        // assign the product's own warehouse storage locations round-robin.
+        let pool = if multi_store { locations_for(warehouse_id) } else { default_locations.clone() };
+        let storage_location_id = if pool.is_empty() {
+            None
+        } else {
+            Some(pool[i % pool.len()])
+        };
+
         conn.execute(
-            "INSERT OR IGNORE INTO products (name, sku, description, cost_price, sale_price, stock_quantity, min_stock_level, max_stock_level, unit, category_id, brand_id, supplier_id, warehouse_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
-            rusqlite::params![name, sku, description, cost_price, sale_price, stock_qty, min_stock, max_stock, unit, category_id, brand_id, supplier_id, warehouse_id],
+            "INSERT OR IGNORE INTO products (name, sku, oem_number, internal_code, description, category_id, brand_id, supplier_id, cost_price, sale_price, wholesale_price, suggested_retail_price, tax_rate, stock_quantity, min_stock_level, max_stock_level, reorder_point, unit, warehouse_id, storage_location_id, is_active, is_discontinued) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 0, ?13, ?14, ?15, ?16, ?17, ?18, ?19, 1, 0)",
+            rusqlite::params![
+                name.trim(),
+                sku,
+                code,
+                code,
+                name.trim(),
+                category_id,
+                brand_id,
+                supplier_id,
+                round2(price * 0.70),
+                price,
+                round2(price * 0.85),
+                (price * 1.15).round(),
+                qty,
+                1,
+                qty * 3,
+                2,
+                "pcs",
+                warehouse_id,
+                storage_location_id,
+            ],
         )?;
+
+        let product_id: Option<i64> = conn.query_row(
+            "SELECT id FROM products WHERE sku = ?1",
+            rusqlite::params![sku],
+            |row| row.get(0),
+        ).ok();
+        if let Some(pid) = product_id {
+            conn.execute(
+                "INSERT OR IGNORE INTO product_identifiers (product_id, identifier, identifier_type, brand_name, notes, created_at) VALUES (?1, ?2, 'oem', ?3, 'Código OEM', datetime('now'))",
+                rusqlite::params![pid, code, brand],
+            )?;
+            if let Some(alt) = alt {
+                conn.execute(
+                    "INSERT OR IGNORE INTO product_identifiers (product_id, identifier, identifier_type, brand_name, notes, created_at) VALUES (?1, ?2, 'alternate', ?3, 'Código alterno', datetime('now'))",
+                    rusqlite::params![pid, alt.trim(), brand],
+                )?;
+            }
+        }
     }
     Ok(())
 }

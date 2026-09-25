@@ -1558,3 +1558,33 @@ workbook without a file dialog (user request, confirmation asked and answered).
   typecheck ✓ · lint 0 errors ✓ · `npm run build` ✓ · `npm run docs:build` ✓ ·
   full `cargo test --lib` 104 passed / 2 pre-existing env-dependent config
   failures (unchanged, `config.rs` untouched).
+
+### Follow-up: Seed = demo catalog by default
+**Commit:** `<pending>` · **Date:** 2026-09-24
+
+The app now seeds the **demo catalog** instead of the generic English catalog,
+so on startup the Product table shows the 19 demo items (user request: "load
+seed-demo-catalog by default to display at start the app", confirmation asked
+and answered).
+
+- `src-tauri/src/db/seed.rs`: `SEED_PRODUCTS` re-typed to
+  `(code, alt, name, price, category, brand, qty)` mirroring the 19-row
+  CATALOG in `scripts/database/seed-demo-catalog.mjs`; `seed_products()`
+  recomputes `sku = alt||code`, `oem_number`/`internal_code`/description,
+  `cost ≈ 70%`, `wholesale ≈ 85%`, `suggested = round(price×1.15)`,
+  `stock = qty`, min 1 / max `qty*3` / reorder 2, unit `pcs`, assigns the
+  product's own warehouse storage locations round-robin, and inserts
+  `product_identifiers` (oem + alternate) rows. Reference seed data swapped to
+  the demo set (2 categories, 2 brands, 2 manufacturers, 1 supplier). Storage
+  locations expanded to the demo's 12 WH-001 locations (single-store keeps
+  `[..12]`).
+- `SCHEMA_VERSION` 12 → 13 (`src-tauri/src/db/schema.rs`): destructive
+  migration rebuilds + reseeds existing DBs on next launch.
+- Tests (+3 Rust in `db/schema`): `fresh_db_seeds_demo_catalog_products`
+  (19), `fresh_db_seeds_demo_reference_data` (2/2 categories/brands, 1
+  supplier), `fresh_db_seeds_product_identifiers` (34). Full
+  `cargo test --lib` 109 passed ✓.
+- Docs: `docs/CHANGELOG.md` updated.
+- Note: `get_recommendations_for_vehicle` (`compatibility.rs`) still filters
+  by its English category allow-list, so it returns no rows for the demo seed
+  (it had no compatibility data either way — unchanged behaviour).
