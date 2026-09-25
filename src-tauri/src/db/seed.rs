@@ -737,8 +737,13 @@ fn seed_products(conn: &Connection, profile: &str) -> Result<()> {
             Some(pool[i % pool.len()])
         };
 
+        let cost = round2(price * 0.70);
+        // Implied margin keeps the demo prices reproducible under the new
+        // pricing model: suggested(cost, margin) reproduces `price`.
+        let margin = crate::pricing::implied_margin_pct(cost, *price);
+
         conn.execute(
-            "INSERT OR IGNORE INTO products (name, sku, oem_number, internal_code, description, category_id, brand_id, supplier_id, cost_price, sale_price, wholesale_price, suggested_retail_price, tax_rate, stock_quantity, min_stock_level, max_stock_level, reorder_point, unit, warehouse_id, storage_location_id, is_active, is_discontinued) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 0, ?13, ?14, ?15, ?16, ?17, ?18, ?19, 1, 0)",
+            "INSERT OR IGNORE INTO products (name, sku, oem_number, internal_code, description, category_id, brand_id, supplier_id, cost_price, sale_price, wholesale_price, suggested_retail_price, tax_rate, stock_quantity, min_stock_level, max_stock_level, reorder_point, unit, warehouse_id, storage_location_id, is_active, is_discontinued, profit_margin_pct) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 0, ?13, ?14, ?15, ?16, ?17, ?18, ?19, 1, 0, ?20)",
             rusqlite::params![
                 name.trim(),
                 sku,
@@ -748,7 +753,7 @@ fn seed_products(conn: &Connection, profile: &str) -> Result<()> {
                 category_id,
                 brand_id,
                 supplier_id,
-                round2(price * 0.70),
+                cost,
                 price,
                 round2(price * 0.85),
                 (price * 1.15).round(),
@@ -759,6 +764,7 @@ fn seed_products(conn: &Connection, profile: &str) -> Result<()> {
                 "pcs",
                 warehouse_id,
                 storage_location_id,
+                margin,
             ],
         )?;
 

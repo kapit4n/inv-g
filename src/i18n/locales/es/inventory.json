@@ -200,6 +200,20 @@
   },
   "pricing": {
     "margin": "Margen",
+    "marginOverCost": "Margen sobre el costo",
+    "marginOverCostNote": "El margen se calcula y aplica sobre el costo de la mercadería",
+    "configuredMargin": "Margen configurado",
+    "gainPercent": "% de ganancia",
+    "gainPercentHint": "Ganancia global configurada: {{value}}%",
+    "effectiveMargin": "Ganancia efectiva",
+    "suggestedPrice": "Precio sugerido",
+    "suggestedPriceHint": "sugerido = costo × (1 + %/100)",
+    "editedPrice": "Precio editado",
+    "editedPriceOptional": "Precio editado (opcional)",
+    "editedPriceAuto": "Auto",
+    "effectivePrice": "Precio de venta (efectivo)",
+    "priceBelowCost": "El precio de venta es menor o igual que el costo",
+    "followingGlobal": "Usa la ganancia global",
     "costHistory": "Historial de Costos"
   },
   "supplierProduct": {

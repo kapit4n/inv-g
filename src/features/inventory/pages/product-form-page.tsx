@@ -7,9 +7,11 @@ import { TextField, TextareaField, NumberField, SelectField, CurrencyField } fro
 import { EntityActionBar } from "@/components/entity"
 import { getProduct, getCategories, getBrands, getManufacturers, getSuppliers, getWarehouses, getStorageLocations, getProductImages, getProductCompatibility, createProduct, updateProduct, createProductImage, deleteProductImage, createProductCompatibility, deleteProductCompatibility } from "@/lib/tauri"
 import { useNotification } from "@/hooks/use-notification"
+import { useAppSettingsStore, useAuthStore } from "@/stores"
+import { suggestedPrice, effectiveMargin, effectivePrice, isValidMargin } from "@/lib/pricing"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Trash2 } from "lucide-react"
+import { Plus, Trash2, AlertTriangle } from "lucide-react"
 
 export function ProductFormPage() {
   const { t } = useTranslation()
@@ -18,6 +20,11 @@ export function ProductFormPage() {
   const queryClient = useQueryClient()
   const notification = useNotification()
   const isEdit = !!id
+  const user = useAuthStore((s) => s.user)
+  const globalMarginRaw = useAppSettingsStore((s) => s.getValue("default_margin_percent"))
+  const globalMargin = globalMarginRaw != null && !Number.isNaN(Number(globalMarginRaw))
+    ? Number(globalMarginRaw)
+    : 30
 
   const { data: product } = useQuery({
     queryKey: ["inventory-product", id],
@@ -46,7 +53,8 @@ export function ProductFormPage() {
   const [manufacturerId, setManufacturerId] = useState<number | undefined>(undefined)
   const [supplierId, setSupplierId] = useState<number | undefined>(undefined)
   const [costPrice, setCostPrice] = useState(0)
-  const [salePrice, setSalePrice] = useState(0)
+  const [profitMarginPct, setProfitMarginPct] = useState("")
+  const [editedPrice, setEditedPrice] = useState("")
   const [wholesalePrice, setWholesalePrice] = useState(0)
   const [suggestedRetailPrice, setSuggestedRetailPrice] = useState(0)
   const [taxRate, setTaxRate] = useState(0)
@@ -87,7 +95,9 @@ export function ProductFormPage() {
       setInternalCode(product.internalCode || ""); setDescription(product.description || "")
       setCategoryId(product.categoryId ?? undefined); setBrandId(product.brandId ?? undefined)
       setManufacturerId(product.manufacturerId ?? undefined); setSupplierId(product.supplierId ?? undefined)
-      setCostPrice(product.costPrice); setSalePrice(product.salePrice)
+      setCostPrice(product.costPrice)
+      setProfitMarginPct(product.profitMarginPct != null ? String(product.profitMarginPct) : "")
+      setEditedPrice(product.editedPrice != null ? String(product.editedPrice) : "")
       setWholesalePrice(product.wholesalePrice); setSuggestedRetailPrice(product.suggestedRetailPrice)
       setTaxRate(product.taxRate); setStockQuantity(product.stockQuantity)
       setMinStockLevel(product.minStockLevel); setMaxStockLevel(product.maxStockLevel)
@@ -146,14 +156,32 @@ export function ProductFormPage() {
     },
   })
 
+  const marginValue = profitMarginPct.trim() === "" ? null : Number(profitMarginPct)
+  const marginNumber = Number(profitMarginPct)
+  const marginValid = isValidMargin(marginValue) && (profitMarginPct.trim() === "" || !Number.isNaN(marginNumber))
+  const effectiveMarginValue = effectiveMargin(marginValue, globalMargin)
+  const suggested = suggestedPrice(costPrice, effectiveMarginValue)
+  const effectiveSale = effectivePrice(
+    suggested,
+    editedPrice.trim() === "" ? null : Number(editedPrice),
+  )
+  const editValid = editedPrice.trim() === "" || !Number.isNaN(Number(editedPrice))
+
   const handleSave = () => {
+    if (!marginValid || !editValid) {
+      notification.error(t("common.error"), t("validation.invalidNumber"))
+      return
+    }
     const data = {
       name, sku, barcode: barcode || undefined, oemNumber: oemNumber || undefined,
       internalCode: internalCode || undefined, description: description || undefined,
       categoryId, brandId, manufacturerId, supplierId,
-      costPrice, salePrice, wholesalePrice, suggestedRetailPrice, taxRate,
+      costPrice, salePrice: effectiveSale, wholesalePrice, suggestedRetailPrice, taxRate,
       stockQuantity, minStockLevel, maxStockLevel, reorderPoint,
       unit, weight: weight || undefined, warehouseId, storageLocationId, imageUrl: imageUrl || undefined,
+      profitMarginPct: marginValue,
+      editedPrice: editedPrice.trim() === "" ? null : Number(editedPrice),
+      createdBy: user?.id,
     }
     if (isEdit && product) {
       updateMutation.mutate({ id: product.id, ...data })
@@ -191,10 +219,47 @@ export function ProductFormPage() {
         <TextareaField label={t("inventory.description")} value={description} onChange={(e) => setDescription(e.target.value)} />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <CurrencyField label={t("inventory.costPrice")} value={costPrice} onChange={(e) => setCostPrice(Number(e.target.value))} />
-          <CurrencyField label={t("inventory.salePrice")} value={salePrice} onChange={(e) => setSalePrice(Number(e.target.value))} />
+          <NumberField
+            label={t("inventory.pricing.gainPercent")}
+            value={profitMarginPct}
+            placeholder={String(globalMargin)}
+            onChange={(e) => setProfitMarginPct(e.target.value)}
+            step={0.1}
+            description={t("inventory.pricing.gainPercentHint", { value: globalMargin.toFixed(1) })}
+            error={marginValid ? undefined : t("validation.marginRange", { min: 0, max: 90 })}
+          />
+          <CurrencyField
+            label={t("inventory.pricing.editedPriceOptional")}
+            value={editedPrice}
+            onChange={(e) => setEditedPrice(e.target.value)}
+            step={0.01}
+          />
           <CurrencyField label={t("inventory.wholesalePrice")} value={wholesalePrice} onChange={(e) => setWholesalePrice(Number(e.target.value))} />
           <CurrencyField label={t("inventory.suggestedRetailPrice")} value={suggestedRetailPrice} onChange={(e) => setSuggestedRetailPrice(Number(e.target.value))} />
           <NumberField label={t("inventory.taxRate")} value={taxRate} onChange={(e) => setTaxRate(Number(e.target.value))} step={0.01} />
+        </div>
+        <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <p>
+              <span className="text-muted-foreground">{t("inventory.pricing.suggestedPrice")}: </span>
+              <span className="font-medium">${(Number.isNaN(suggested) ? 0 : suggested).toFixed(2)}</span>
+              <span className="ml-1 text-xs text-muted-foreground">{t("inventory.pricing.suggestedPriceHint")}</span>
+            </p>
+            <p>
+              <span className="text-muted-foreground">{t("inventory.pricing.configuredMargin")}: </span>
+              <span className="font-medium">{Number.isNaN(effectiveMarginValue) ? "-" : `${effectiveMarginValue.toFixed(1)}%`}</span>
+              {marginValue === null && <span className="ml-1 text-xs text-muted-foreground">({t("inventory.pricing.followingGlobal")})</span>}
+            </p>
+            <p>
+              <span className="text-muted-foreground">{t("inventory.pricing.effectivePrice")}: </span>
+              <span className="font-semibold">${(Number.isNaN(effectiveSale) ? 0 : effectiveSale).toFixed(2)}</span>
+            </p>
+          </div>
+          {costPrice > 0 && effectiveSale > 0 && effectiveSale <= costPrice && (
+            <p className="mt-2 flex items-center gap-1 text-sm text-amber-600">
+              <AlertTriangle className="h-4 w-4" /> {t("inventory.pricing.priceBelowCost")}
+            </p>
+          )}
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <NumberField label={t("inventory.stockQuantity")} value={stockQuantity} onChange={(e) => setStockQuantity(Number(e.target.value))} />

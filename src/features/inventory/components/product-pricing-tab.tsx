@@ -13,8 +13,8 @@ interface Props {
 export function ProductPricingTab({ product }: Props) {
   const { t } = useTranslation()
 
-  const margin = product.salePrice > 0
-    ? ((product.salePrice - product.costPrice) / product.salePrice * 100)
+  const realizedMargin = product.costPrice > 0
+    ? ((product.salePrice - product.costPrice) / product.costPrice * 100)
     : 0
 
   const { data: costHistory = [] } = useQuery({
@@ -30,15 +30,23 @@ export function ProductPricingTab({ product }: Props) {
     <div className="space-y-6">
       <EntityInfoCard title={t("inventory.costPrice")} columns={2}>
         <InfoRow label={t("inventory.costPrice")} value={`$${product.costPrice.toFixed(2)}`} />
-        <InfoRow label={t("inventory.salePrice")} value={`$${product.salePrice.toFixed(2)}`} />
+        <InfoRow label={t("inventory.pricing.suggestedPrice")} value={`$${product.suggestedPrice.toFixed(2)}`} />
+        <InfoRow label={t("inventory.pricing.editedPrice")} value={
+          product.editedPrice != null ? `$${product.editedPrice.toFixed(2)}` : t("inventory.pricing.editedPriceAuto")
+        } />
+        <InfoRow label={t("inventory.pricing.effectivePrice")} value={
+          <span className="font-semibold">${product.salePrice.toFixed(2)}</span>
+        } />
+        <InfoRow label={t("inventory.pricing.configuredMargin")} value={`${product.effectiveMarginPct.toFixed(1)}%`} />
+        <InfoRow label={t("inventory.pricing.marginOverCost")} value={
+          <span className={realizedMargin > 0 ? "text-green-600 font-semibold" : "text-muted-foreground"}>
+            {realizedMargin.toFixed(1)}%
+          </span>
+        } />
         <InfoRow label={t("inventory.wholesalePrice")} value={`$${product.wholesalePrice.toFixed(2)}`} />
         <InfoRow label={t("inventory.suggestedRetailPrice")} value={`$${product.suggestedRetailPrice.toFixed(2)}`} />
         <InfoRow label={t("inventory.taxRate")} value={`${(product.taxRate * 100).toFixed(1)}%`} />
-        <InfoRow label={t("inventory.pricing.margin")} value={
-          <span className={margin > 0 ? "text-green-600 font-semibold" : "text-muted-foreground"}>
-            {margin.toFixed(1)}%
-          </span>
-        } />
+        <InfoRow label={t("inventory.pricing.marginOverCost")} value={t("inventory.pricing.marginOverCostNote")} />
       </EntityInfoCard>
 
       <Card>

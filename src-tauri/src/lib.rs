@@ -2,6 +2,7 @@ mod commands;
 mod config;
 mod db;
 mod error;
+mod pricing;
 
 use db::{init_database_with_profile, DbState};
 use std::sync::OnceLock;

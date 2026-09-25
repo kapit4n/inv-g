@@ -1,6 +1,6 @@
 use rusqlite::{Connection, Result};
 
-const SCHEMA_VERSION: i32 = 13;
+const SCHEMA_VERSION: i32 = 14;
 
 fn get_user_version(conn: &Connection) -> Result<i32> {
     let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
@@ -16,6 +16,29 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
     let current_version = get_user_version(conn)?;
 
     if current_version >= SCHEMA_VERSION {
+        return Ok(());
+    }
+
+    // Additive migration for the immediately previous schema version. This
+    // preserves existing business data (requirement: do not lose current
+    // product prices) instead of dropping everything. The new pricing columns
+    // are appended at the end of `products` and every existing product gets an
+    // implied individual margin computed so that its current `sale_price` is
+    // reproduced by the computed suggested price.
+    if current_version == SCHEMA_VERSION - 1 {
+        conn.execute_batch("PRAGMA foreign_keys=OFF;")?;
+        conn.execute_batch(
+            "ALTER TABLE products ADD COLUMN profit_margin_pct REAL;
+             ALTER TABLE products ADD COLUMN edited_price REAL;
+             UPDATE products
+                SET edited_price = sale_price
+              WHERE cost_price <= 0;
+             UPDATE products
+                SET profit_margin_pct = ROUND((sale_price / cost_price - 1) * 100, 1)
+              WHERE cost_price > 0;",
+        )?;
+        conn.execute_batch("PRAGMA foreign_keys=ON;")?;
+        set_user_version(conn, SCHEMA_VERSION)?;
         return Ok(());
     }
 
@@ -226,6 +249,8 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             is_discontinued INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            profit_margin_pct REAL,
+            edited_price REAL,
             FOREIGN KEY (category_id) REFERENCES categories(id),
             FOREIGN KEY (brand_id) REFERENCES brands(id),
             FOREIGN KEY (manufacturer_id) REFERENCES manufacturers(id),
@@ -1606,6 +1631,87 @@ mod tests {
             )
             .ok();
         assert!(old_val.is_none(), "Old data should not survive migration");
+    }
+
+    #[test]
+    fn migration_from_previous_version_is_additive_and_preserves_prices() {
+        let td = TestDb::new();
+        let path = td.path.to_str().unwrap();
+
+        {
+            let conn = Connection::open(path).unwrap();
+            conn.execute_batch(
+                "
+                CREATE TABLE products (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    sku TEXT NOT NULL UNIQUE,
+                    barcode TEXT,
+                    oem_number TEXT,
+                    internal_code TEXT,
+                    description TEXT,
+                    category_id INTEGER,
+                    brand_id INTEGER,
+                    manufacturer_id INTEGER,
+                    supplier_id INTEGER,
+                    cost_price REAL NOT NULL DEFAULT 0,
+                    sale_price REAL NOT NULL DEFAULT 0,
+                    wholesale_price REAL NOT NULL DEFAULT 0,
+                    suggested_retail_price REAL NOT NULL DEFAULT 0,
+                    tax_rate REAL NOT NULL DEFAULT 0,
+                    stock_quantity INTEGER NOT NULL DEFAULT 0,
+                    min_stock_level INTEGER NOT NULL DEFAULT 0,
+                    max_stock_level INTEGER NOT NULL DEFAULT 0,
+                    reorder_point INTEGER NOT NULL DEFAULT 0,
+                    unit TEXT NOT NULL DEFAULT 'pcs',
+                    weight REAL,
+                    warehouse_id INTEGER,
+                    storage_location_id INTEGER,
+                    image_url TEXT,
+                    is_active INTEGER NOT NULL DEFAULT 1,
+                    is_discontinued INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+                INSERT INTO products (name, sku, cost_price, sale_price) VALUES
+                    ('Regular margin', 'V13-A', 24.5, 35.0),
+                    ('Zero cost', 'V13-B', 0.0, 12.0),
+                    ('No sale price', 'V13-C', 50.0, 0.0);
+                PRAGMA user_version=13;
+                ",
+            )
+            .unwrap();
+        }
+
+        let conn = Connection::open(path).expect("open for migration");
+        crate::db::schema::create_tables(&conn).expect("v13 -> v14 additive migration should succeed");
+        assert_eq!(get_schema_version(&conn), SCHEMA_VERSION);
+
+        // Data is preserved (no drop), not re-seeded away.
+        let preserved: i64 = conn
+            .query_row("SELECT COUNT(*) FROM products WHERE sku LIKE 'V13-%'", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(preserved, 3);
+
+        // Implied margin back-calculated so the suggested price reproduces the
+        // original sale price.
+        let (margin, edited): (Option<f64>, Option<f64>) = conn
+            .query_row("SELECT profit_margin_pct, edited_price FROM products WHERE sku = 'V13-A'", [], |row| {
+                Ok((row.get(0)?, row.get(1)?))
+            })
+            .unwrap();
+        let margin = margin.expect("margin computed for costed product");
+        let price: f64 = conn
+            .query_row("SELECT sale_price FROM products WHERE sku = 'V13-A'", [], |row| row.get(0))
+            .unwrap();
+        assert!((crate::pricing::suggested_price(24.5, margin) - price).abs() <= 0.01);
+        assert!(edited.is_none(), "costed product keeps computed margin, no edit");
+
+        // Zero-cost products lock their price as an explicit edit.
+        let zero_edited: Option<f64> = conn
+            .query_row("SELECT edited_price FROM products WHERE sku = 'V13-B'", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(zero_edited, Some(12.0));
     }
 
     // ── Idempotency tests ────────────────────────────────────────────

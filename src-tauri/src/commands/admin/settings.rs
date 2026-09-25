@@ -189,7 +189,31 @@ fn persist_setting(
     )
     .map_err(|e| e.to_string())?;
 
+    // A new default profit margin re-prices every product that follows the
+    // app-wide default (no individual margin and no manual price override).
+    if setting.key == crate::pricing::DEFAULT_MARGIN_SETTING_KEY {
+        if let Ok(margin) = value.trim().parse::<f64>() {
+            crate::pricing::reprice_following_global_default(conn, margin)?;
+        }
+    }
+
     Ok(())
+}
+
+/// Record a setting change in the audit log so pricing configuration changes
+/// leave a trace (see `get_setting_history`).
+fn audit_setting_change(
+    conn: &rusqlite::Connection,
+    key: &str,
+    value: &str,
+    created_by: Option<i64>,
+) {
+    conn.execute(
+        "INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details, severity)
+         VALUES (?1, 'update_setting', 'setting', ?2, ?3, 'info')",
+        rusqlite::params![created_by, key, format!("{key} = {value}")],
+    )
+    .ok();
 }
 
 #[tauri::command]
@@ -263,7 +287,7 @@ pub fn get_setting_categories() -> Result<Vec<SettingCategory>, String> {
 }
 
 #[tauri::command]
-pub fn update_app_setting(input: UpdateAppSettingInput) -> Result<(), String> {
+pub fn update_app_setting(input: UpdateAppSettingInput, created_by: Option<i64>) -> Result<(), String> {
     let db = DB_STATE.get().ok_or("Database not initialized")?;
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
 
@@ -278,10 +302,13 @@ pub fn update_app_setting(input: UpdateAppSettingInput) -> Result<(), String> {
     )?;
 
     persist_setting(&conn, &setting, &input.value)
+        .map_err(|e| e.to_string())?;
+    audit_setting_change(&conn, &input.key, &input.value, created_by);
+    Ok(())
 }
 
 #[tauri::command]
-pub fn update_app_settings_bulk(settings: Vec<UpdateAppSettingInput>) -> Result<(), String> {
+pub fn update_app_settings_bulk(settings: Vec<UpdateAppSettingInput>, created_by: Option<i64>) -> Result<(), String> {
     let db = DB_STATE.get().ok_or("Database not initialized")?;
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
 
@@ -301,6 +328,7 @@ pub fn update_app_settings_bulk(settings: Vec<UpdateAppSettingInput>) -> Result<
 
     for (setting, value) in &resolved {
         persist_setting(&conn, setting, value)?;
+        audit_setting_change(&conn, &setting.key, value, created_by);
     }
 
     Ok(())

@@ -136,6 +136,16 @@ pub struct Product {
     pub is_discontinued: bool,
     pub created_at: String,
     pub updated_at: String,
+    /// Product-specific profit margin percentage; `None` means "follow the
+    /// app-wide default margin".
+    pub profit_margin_pct: Option<f64>,
+    /// Manually edited selling price override; `None` means "auto".
+    pub edited_price: Option<f64>,
+    /// Computed suggested price = `cost × (1 + effective_margin / 100)`.
+    pub suggested_price: f64,
+    /// Effective margin percentage applied to this product
+    /// (individual margin, or the app-wide default when not set).
+    pub effective_margin_pct: f64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -563,97 +573,161 @@ pub fn archive_storage_location(state: State<DbState>, id: i64) -> Result<(), St
 
 // ── Products ──
 
+/// Map a `SELECT * FROM products` row (31 columns, pricing columns last) into a
+/// `Product`, computing the derived pricing fields for the given default margin.
+fn map_product_row(row: &rusqlite::Row, default_margin_pct: f64) -> rusqlite::Result<Product> {
+    let cost_price: f64 = row.get(11)?;
+    let profit_margin_pct: Option<f64> = row.get(29)?;
+    let edited_price: Option<f64> = row.get(30)?;
+    let effective_margin_pct = crate::pricing::effective_margin(profit_margin_pct, default_margin_pct);
+    let suggested_price = crate::pricing::suggested_price(cost_price, effective_margin_pct);
+    Ok(Product {
+        id: row.get(0)?, name: row.get(1)?, sku: row.get(2)?,
+        barcode: row.get(3)?, oem_number: row.get(4)?, internal_code: row.get(5)?,
+        description: row.get(6)?, category_id: row.get(7)?, brand_id: row.get(8)?,
+        manufacturer_id: row.get(9)?, supplier_id: row.get(10)?,
+        cost_price, sale_price: row.get(12)?, wholesale_price: row.get(13)?,
+        suggested_retail_price: row.get(14)?, tax_rate: row.get(15)?,
+        stock_quantity: row.get(16)?, min_stock_level: row.get(17)?,
+        max_stock_level: row.get(18)?, reorder_point: row.get(19)?,
+        unit: row.get(20)?, weight: row.get(21)?,
+        warehouse_id: row.get(22)?, storage_location_id: row.get(23)?,
+        image_url: row.get(24)?, is_active: row.get::<_, i64>(25)? != 0,
+        is_discontinued: row.get::<_, i64>(26)? != 0,
+        created_at: row.get(27)?, updated_at: row.get(28)?,
+        profit_margin_pct,
+        edited_price,
+        suggested_price,
+        effective_margin_pct,
+    })
+}
+
+/// Validate pricing inputs shared by create/update flows.
+fn validate_pricing_inputs(cost_price: f64, profit_margin_pct: Option<f64>, edited_price: Option<f64>) -> Result<(), String> {
+    crate::pricing::validate_amount(cost_price, "El costo")?;
+    if let Some(m) = profit_margin_pct {
+        crate::pricing::validate_margin(m)?;
+    }
+    if let Some(p) = edited_price {
+        crate::pricing::validate_amount(p, "El precio editado")?;
+    }
+    Ok(())
+}
+
+/// Resolve the selling price to persist for a product given its pricing inputs.
+/// The pricing inputs are authoritative: when either a margin or an edited
+/// price is supplied, the effective price is (edited ?? suggested(cost, margin));
+/// an explicit `None` margin means "follow the app-wide default".
+fn resolve_sale_price(cost_price: f64, profit_margin_pct: Option<f64>, edited_price: Option<f64>, default_margin_pct: f64) -> f64 {
+    crate::pricing::effective_price(
+        crate::pricing::suggested_price(cost_price, crate::pricing::effective_margin(profit_margin_pct, default_margin_pct)),
+        edited_price,
+    )
+}
+
+fn insert_product_audit(conn: &rusqlite::Connection, user_id: Option<i64>, action: &str, entity_id: i64, details: String) {
+    conn.execute(
+        "INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details, severity)
+         VALUES (?1, ?2, 'product', ?3, ?4, 'info')",
+        rusqlite::params![user_id, action, entity_id.to_string(), details],
+    )
+    .ok();
+}
+
 #[tauri::command]
 pub fn get_products(state: State<DbState>, page: i64, page_size: i64, search: Option<String>) -> Result<PaginatedResult<Product>, String> {
     let conn = get_conn(&state)?;
+    let default_margin_pct = crate::pricing::get_default_margin(&conn);
     let (where_clause, params_vec) = if let Some(q) = search {
         let q = format!("%{}%", q);
         ("WHERE name LIKE ?1 OR sku LIKE ?1 OR barcode LIKE ?1 OR oem_number LIKE ?1 OR internal_code LIKE ?1".to_string(), vec![Box::new(q) as Box<dyn rusqlite::types::ToSql>])
     } else {
         ("".to_string(), vec![])
     };
-    paginate(&conn, "products", page, page_size, &where_clause, params_vec, |row| {
-        Ok(Product {
-            id: row.get(0)?, name: row.get(1)?, sku: row.get(2)?,
-            barcode: row.get(3)?, oem_number: row.get(4)?, internal_code: row.get(5)?,
-            description: row.get(6)?, category_id: row.get(7)?, brand_id: row.get(8)?,
-            manufacturer_id: row.get(9)?, supplier_id: row.get(10)?,
-            cost_price: row.get(11)?, sale_price: row.get(12)?, wholesale_price: row.get(13)?,
-            suggested_retail_price: row.get(14)?, tax_rate: row.get(15)?,
-            stock_quantity: row.get(16)?, min_stock_level: row.get(17)?,
-            max_stock_level: row.get(18)?, reorder_point: row.get(19)?,
-            unit: row.get(20)?, weight: row.get(21)?,
-            warehouse_id: row.get(22)?, storage_location_id: row.get(23)?,
-            image_url: row.get(24)?, is_active: row.get::<_, i64>(25)? != 0,
-            is_discontinued: row.get::<_, i64>(26)? != 0,
-            created_at: row.get(27)?, updated_at: row.get(28)?,
-        })
+    paginate(&conn, "products", page, page_size, &where_clause, params_vec, move |row| {
+        map_product_row(row, default_margin_pct)
     })
 }
 
 #[tauri::command]
 pub fn get_product(state: State<DbState>, id: i64) -> Result<Product, String> {
     let conn = get_conn(&state)?;
-    let mut stmt = conn.prepare("SELECT * FROM products WHERE id = ?1").map_err(|e| e.to_string())?;
-    stmt.query_row(params![id], |row| {
-        Ok(Product {
-            id: row.get(0)?, name: row.get(1)?, sku: row.get(2)?,
-            barcode: row.get(3)?, oem_number: row.get(4)?, internal_code: row.get(5)?,
-            description: row.get(6)?, category_id: row.get(7)?, brand_id: row.get(8)?,
-            manufacturer_id: row.get(9)?, supplier_id: row.get(10)?,
-            cost_price: row.get(11)?, sale_price: row.get(12)?, wholesale_price: row.get(13)?,
-            suggested_retail_price: row.get(14)?, tax_rate: row.get(15)?,
-            stock_quantity: row.get(16)?, min_stock_level: row.get(17)?,
-            max_stock_level: row.get(18)?, reorder_point: row.get(19)?,
-            unit: row.get(20)?, weight: row.get(21)?,
-            warehouse_id: row.get(22)?, storage_location_id: row.get(23)?,
-            image_url: row.get(24)?, is_active: row.get::<_, i64>(25)? != 0,
-            is_discontinued: row.get::<_, i64>(26)? != 0,
-            created_at: row.get(27)?, updated_at: row.get(28)?,
-        })
-    }).map_err(|e| e.to_string())
+    let default_margin_pct = crate::pricing::get_default_margin(&conn);
+    get_product_internal(&conn, id, default_margin_pct)
 }
 
 #[tauri::command]
-pub fn create_product(state: State<DbState>, name: String, sku: String, barcode: Option<String>, oem_number: Option<String>, internal_code: Option<String>, description: Option<String>, category_id: Option<i64>, brand_id: Option<i64>, manufacturer_id: Option<i64>, supplier_id: Option<i64>, cost_price: f64, sale_price: f64, wholesale_price: f64, suggested_retail_price: f64, tax_rate: f64, stock_quantity: i64, min_stock_level: i64, max_stock_level: i64, reorder_point: i64, unit: String, weight: Option<f64>, warehouse_id: Option<i64>, storage_location_id: Option<i64>) -> Result<Product, String> {
+pub fn create_product(state: State<DbState>, name: String, sku: String, barcode: Option<String>, oem_number: Option<String>, internal_code: Option<String>, description: Option<String>, category_id: Option<i64>, brand_id: Option<i64>, manufacturer_id: Option<i64>, supplier_id: Option<i64>, cost_price: f64, _sale_price: f64, wholesale_price: f64, suggested_retail_price: f64, tax_rate: f64, stock_quantity: i64, min_stock_level: i64, max_stock_level: i64, reorder_point: i64, unit: String, weight: Option<f64>, warehouse_id: Option<i64>, storage_location_id: Option<i64>, profit_margin_pct: Option<f64>, edited_price: Option<f64>, created_by: Option<i64>) -> Result<Product, String> {
     let conn = get_conn(&state)?;
+    validate_pricing_inputs(cost_price, profit_margin_pct, edited_price)?;
+    let default_margin_pct = crate::pricing::get_default_margin(&conn);
+    let effective_sale = resolve_sale_price(cost_price, profit_margin_pct, edited_price, default_margin_pct);
     conn.execute(
-        "INSERT INTO products (name, sku, barcode, oem_number, internal_code, description, category_id, brand_id, manufacturer_id, supplier_id, cost_price, sale_price, wholesale_price, suggested_retail_price, tax_rate, stock_quantity, min_stock_level, max_stock_level, reorder_point, unit, weight, warehouse_id, storage_location_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23)",
-        params![name, sku, barcode, oem_number, internal_code, description, category_id, brand_id, manufacturer_id, supplier_id, cost_price, sale_price, wholesale_price, suggested_retail_price, tax_rate, stock_quantity, min_stock_level, max_stock_level, reorder_point, unit, weight, warehouse_id, storage_location_id],
+        "INSERT INTO products (name, sku, barcode, oem_number, internal_code, description, category_id, brand_id, manufacturer_id, supplier_id, cost_price, sale_price, wholesale_price, suggested_retail_price, tax_rate, stock_quantity, min_stock_level, max_stock_level, reorder_point, unit, weight, warehouse_id, storage_location_id, profit_margin_pct, edited_price) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25)",
+        params![name, sku, barcode, oem_number, internal_code, description, category_id, brand_id, manufacturer_id, supplier_id, cost_price, effective_sale, wholesale_price, suggested_retail_price, tax_rate, stock_quantity, min_stock_level, max_stock_level, reorder_point, unit, weight, warehouse_id, storage_location_id, profit_margin_pct, edited_price],
     ).map_err(|e| e.to_string())?;
     let id = conn.last_insert_rowid();
-    get_product_internal(&conn, id)
+    let product = get_product_internal(&conn, id, default_margin_pct)?;
+    if created_by.is_some() {
+        insert_product_audit(
+            &conn,
+            created_by,
+            "create_product",
+            id,
+            format!(
+                "Producto creado: costo {}, margen {}, precio efectivo {}",
+                cost_price,
+                crate::pricing::effective_margin(profit_margin_pct, default_margin_pct),
+                product.sale_price
+            ),
+        );
+    }
+    Ok(product)
 }
 
-fn get_product_internal(conn: &rusqlite::Connection, id: i64) -> Result<Product, String> {
+fn get_product_internal(conn: &rusqlite::Connection, id: i64, default_margin_pct: f64) -> Result<Product, String> {
     let mut stmt = conn.prepare("SELECT * FROM products WHERE id = ?1").map_err(|e| e.to_string())?;
-    stmt.query_row(params![id], |row| {
-        Ok(Product {
-            id: row.get(0)?, name: row.get(1)?, sku: row.get(2)?,
-            barcode: row.get(3)?, oem_number: row.get(4)?, internal_code: row.get(5)?,
-            description: row.get(6)?, category_id: row.get(7)?, brand_id: row.get(8)?,
-            manufacturer_id: row.get(9)?, supplier_id: row.get(10)?,
-            cost_price: row.get(11)?, sale_price: row.get(12)?, wholesale_price: row.get(13)?,
-            suggested_retail_price: row.get(14)?, tax_rate: row.get(15)?,
-            stock_quantity: row.get(16)?, min_stock_level: row.get(17)?,
-            max_stock_level: row.get(18)?, reorder_point: row.get(19)?,
-            unit: row.get(20)?, weight: row.get(21)?,
-            warehouse_id: row.get(22)?, storage_location_id: row.get(23)?,
-            image_url: row.get(24)?, is_active: row.get::<_, i64>(25)? != 0,
-            is_discontinued: row.get::<_, i64>(26)? != 0,
-            created_at: row.get(27)?, updated_at: row.get(28)?,
-        })
-    }).map_err(|e| e.to_string())
+    stmt.query_row(params![id], |row| map_product_row(row, default_margin_pct)).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn update_product(state: State<DbState>, id: i64, name: String, sku: String, barcode: Option<String>, oem_number: Option<String>, internal_code: Option<String>, description: Option<String>, category_id: Option<i64>, brand_id: Option<i64>, manufacturer_id: Option<i64>, supplier_id: Option<i64>, cost_price: f64, sale_price: f64, wholesale_price: f64, suggested_retail_price: f64, tax_rate: f64, stock_quantity: i64, min_stock_level: i64, max_stock_level: i64, reorder_point: i64, unit: String, weight: Option<f64>, warehouse_id: Option<i64>, storage_location_id: Option<i64>) -> Result<Product, String> {
+pub fn update_product(state: State<DbState>, id: i64, name: String, sku: String, barcode: Option<String>, oem_number: Option<String>, internal_code: Option<String>, description: Option<String>, category_id: Option<i64>, brand_id: Option<i64>, manufacturer_id: Option<i64>, supplier_id: Option<i64>, cost_price: f64, _sale_price: f64, wholesale_price: f64, suggested_retail_price: f64, tax_rate: f64, stock_quantity: i64, min_stock_level: i64, max_stock_level: i64, reorder_point: i64, unit: String, weight: Option<f64>, warehouse_id: Option<i64>, storage_location_id: Option<i64>, profit_margin_pct: Option<f64>, edited_price: Option<f64>, created_by: Option<i64>) -> Result<Product, String> {
     let conn = get_conn(&state)?;
-    conn.execute(
-        "UPDATE products SET name=?1, sku=?2, barcode=?3, oem_number=?4, internal_code=?5, description=?6, category_id=?7, brand_id=?8, manufacturer_id=?9, supplier_id=?10, cost_price=?11, sale_price=?12, wholesale_price=?13, suggested_retail_price=?14, tax_rate=?15, stock_quantity=?16, min_stock_level=?17, max_stock_level=?18, reorder_point=?19, unit=?20, weight=?21, warehouse_id=?22, storage_location_id=?23, updated_at=datetime('now') WHERE id=?24",
-        params![name, sku, barcode, oem_number, internal_code, description, category_id, brand_id, manufacturer_id, supplier_id, cost_price, sale_price, wholesale_price, suggested_retail_price, tax_rate, stock_quantity, min_stock_level, max_stock_level, reorder_point, unit, weight, warehouse_id, storage_location_id, id],
+    validate_pricing_inputs(cost_price, profit_margin_pct, edited_price)?;
+
+    let before = conn.query_row(
+        "SELECT cost_price, sale_price, profit_margin_pct, edited_price FROM products WHERE id = ?1",
+        params![id],
+        |row| Ok((row.get::<_, f64>(0)?, row.get::<_, f64>(1)?, row.get::<_, Option<f64>>(2)?, row.get::<_, Option<f64>>(3)?)),
     ).map_err(|e| e.to_string())?;
-    get_product_internal(&conn, id)
+
+    let default_margin_pct = crate::pricing::get_default_margin(&conn);
+    let effective_sale = resolve_sale_price(cost_price, profit_margin_pct, edited_price, default_margin_pct);
+    conn.execute(
+        "UPDATE products SET name=?1, sku=?2, barcode=?3, oem_number=?4, internal_code=?5, description=?6, category_id=?7, brand_id=?8, manufacturer_id=?9, supplier_id=?10, cost_price=?11, sale_price=?12, wholesale_price=?13, suggested_retail_price=?14, tax_rate=?15, stock_quantity=?16, min_stock_level=?17, max_stock_level=?18, reorder_point=?19, unit=?20, weight=?21, warehouse_id=?22, storage_location_id=?23, profit_margin_pct=?24, edited_price=?25, updated_at=datetime('now') WHERE id=?26",
+        params![name, sku, barcode, oem_number, internal_code, description, category_id, brand_id, manufacturer_id, supplier_id, cost_price, effective_sale, wholesale_price, suggested_retail_price, tax_rate, stock_quantity, min_stock_level, max_stock_level, reorder_point, unit, weight, warehouse_id, storage_location_id, profit_margin_pct, edited_price, id],
+    ).map_err(|e| e.to_string())?;
+
+    let (old_cost, old_sale, old_margin, old_edited) = before;
+    if created_by.is_some()
+        && ((old_cost - cost_price).abs() > f64::EPSILON
+            || (old_sale - effective_sale).abs() > f64::EPSILON
+            || old_margin != profit_margin_pct
+            || old_edited != edited_price)
+    {
+        insert_product_audit(
+            &conn,
+            created_by,
+            "product_pricing_updated",
+            id,
+            format!(
+                "Precios actualizados: costo {old_cost} -> {cost_price}, margen {:?} -> {:?}, editado {:?} -> {:?}, venta {old_sale} -> {effective_sale}",
+                old_margin, profit_margin_pct, old_edited, edited_price
+            ),
+        );
+    }
+
+    get_product_internal(&conn, id, default_margin_pct)
 }
 
 #[tauri::command]

@@ -29,7 +29,15 @@ export function ProductsPage() {
     { id: "sku", header: t("inventory.sku"), accessorKey: "sku" },
     { id: "barcode", header: t("inventory.barcode"), accessorKey: "barcode", cell: (r) => r.barcode || "-" },
     { id: "costPrice", header: t("inventory.costPrice"), accessorKey: "costPrice", align: "right", cell: (r) => `$${r.costPrice.toFixed(2)}` },
+    {
+      id: "suggestedPrice", header: t("inventory.pricing.suggestedPrice"), accessorKey: "suggestedPrice", align: "right",
+      cell: (r) => `$${r.suggestedPrice.toFixed(2)}`,
+    },
     { id: "salePrice", header: t("inventory.salePrice"), accessorKey: "salePrice", align: "right", cell: (r) => `$${r.salePrice.toFixed(2)}` },
+    {
+      id: "effectiveMarginPct", header: t("inventory.pricing.gainPercent"), accessorKey: "effectiveMarginPct", align: "right",
+      cell: (r) => `${r.effectiveMarginPct.toFixed(1)}%`,
+    },
     {
       id: "stockQuantity", header: t("inventory.stockQuantity"), accessorKey: "stockQuantity", align: "center",
       cell: (r) => {

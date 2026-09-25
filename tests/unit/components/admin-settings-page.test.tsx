@@ -61,10 +61,13 @@ describe("AdminSettingsPage", () => {
     fireEvent.change(input, { target: { value: "Nuevo Negocio" } })
     fireEvent.click(screen.getByText("Save Changes"))
     await waitFor(() => {
-      expect(updateAppSettingsBulk).toHaveBeenCalledWith([
-        { key: "business_name", value: "Nuevo Negocio" },
-        { key: "tax_id", value: "ABC-123" },
-      ])
+      expect(updateAppSettingsBulk).toHaveBeenCalledWith(
+        [
+          { key: "business_name", value: "Nuevo Negocio" },
+          { key: "tax_id", value: "ABC-123" },
+        ],
+        undefined
+      )
     })
   })
 

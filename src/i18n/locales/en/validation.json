@@ -19,5 +19,6 @@
   "selectOption": "Please select an option",
   "fileRequired": "File is required",
   "fileTooLarge": "File exceeds maximum size",
-  "invalidFileType": "File type not allowed"
+  "invalidFileType": "File type not allowed",
+  "marginRange": "Must be between {min}% and {max}%"
 }

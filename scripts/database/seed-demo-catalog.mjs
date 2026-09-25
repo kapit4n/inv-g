@@ -206,8 +206,8 @@ function seedProducts(db, ref) {
     `INSERT INTO products (name, sku, oem_number, internal_code, description, category_id, brand_id, supplier_id,
       cost_price, sale_price, wholesale_price, suggested_retail_price, tax_rate, stock_quantity,
       min_stock_level, max_stock_level, reorder_point, unit, warehouse_id, storage_location_id, image_url,
-      is_active, is_discontinued, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, NULL, 1, 0, datetime('now'), datetime('now'))`
+      is_active, is_discontinued, created_at, updated_at, profit_margin_pct)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, NULL, 1, 0, datetime('now'), datetime('now'), ?)`
   )
   const idStmt = db.prepare("INSERT OR IGNORE INTO product_identifiers (product_id, identifier, identifier_type, brand_name, created_at) VALUES (?, ?, ?, ?, datetime('now'))")
 
@@ -216,6 +216,7 @@ function seedProducts(db, ref) {
     for (const p of CATALOG) {
       const sku = (p.alt || p.code).trim()
       const cost = round2(p.price * 0.7)
+      const margin = cost > 0 ? Math.round(((p.price / cost - 1) * 100) * 10) / 10 : null
       const result = productStmt.run(
         p.name.trim(),
         sku,
@@ -236,6 +237,7 @@ function seedProducts(db, ref) {
         "pcs",
         ref.warehouseId,
         loc(index++),
+        margin,
       )
       idStmt.run(result.lastInsertRowid, p.code, "oem", p.brand)
       if (p.alt) idStmt.run(result.lastInsertRowid, p.alt.trim(), "alternate", p.brand)

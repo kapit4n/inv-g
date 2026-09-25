@@ -42,21 +42,23 @@ const COL_COSTO: usize = 10;
 const COL_PRECIO: usize = 11;
 const COL_MAYORISTA: usize = 12;
 const COL_SUGERIDO: usize = 13;
-const COL_IMPUESTO: usize = 14;
-const COL_STOCK: usize = 15;
-const COL_STOCK_MIN: usize = 16;
-const COL_STOCK_MAX: usize = 17;
-const COL_REORDER: usize = 18;
-const COL_UNIDAD: usize = 19;
-const COL_PESO: usize = 20;
-const COL_BARCODE: usize = 21;
-const COL_ALMACEN: usize = 22;
-const COL_UBICACION: usize = 23;
-const COL_IMAGEN: usize = 24;
-const COL_ACTIVO: usize = 25;
-const COL_DESCONT: usize = 26;
+const COL_GANANCIA: usize = 14;
+const COL_EDITADO: usize = 15;
+const COL_IMPUESTO: usize = 16;
+const COL_STOCK: usize = 17;
+const COL_STOCK_MIN: usize = 18;
+const COL_STOCK_MAX: usize = 19;
+const COL_REORDER: usize = 20;
+const COL_UNIDAD: usize = 21;
+const COL_PESO: usize = 22;
+const COL_BARCODE: usize = 23;
+const COL_ALMACEN: usize = 24;
+const COL_UBICACION: usize = 25;
+const COL_IMAGEN: usize = 26;
+const COL_ACTIVO: usize = 27;
+const COL_DESCONT: usize = 28;
 
-const HEADERS: [&str; 27] = [
+const HEADERS: [&str; 29] = [
     "N°",
     "Código",
     "Código_2",
@@ -71,6 +73,8 @@ const HEADERS: [&str; 27] = [
     "Precio de venta",
     "Precio mayorista",
     "Precio sugerido",
+    "% de ganancia",
+    "Precio editado",
     "Impuesto (%)",
     "Stock inicial",
     "Stock mínimo",
@@ -165,6 +169,8 @@ struct RawRow {
     precio: Option<f64>,
     mayorista: Option<f64>,
     sugerido: Option<f64>,
+    ganancia: Option<f64>,
+    editado: Option<f64>,
     impuesto: Option<f64>,
     stock: Option<i64>,
     stock_min: Option<i64>,
@@ -306,6 +312,18 @@ fn extract_row(cells: &[Data], excel_row: usize) -> RawRow {
     r.precio = parse_number_value(&mut errors, excel_row, "Precio de venta", cells, COL_PRECIO);
     r.mayorista = parse_number_value(&mut errors, excel_row, "Precio mayorista", cells, COL_MAYORISTA);
     r.sugerido = parse_number_value(&mut errors, excel_row, "Precio sugerido", cells, COL_SUGERIDO);
+    r.ganancia = parse_number_value(&mut errors, excel_row, "% de ganancia", cells, COL_GANANCIA);
+    if let Some(m) = r.ganancia {
+        if let Err(e) = crate::pricing::validate_margin(m) {
+            errors.push(format!("Fila {}: {}", excel_row, e));
+        }
+    }
+    r.editado = parse_number_value(&mut errors, excel_row, "Precio editado", cells, COL_EDITADO);
+    if let Some(p) = r.editado {
+        if crate::pricing::validate_amount(p, "Precio editado").is_err() {
+            errors.push(format!("Fila {}: precio editado no puede ser negativo.", excel_row));
+        }
+    }
     r.impuesto = parse_number_value(&mut errors, excel_row, "Impuesto", cells, COL_IMPUESTO);
     r.peso = parse_number_value(&mut errors, excel_row, "Peso", cells, COL_PESO);
     r.stock = parse_integer_value(&mut errors, excel_row, "Stock inicial", cells, COL_STOCK);
@@ -343,6 +361,9 @@ struct CatalogProduct {
     oem: Option<String>,
     internal: Option<String>,
     cost_price: f64,
+    sale_price: f64,
+    profit_margin_pct: Option<f64>,
+    edited_price: Option<f64>,
     stock: i64,
     min_stock: i64,
     max_stock: i64,
@@ -403,7 +424,8 @@ fn load_catalog(conn: &Connection) -> Result<Catalog, String> {
 
     let mut stmt = conn
         .prepare(
-            "SELECT id, name, sku, barcode, oem_number, internal_code, cost_price, stock_quantity,
+            "SELECT id, name, sku, barcode, oem_number, internal_code, cost_price, sale_price,
+                    profit_margin_pct, edited_price, stock_quantity,
                     min_stock_level, max_stock_level, reorder_point, unit, weight,
                     warehouse_id, storage_location_id, image_url, is_active, is_discontinued
              FROM products",
@@ -419,17 +441,20 @@ fn load_catalog(conn: &Connection) -> Result<Catalog, String> {
                 oem: row.get(4)?,
                 internal: row.get(5)?,
                 cost_price: row.get(6)?,
-                stock: row.get(7)?,
-                min_stock: row.get(8)?,
-                max_stock: row.get(9)?,
-                reorder: row.get(10)?,
-                unit: row.get(11)?,
-                weight: row.get(12)?,
-                warehouse_id: row.get(13)?,
-                storage_location_id: row.get(14)?,
-                image_url: row.get(15)?,
-                is_active: row.get::<_, i64>(16)? != 0,
-                is_discontinued: row.get::<_, i64>(17)? != 0,
+                sale_price: row.get(7)?,
+                profit_margin_pct: row.get(8)?,
+                edited_price: row.get(9)?,
+                stock: row.get(10)?,
+                min_stock: row.get(11)?,
+                max_stock: row.get(12)?,
+                reorder: row.get(13)?,
+                unit: row.get(14)?,
+                weight: row.get(15)?,
+                warehouse_id: row.get(16)?,
+                storage_location_id: row.get(17)?,
+                image_url: row.get(18)?,
+                is_active: row.get::<_, i64>(19)? != 0,
+                is_discontinued: row.get::<_, i64>(20)? != 0,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -1206,21 +1231,36 @@ fn execute_internal(
                     existing.sku.clone()
                 };
 
+                let (margin_to_store, edited_to_store, sale_to_store) = if let Some(edited) = p.raw.editado {
+                    (p.raw.ganancia.or(existing.profit_margin_pct), Some(edited), edited)
+                } else if let Some(margin) = p.raw.ganancia {
+                    (Some(margin), None, crate::pricing::suggested_price(new_cost, margin))
+                } else if let Some(precio) = p.raw.precio {
+                    // Manual price without pricing columns → lock it as edited
+                    // price, preserving any existing individual margin.
+                    (existing.profit_margin_pct, Some(precio), precio)
+                } else {
+                    (existing.profit_margin_pct, existing.edited_price, existing.sale_price)
+                };
+
                 conn.execute(
                     "UPDATE products SET name=?1, sku=?2, barcode=?3, oem_number=?4, internal_code=?5,
                         description=?6, category_id=?7, brand_id=?8, manufacturer_id=?9, supplier_id=?10,
                         cost_price=?11, sale_price=?12, wholesale_price=?13, suggested_retail_price=?14,
-                        tax_rate=?15, stock_quantity=?16, min_stock_level=?17, max_stock_level=?18,
-                        reorder_point=?19, unit=?20, weight=?21, warehouse_id=?22, storage_location_id=?23,
-                        image_url=?24, is_active=?25, is_discontinued=?26, updated_at=datetime('now')
-                     WHERE id=?27",
+                        profit_margin_pct=?15, edited_price=?16,
+                        tax_rate=?17, stock_quantity=?18, min_stock_level=?19, max_stock_level=?20,
+                        reorder_point=?21, unit=?22, weight=?23, warehouse_id=?24, storage_location_id=?25,
+                        image_url=?26, is_active=?27, is_discontinued=?28, updated_at=datetime('now')
+                     WHERE id=?29",
                     params![
                         name, sku_val, new_barcode, new_oem, new_internal,
                         desc, new_category, new_brand, new_manufacturer, new_supplier,
                         new_cost,
-                        p.raw.precio.unwrap_or(existing_sale_price(&conn, id)?),
+                        sale_to_store,
                         p.raw.mayorista.unwrap_or(existing_wholesale(&conn, id)?),
                         p.raw.sugerido.unwrap_or(existing_suggested(&conn, id)?),
+                        margin_to_store,
+                        edited_to_store,
                         p.raw.impuesto.unwrap_or(existing_tax(&conn, id)?),
                         new_stock, min_stock, max_stock, reorder, unit, weight,
                         new_warehouse, new_location, image,
@@ -1270,14 +1310,30 @@ fn execute_internal(
                 let codigo = p.raw.codigo.clone();
                 let codigo_2 = p.raw.codigo_2.clone();
 
+                let new_cost = p.raw.costo.unwrap_or(0.0);
+                let default_margin_pct = crate::pricing::get_default_margin(&conn);
+                let (margin_to_store, edited_to_store, sale_to_store) =
+                    if let Some(edited) = p.raw.editado {
+                        (p.raw.ganancia, Some(edited), edited)
+                    } else if let Some(margin) = p.raw.ganancia {
+                        (Some(margin), None, crate::pricing::suggested_price(new_cost, margin))
+                    } else if let Some(precio) = p.raw.precio {
+                        // Manual price without pricing columns → treated as an
+                        // explicit (locked) selling price.
+                        (None, Some(precio), precio)
+                    } else {
+                        (None, None, crate::pricing::suggested_price(new_cost, default_margin_pct))
+                    };
+
                 conn.execute(
                     "INSERT INTO products (name, sku, barcode, oem_number, internal_code, description,
                         category_id, brand_id, manufacturer_id, supplier_id, cost_price, sale_price,
-                        wholesale_price, suggested_retail_price, tax_rate, stock_quantity,
+                        wholesale_price, suggested_retail_price, profit_margin_pct, edited_price,
+                        tax_rate, stock_quantity,
                         min_stock_level, max_stock_level, reorder_point, unit, weight,
                         warehouse_id, storage_location_id, image_url, is_active, is_discontinued)
                      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16,
-                        ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26)",
+                        ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28)",
                     params![
                         p.raw.nombre.clone().unwrap_or_default(),
                         p.sku,
@@ -1289,10 +1345,12 @@ fn execute_internal(
                         p.brand_id,
                         p.manufacturer_id,
                         p.supplier_id,
-                        p.raw.costo.unwrap_or(0.0),
-                        p.raw.precio.unwrap_or(0.0),
+                        new_cost,
+                        sale_to_store,
                         p.raw.mayorista.unwrap_or(0.0),
                         p.raw.sugerido.unwrap_or(0.0),
+                        margin_to_store,
+                        edited_to_store,
                         p.raw.impuesto.unwrap_or(0.0),
                         new_stock,
                         p.raw.stock_min.unwrap_or(0),
@@ -1418,10 +1476,6 @@ fn existing_supplier_id(conn: &Connection, id: i64) -> Result<Option<i64>, Strin
     conn.query_row("SELECT supplier_id FROM products WHERE id = ?1", params![id], |r| r.get(0))
         .map_err(|e| e.to_string())
 }
-fn existing_sale_price(conn: &Connection, id: i64) -> Result<f64, String> {
-    conn.query_row("SELECT sale_price FROM products WHERE id = ?1", params![id], |r| r.get(0))
-        .map_err(|e| e.to_string())
-}
 fn existing_wholesale(conn: &Connection, id: i64) -> Result<f64, String> {
     conn.query_row("SELECT wholesale_price FROM products WHERE id = ?1", params![id], |r| r.get(0))
         .map_err(|e| e.to_string())
@@ -1507,12 +1561,12 @@ fn write_header(ws: &mut rust_xlsxwriter::Worksheet, fmt: &rust_xlsxwriter::Form
 }
 
 fn column_widths(ws: &mut rust_xlsxwriter::Worksheet) -> Result<(), String> {
-    let widths: [(u16, f64); 27] = [
+    let widths: [(u16, f64); 29] = [
         (0, 5.0), (1, 14.0), (2, 14.0), (3, 14.0), (4, 42.0), (5, 42.0),
         (6, 16.0), (7, 16.0), (8, 16.0), (9, 22.0), (10, 14.0), (11, 14.0),
         (12, 14.0), (13, 14.0), (14, 12.0), (15, 12.0), (16, 12.0), (17, 12.0),
-        (18, 12.0), (19, 10.0), (20, 10.0), (21, 14.0), (22, 12.0), (23, 18.0),
-        (24, 18.0), (25, 10.0), (26, 14.0),
+        (18, 12.0), (19, 12.0), (20, 10.0), (21, 10.0), (22, 14.0), (23, 12.0),
+        (24, 18.0), (25, 18.0), (26, 10.0), (27, 10.0), (28, 14.0),
     ];
     for (col, w) in widths {
         ws.set_column_width(col, w).map_err(|e| e.to_string())?;
@@ -1592,6 +1646,8 @@ struct ExportProduct {
     precio: f64,
     mayorista: f64,
     sugerido: f64,
+    ganancia: Option<f64>,
+    editado: Option<f64>,
     impuesto: f64,
     stock: i64,
     min_stock: i64,
@@ -1616,7 +1672,8 @@ fn load_export_products(conn: &Connection, scope: &str) -> Result<Vec<ExportProd
     let sql = format!(
         "SELECT p.id, p.name, p.sku, p.barcode, p.oem_number, p.internal_code, p.description,
             c.name AS categoria, b.name AS marca, m.name AS fabricante, s.company_name AS proveedor,
-            p.cost_price, p.sale_price, p.wholesale_price, p.suggested_retail_price, p.tax_rate,
+            p.cost_price, p.sale_price, p.wholesale_price, p.suggested_retail_price,
+            p.profit_margin_pct, p.edited_price, p.tax_rate,
             p.stock_quantity, p.min_stock_level, p.max_stock_level, p.reorder_point, p.unit, p.weight,
             w.code AS almacen, sl.code AS ubicacion, p.image_url, p.is_active, p.is_discontinued
          FROM products p
@@ -1648,18 +1705,20 @@ fn load_export_products(conn: &Connection, scope: &str) -> Result<Vec<ExportProd
                 row.get::<_, f64>(12)?,
                 row.get::<_, f64>(13)?,
                 row.get::<_, f64>(14)?,
-                row.get::<_, f64>(15)?,
-                row.get::<_, i64>(16)?,
-                row.get::<_, i64>(17)?,
+                row.get::<_, Option<f64>>(15)?,
+                row.get::<_, Option<f64>>(16)?,
+                row.get::<_, f64>(17)?,
                 row.get::<_, i64>(18)?,
                 row.get::<_, i64>(19)?,
-                row.get::<_, String>(20)?,
-                row.get::<_, Option<f64>>(21)?,
-                row.get::<_, Option<String>>(22)?,
-                row.get::<_, Option<String>>(23)?,
+                row.get::<_, i64>(20)?,
+                row.get::<_, i64>(21)?,
+                row.get::<_, String>(22)?,
+                row.get::<_, Option<f64>>(23)?,
                 row.get::<_, Option<String>>(24)?,
-                row.get::<_, i64>(25)?,
-                row.get::<_, i64>(26)?,
+                row.get::<_, Option<String>>(25)?,
+                row.get::<_, Option<String>>(26)?,
+                row.get::<_, i64>(27)?,
+                row.get::<_, i64>(28)?,
             ))
         })
         .map_err(|e| e.to_string())?;
@@ -1680,7 +1739,7 @@ fn load_export_products(conn: &Connection, scope: &str) -> Result<Vec<ExportProd
     let mut out = Vec::new();
     for r in rows {
         let (id, name, sku, barcode, oem, internal, desc, categoria, marca, fabricante, proveedor,
-             costo, precio, mayorista, sugerido, impuesto, stock, min_stock, max_stock, reorder,
+             costo, precio, mayorista, sugerido, ganancia, editado, impuesto, stock, min_stock, max_stock, reorder,
              unidad, peso, almacen, ubicacion, imagen, activo, descontinuado) = r.map_err(|e| e.to_string())?;
 
         let codigo = oem.clone().or_else(|| internal.clone()).unwrap_or_default();
@@ -1709,6 +1768,8 @@ fn load_export_products(conn: &Connection, scope: &str) -> Result<Vec<ExportProd
             precio,
             mayorista,
             sugerido,
+            ganancia,
+            editado,
             impuesto,
             stock,
             min_stock,
@@ -1763,6 +1824,12 @@ fn build_export_workbook(conn: &Connection, scope: &str) -> Result<rust_xlsxwrit
         ws.write_number(row, COL_PRECIO as u16, p.precio).map_err(|e| e.to_string())?;
         ws.write_number(row, COL_MAYORISTA as u16, p.mayorista).map_err(|e| e.to_string())?;
         ws.write_number(row, COL_SUGERIDO as u16, p.sugerido).map_err(|e| e.to_string())?;
+        if let Some(g) = p.ganancia {
+            ws.write_number(row, COL_GANANCIA as u16, g).map_err(|e| e.to_string())?;
+        }
+        if let Some(e) = p.editado {
+            ws.write_number(row, COL_EDITADO as u16, e).map_err(|e| e.to_string())?;
+        }
         ws.write_number(row, COL_IMPUESTO as u16, p.impuesto).map_err(|e| e.to_string())?;
         ws.write_number(row, COL_STOCK as u16, p.stock as f64).map_err(|e| e.to_string())?;
         ws.write_number(row, COL_STOCK_MIN as u16, p.min_stock as f64).map_err(|e| e.to_string())?;
@@ -2134,7 +2201,7 @@ mod tests {
                         Some("Dirección"), Some("Toyota Genuine"), None, Some("Autorepuestos Demo SRL")]),
             row_data(&[Some("2"), Some("999999"), None, Some("NUEVO99"), Some("Producto Nuevo"), None,
                         Some("Suspensión"), Some("TRW"), None, Some("Autorepuestos Demo SRL"),
-                        Some("10"), Some("25"), None, None, None, Some("7")]),
+                        Some("10"), Some("25"), None, None, None, None, None, Some("7")]),
         ];
         let path = write_to_temp(&to_bytes(&data), "execute.xlsx");
         let result = execute_internal(&db, &path, "append", None, None).unwrap();
@@ -2164,7 +2231,7 @@ mod tests {
             header(),
             row_data(&[Some("1"), Some("860067"), None, Some("860067"), Some("MUÑON 84/95"), None,
                         Some("Dirección"), Some("Toyota Genuine"), None, Some("Autorepuestos Demo SRL"),
-                        None, None, None, None, None, Some("10"), Some("2"), Some("30"), Some("1"),
+                        None, None, None, None, None, None, None, Some("10"), Some("2"), Some("30"), Some("1"),
                         Some("pcs"), None, None, Some("WH-001"), Some("WH-001-A-01-A-01"), None, Some("Sí"), Some("No")]),
         ];
         let path = write_to_temp(&to_bytes(&data), "replace.xlsx");
@@ -2229,7 +2296,7 @@ mod tests {
 
         let mut reader: Xlsx<_> = open_workbook(&path).unwrap();
         let rng = reader.worksheet_range("Productos").unwrap();
-        assert!(rng.width() >= 27, "expected >=27 columns, got {}", rng.width());
+        assert!(rng.width() >= 29, "expected >=29 columns, got {}", rng.width());
         let rows: Vec<&[Data]> = rng.rows().collect();
         assert_eq!(rows.len(), 2, "header + 1 product");
         let first = &rows[1];

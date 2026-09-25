@@ -200,6 +200,20 @@
   },
   "pricing": {
     "margin": "Margin",
+    "marginOverCost": "Margin over cost",
+    "marginOverCostNote": "Margin is computed and applied over the merchandise cost",
+    "configuredMargin": "Configured margin",
+    "gainPercent": "% gain",
+    "gainPercentHint": "Configured global gain: {{value}}%",
+    "effectiveMargin": "Effective gain",
+    "suggestedPrice": "Suggested price",
+    "suggestedPriceHint": "suggested = cost × (1 + %/100)",
+    "editedPrice": "Edited price",
+    "editedPriceOptional": "Edited price (optional)",
+    "editedPriceAuto": "Auto",
+    "effectivePrice": "Selling price (effective)",
+    "priceBelowCost": "Selling price is at or below cost",
+    "followingGlobal": "Uses global gain",
     "costHistory": "Cost History"
   },
   "supplierProduct": {

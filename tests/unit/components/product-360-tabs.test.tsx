@@ -51,6 +51,10 @@ const baseProduct: InventoryProduct = {
   isDiscontinued: false,
   createdAt: "2024-01-01T00:00:00Z",
   updatedAt: "2024-06-01T00:00:00Z",
+  profitMarginPct: null,
+  editedPrice: null,
+  suggestedPrice: 13,
+  effectiveMarginPct: 30,
 }
 
 const images: ProductImage[] = [
@@ -171,14 +175,25 @@ describe("ProductPricingTab", () => {
     expect(screen.getByText("$20.00")).toBeInTheDocument()
   })
 
-  it("renders margin percentage", () => {
+  it("renders margin percentage over cost", () => {
     render(<ProductPricingTab product={baseProduct} />)
+    expect(screen.getByText("100.0%")).toBeInTheDocument()
+  })
+
+  it("shows configured margin from the product", () => {
+    render(<ProductPricingTab product={{ ...baseProduct, effectiveMarginPct: 50 }} />)
     expect(screen.getByText("50.0%")).toBeInTheDocument()
   })
 
-  it("shows zero margin when sale price is 0", () => {
+  it("shows negative margin when selling below cost", () => {
     render(<ProductPricingTab product={{ ...baseProduct, salePrice: 0 }} />)
-    expect(screen.getByText("0.0%")).toBeInTheDocument()
+    expect(screen.getByText("-100.0%")).toBeInTheDocument()
+  })
+
+  it("renders suggested and edited pricing rows", () => {
+    render(<ProductPricingTab product={baseProduct} />)
+    expect(screen.getByText("$13.00")).toBeInTheDocument()
+    expect(screen.getByText("Auto")).toBeInTheDocument()
   })
 
   it("renders tax rate as percentage", () => {

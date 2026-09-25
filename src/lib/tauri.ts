@@ -1165,12 +1165,12 @@ export async function getSettingCategories(): Promise<SettingCategory[]> {
   return invoke<SettingCategory[]>("get_setting_categories")
 }
 
-export async function updateAppSetting(key: string, value: string): Promise<void> {
-  return invoke<void>("update_app_setting", { input: { key, value } })
+export async function updateAppSetting(key: string, value: string, createdBy?: number): Promise<void> {
+  return invoke<void>("update_app_setting", { input: { key, value }, createdBy })
 }
 
-export async function updateAppSettingsBulk(settings: { key: string; value: string }[]): Promise<void> {
-  return invoke<void>("update_app_settings_bulk", { settings })
+export async function updateAppSettingsBulk(settings: { key: string; value: string }[], createdBy?: number): Promise<void> {
+  return invoke<void>("update_app_settings_bulk", { settings, createdBy })
 }
 
 export async function getSettingHistory(key: string): Promise<{ id: number; user_id?: number; username: string; action: string; details?: string; created_at: string }[]> {

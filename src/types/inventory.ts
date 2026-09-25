@@ -113,6 +113,14 @@ export interface InventoryProduct {
   isDiscontinued: boolean
   createdAt: string
   updatedAt: string
+  /** Product-specific profit margin percentage; `null` = follow the app-wide default. */
+  profitMarginPct: number | null
+  /** Manually edited selling price override; `null` = auto (derived from margin). */
+  editedPrice: number | null
+  /** Computed suggested price = `cost × (1 + effectiveMargin / 100)`. */
+  suggestedPrice: number
+  /** Effective margin applied to this product (individual ?? global default). */
+  effectiveMarginPct: number
 }
 
 export interface ProductImage {

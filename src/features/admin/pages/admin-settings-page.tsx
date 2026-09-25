@@ -10,13 +10,14 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { getAppSettings, getSettingCategories, updateAppSettingsBulk } from "@/lib/tauri"
 import { parseSettingOptions, parseSettingValidation, validateSettingValue } from "@/lib/settings-utils"
 import { useNotification } from "@/hooks"
-import { useAppSettingsStore } from "@/stores"
+import { useAppSettingsStore, useAuthStore } from "@/stores"
 import type { AdminAppSetting } from "@/types"
 
 export function AdminSettingsPage() {
   const { t } = useTranslation()
   const notify = useNotification()
   const appSettingsStore = useAppSettingsStore()
+  const user = useAuthStore((s) => s.user)
 
   const [categories, setCategories] = useState<{ category: string; count: number }[]>([])
   const [activeCategory, setActiveCategory] = useState("general")
@@ -82,7 +83,7 @@ export function AdminSettingsPage() {
     setSaving(true)
     try {
       const bulk = Object.entries(values).map(([key, value]) => ({ key, value }))
-      await updateAppSettingsBulk(bulk)
+      await updateAppSettingsBulk(bulk, user?.id)
       for (const setting of settings) {
         appSettingsStore.setValue(setting.key, values[setting.key] ?? "")
       }
