@@ -17,11 +17,11 @@ export function AppShell() {
       <div className="flex h-screen overflow-hidden bg-background">
         <Sidebar />
         <div className={cn(
-          "flex flex-1 flex-col overflow-hidden transition-all duration-300",
+          "flex min-w-0 flex-1 flex-col overflow-hidden transition-all duration-300",
           sidebarCollapsed ? "ml-16" : "ml-64"
         )}>
           <TopBar />
-          <main className="flex-1 overflow-auto">
+          <main className="min-w-0 flex-1 overflow-auto">
             <div className="h-full p-6">
               <Outlet />
             </div>

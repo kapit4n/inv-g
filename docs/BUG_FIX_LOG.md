@@ -6,6 +6,64 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-25 — Tab bar on the sale detail page could be clipped out of view
+
+**Symptom:** after the `{{count}}` fix, the tab names "Detalles", "Pagos" and
+"Recibos" were still reported as not visible. The user described the space as
+"reduced" or the bar as "pushed up and overlapping another component".
+
+**First: a stale build explained part of it.** `dist/` was built at 11:14, hours
+before that day's three fixes, and still contained the old `"{{count}} artículos"`
+translation. Rebuilt and confirmed the string was gone. `dist/` is gitignored, so
+it never showed up in `git status` - worth remembering when a fix appears not to
+have landed.
+
+**What was ruled out, and how.** The tabs are not missing, hidden or overlapped:
+
+- Rendering the page with the real i18next resources and dumping the DOM shows
+  four tabs with correct text: `Detalles | Pagos | Recibos | Reembolsar`.
+- No `hidden`, `invisible`, `opacity-0` or `sr-only` anywhere in the page.
+- No `absolute`, negative margin, `z-index`, `sticky` or `fixed` in the page, so
+  nothing can overlap the bar. The `TopBar` is `sticky top-0 z-30` but sits in a
+  non-scrolling `overflow-hidden` column, so it never moves.
+- Theme contrast is adequate in both modes: `muted-foreground` `oklch(0.708)` on
+  `muted` `oklch(0.269)`.
+- `no-print` is applied to four elements here but defined nowhere, and there is no
+  `@media print` outside `print-dialog.tsx` - it cannot hide anything.
+
+**Root cause found.** A layout fault, which no DOM test can catch because jsdom
+performs no layout. Two properties compose:
+
+1. Every `TabsTrigger` has `whitespace-nowrap`, so the bar's min-content width is
+   the sum of its labels and cannot shrink - roughly 500px for four tabs.
+2. In `app-shell.tsx` the content column is a flex item of a row with
+   `overflow-hidden`. A flex item defaults to `min-width: auto`, i.e. its
+   min-content width, so without an explicit `min-w-0` the column refuses to
+   shrink below that 500px, is pushed sideways, and the row clips it.
+
+That matches the user's own guess that the space was reduced and the bar pushed
+out of view.
+
+**Fix:** `min-w-0` on the content column and on `main`, so the column can shrink
+and `main`'s `overflow-auto` scrolls instead of the row clipping. `TabsList` gets
+`max-w-full overflow-x-auto` so the bar scrolls horizontally rather than forcing
+the page wider, and each trigger gets `shrink-0` so a shrinking trigger cannot
+clip its own nowrap label. No page's appearance changes at normal widths.
+
+**Regression test:** `tests/regression/bug-007-tab-bar-clipping.test.ts` asserts
+the three class invariants against the source, since the property is about how
+the classes compose rather than about any single rendered element. Verified by
+reverting all three changes: 3 of 3 fail, and pass again once restored.
+
+**Result:** 470 frontend tests across 61 files (was 467/60).
+
+**Caveat, stated plainly:** this fix removes a mechanism that can clip the tab
+bar, but the symptom was never reproduced locally, so it is not confirmed to be
+the cause. If the bar is still missing after this, a screenshot is needed - the
+code and the rendered DOM both say it is there.
+
+---
+
 ### 2026-09-25 — Sale detail page rendered `{{count}} artículos` instead of the item count
 
 **Symptom:** on *Ventas → venta individual*, a literal `{{count}}` appeared under
