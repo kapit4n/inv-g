@@ -1560,7 +1560,7 @@ workbook without a file dialog (user request, confirmation asked and answered).
   failures (unchanged, `config.rs` untouched).
 
 ### Follow-up: Seed = demo catalog by default
-**Commit:** `<pending>` · **Date:** 2026-09-24
+**Commit:** `2104e76` · **Date:** 2026-09-24
 
 The app now seeds the **demo catalog** instead of the generic English catalog,
 so on startup the Product table shows the 19 demo items (user request: "load

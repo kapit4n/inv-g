@@ -8,7 +8,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased] - Demo catalog as the default seed
 
-> Shipped in `<pending>` — see "Seed = demo catalog" in
+> Shipped in `2104e76` — see "Seed = demo catalog" in
 > `docs/development/IMPLEMENTATION_PROGRESS.md`.
 
 ### Changed
