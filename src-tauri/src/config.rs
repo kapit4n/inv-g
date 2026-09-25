@@ -70,7 +70,9 @@ impl Default for AppConfig {
 }
 
 impl AppConfig {
-    pub fn new(db_dir: PathBuf) -> Self {
+    /// Explicit-directory constructor, for tests and for a future portable mode.
+#[allow(dead_code)]
+pub fn new(db_dir: PathBuf) -> Self {
         let profile = read_active_profile(&db_dir);
         let db_path = db_dir.join(profile_db_file_name(&profile));
         Self {
@@ -82,7 +84,9 @@ impl AppConfig {
     }
 
     /// Path of the persisted profile file.
-    pub fn profile_file(&self) -> PathBuf {
+    /// Path of the persisted profile file.
+#[allow(dead_code)]
+pub fn profile_file(&self) -> PathBuf {
         self.data_dir.join(PROFILE_FILE_NAME)
     }
 }

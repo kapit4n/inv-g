@@ -272,6 +272,8 @@ const SEED_PRODUCTS: &[(&str, Option<&str>, &str, f64, &str, &str, i32)] = &[
 ];
 
 /// Seeds the database using the `default` profile (legacy behaviour).
+/// Unprofiled seeder; the app seeds through `seed_database_with_profile`.
+#[allow(dead_code)]
 pub fn seed_database(conn: &Connection) -> Result<()> {
     seed_database_with_profile(conn, crate::config::PROFILE_DEFAULT)
 }
@@ -440,7 +442,7 @@ fn seed_application_settings(conn: &Connection) -> Result<()> {
     // place tax config under its dedicated category (idempotent; the admin
     // write path mirrors both tables so they stay equal).
     let settings: Vec<(String, String)> = {
-        let mut stmt = conn.prepare("SELECT key, value FROM settings WHERE value IS NOT NULL").ok();
+        let stmt = conn.prepare("SELECT key, value FROM settings WHERE value IS NOT NULL").ok();
         if let Some(mut s) = stmt {
             let rows = s.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))).ok();
             if let Some(r) = rows {

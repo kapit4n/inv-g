@@ -154,44 +154,45 @@ pub fn search_compatible_products(
         "SELECT p.id, p.name, p.sku, p.sale_price, p.stock_quantity, c.name AS category_name, b.name AS brand_name, COUNT(pvc.id) AS compatibility_count FROM product_vehicle_compatibility pvc JOIN products p ON p.id = pvc.product_id LEFT JOIN categories c ON c.id = p.category_id LEFT JOIN brands b ON b.id = p.brand_id WHERE p.is_active = 1"
     );
     let mut query_params: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
-    let mut param_idx = 1;
 
+    // The placeholder number is derived from the parameter vector instead of a
+    // separate counter, so it can never drift out of sync with the bound values.
     if let Some(bid) = brand_id {
-        sql.push_str(&format!(" AND (pvc.brand_id = ?{} OR pvc.brand_id IS NULL)", param_idx));
+        let i = query_params.len() + 1;
+        sql.push_str(&format!(" AND (pvc.brand_id = ?{i} OR pvc.brand_id IS NULL)"));
         query_params.push(Box::new(bid));
-        param_idx += 1;
     }
 
     if let Some(mid) = model_id {
-        sql.push_str(&format!(" AND (pvc.model_id = ?{} OR pvc.model_id IS NULL)", param_idx));
+        let i = query_params.len() + 1;
+        sql.push_str(&format!(" AND (pvc.model_id = ?{i} OR pvc.model_id IS NULL)"));
         query_params.push(Box::new(mid));
-        param_idx += 1;
     }
 
     if let Some(y) = year {
-        sql.push_str(&format!(" AND (pvc.year_start IS NULL OR pvc.year_start <= ?{}) AND (pvc.year_end IS NULL OR pvc.year_end >= ?{})", param_idx, param_idx + 1));
+        let i = query_params.len() + 1;
+        sql.push_str(&format!(" AND (pvc.year_start IS NULL OR pvc.year_start <= ?{i}) AND (pvc.year_end IS NULL OR pvc.year_end >= ?{})", i + 1));
         query_params.push(Box::new(y));
         query_params.push(Box::new(y));
-        param_idx += 2;
     }
 
     if let Some(eid) = engine_id {
-        sql.push_str(&format!(" AND (pvc.engine_id = ?{} OR pvc.engine_id IS NULL)", param_idx));
+        let i = query_params.len() + 1;
+        sql.push_str(&format!(" AND (pvc.engine_id = ?{i} OR pvc.engine_id IS NULL)"));
         query_params.push(Box::new(eid));
-        param_idx += 1;
     }
 
     if let Some(tid) = transmission_id {
-        sql.push_str(&format!(" AND (pvc.transmission_id = ?{} OR pvc.transmission_id IS NULL)", param_idx));
+        let i = query_params.len() + 1;
+        sql.push_str(&format!(" AND (pvc.transmission_id = ?{i} OR pvc.transmission_id IS NULL)"));
         query_params.push(Box::new(tid));
-        param_idx += 1;
     }
 
     if let Some(ref s) = search {
         if !s.is_empty() {
-            sql.push_str(&format!(" AND p.name LIKE ?{}", param_idx));
+            let i = query_params.len() + 1;
+            sql.push_str(&format!(" AND p.name LIKE ?{i}"));
             query_params.push(Box::new(format!("%{}%", s)));
-            param_idx += 1;
         }
     }
 

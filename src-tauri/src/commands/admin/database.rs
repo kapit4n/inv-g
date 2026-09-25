@@ -102,12 +102,6 @@ pub fn get_table_sizes() -> Result<Vec<TableInfo>, String> {
             |row| row.get(0),
         ).unwrap_or(0);
 
-        let page_est: i64 = conn.query_row(
-            &format!("PRAGMA table_info(\"{}\")", table_name),
-            [],
-            |_| Ok(1),
-        ).unwrap_or(0);
-
         result.push(TableInfo {
             name: table_name,
             row_count: count,

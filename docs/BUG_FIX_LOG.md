@@ -6,6 +6,91 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-25 — Rust build became strict in CI and failed on 29 pre-existing warnings
+
+**Symptom:** after fixing `npm ci`, the Windows workflow still failed, this time
+at `cargo test`:
+
+```
+error: unused import: `init_database`
+error: use of deprecated method `chrono::TimeZone::datetime_from_str`
+error: function `resolve_effective_price` is never used
+error: could not compile `inventory-gear` (lib) due to 26 previous errors
+```
+
+**Root cause:** none of this was caused by the new workflow. The action
+`actions-rust-lang/setup-rust-toolchain@v1` gained an input:
+
+```yaml
+build-warnings:
+  description: "Sets the build.warnings config via the CARGO_BUILD_WARNINGS variable."
+  default: "deny"
+```
+
+The floating `@v1` tag now resolves to a version that exports
+`CARGO_BUILD_WARNINGS=deny`, which is equivalent to `-D warnings`. So a long
+standing pile of warnings became hard errors the moment a workflow ran. Verified
+by reproducing locally: `RUSTFLAGS="-D warnings" cargo check` gives the same 26
+errors, and the repo has no `.cargo/config.toml`, no `[lints]` table and no
+`rust-toolchain` file, so the flag came entirely from the action.
+
+**This was latent in `ci.yml` too**, which uses the same action — the main
+Linux pipeline was one run away from failing the same way.
+
+**Fix:** `build-warnings: "deny"` is now written explicitly in both workflows,
+so the strictness is a recorded decision rather than an accident of a
+third-party default, and all 29 warnings are fixed:
+
+- **Real API deprecation** — `Utc.datetime_from_str` in a sales test replaced
+  with `NaiveDateTime::parse_from_str(..).and_utc()`. The test still passes,
+  proving identical behaviour.
+- **A latent bug in `users.rs`** — a `locked_until` value was computed and never
+  used; the actual query formats the interval inline. The dead copy also
+  contained stray nested quotes (`"'datetime('now', '+1 hour')'"`), so it could
+  never have worked had it been used. Removed.
+- **A whole discarded query** in `admin/database.rs` — a `PRAGMA table_info`
+  result bound to `page_est` and dropped. Removed.
+- **Orphaned command inputs** — `PurchaseRequestInput` and
+  `PurchaseReturnInput` were dead because `create_purchase_request` and
+  `create_purchase_return` take their fields as individual parameters. Deleted.
+  The `*ItemInput` structs they referenced are live command parameters and were
+  kept — deleting the parents alone would have broken both commands.
+- **A vestigial parameter** — `resolve_equiv_side_final` took a `&Connection` it
+  never used; it resolves entirely from in-memory structures. Removed, along
+  with its two call sites.
+- **Unused command parameters kept for IPC safety** — `test_device`,
+  `test_printer`, `get_inventory_fast_slow` and `get_sales_returns_summary` have
+  parameters the logic ignores. These *cannot* be renamed to `_id`/`_days`: the
+  frontend calls `invoke("test_device", { id })`, so the parameter name is the
+  wire contract. Each now has `let _ = x;` with a comment saying so, instead of
+  being silently renamed.
+- **Dead stores in dynamic SQL** — the trailing `param_idx += 1` in
+  `compatibility.rs`, `reminders.rs` and `warranty.rs` was never read.
+- **Intentionally-unwired API annotated, not deleted** — `AppError`,
+  `resolve_effective_price`, `seed_database`, `AppConfig::new`,
+  `AppConfig::profile_file`, `add_timeline_entry`, `query_f64`, `query_i64` and
+  three unimplemented `SalesReportFilter` fields are tested, intentional surface
+  that no command calls yet. Deleting tested domain logic to silence a warning
+  would be a regression, so each carries `#[allow(dead_code)]` and a reason.
+- `PermissionInfo` and `init_database` are used only by tests, so they are now
+  `#[cfg(test)]` rather than dead in the library build.
+
+**A regression I introduced and the suite caught:** silencing the dead stores by
+moving `param_idx += 1` *before* the placeholder — the obvious-looking fix —
+broke `compatible_products_search_binds_after_every_other_filter`. `param_idx`
+started at 1 with use-then-increment, so inverting the last block shifted its
+placeholder to an index with no matching bound value. The fix was to delete the
+manual counter in all three files and derive each placeholder from
+`query_params.len() + 1`, which makes this whole off-by-one class impossible
+rather than merely absent. This is the same bug class as the Products search
+defect in `59ccbb4`, so it is worth noting that the regression tests earned their
+keep: 151 tests pass with `-D warnings`.
+
+**Files:** 15 Rust files, `.github/workflows/ci.yml`,
+`.github/workflows/windows-installer.yml`
+
+---
+
 ### 2026-09-25 — Windows CI: `npm ci` failed on the runner, no installer built
 
 **Symptom:** the first run of the *Windows Installer* workflow failed at

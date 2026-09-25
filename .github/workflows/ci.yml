@@ -28,7 +28,11 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
-
+          # Pinned deliberately. The action's `build-warnings` input defaults
+          # to "deny" (it sets CARGO_BUILD_WARNINGS), so this is not a no-op:
+          # it is recorded here on purpose so a future change to that default
+          # cannot silently change how strict this pipeline is.
+          build-warnings: "deny"
       - name: Install dependencies
         run: npm ci
 

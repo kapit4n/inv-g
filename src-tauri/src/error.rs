@@ -1,4 +1,7 @@
 #[derive(Debug, thiserror::Error)]
+/// Typed error surface for commands that do not yet return `Result<_, String>`.
+/// Kept (and tested) rather than deleted so the migration has a target.
+#[allow(dead_code)]
 pub enum AppError {
     #[error("Database error: {0}")]
     Database(#[from] rusqlite::Error),

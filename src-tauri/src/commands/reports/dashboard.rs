@@ -130,12 +130,16 @@ pub struct ChartData {
     pub purchases_vs_sales: Vec<PurchaseVsSale>,
 }
 
+/// Convenience accessor; not yet used by the dashboard queries.
+#[allow(dead_code)]
 fn query_f64(sql: &str, params: &[&dyn rusqlite::types::ToSql]) -> f64 {
     let db = DB_STATE.get().unwrap();
     let conn = db.conn.lock().unwrap();
     conn.query_row(sql, params, |row| row.get::<_, f64>(0)).unwrap_or(0.0)
 }
 
+/// Convenience accessor; not yet used by the dashboard queries.
+#[allow(dead_code)]
 fn query_i64(sql: &str, params: &[&dyn rusqlite::types::ToSql]) -> i64 {
     let db = DB_STATE.get().unwrap();
     let conn = db.conn.lock().unwrap();

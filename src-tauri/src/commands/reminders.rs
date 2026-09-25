@@ -68,20 +68,21 @@ pub fn get_service_reminders(
         "SELECT sr.id, sr.customer_id, sr.vehicle_id, sr.reminder_type, sr.title, sr.description, sr.due_date, sr.due_mileage, sr.status, sr.completed_at, sr.completed_by, ucb.full_name AS completed_by_name, sr.notes, sr.created_by, ucr.full_name AS created_by_name, sr.created_at, sr.updated_at, c.name AS customer_name, CASE WHEN cv.id IS NOT NULL THEN COALESCE(cv.nickname, cv.license_plate, 'Vehicle #' || cv.id) ELSE NULL END AS vehicle_info FROM service_reminders sr LEFT JOIN customers c ON c.id = sr.customer_id LEFT JOIN customer_vehicles cv ON cv.id = sr.vehicle_id LEFT JOIN users ucb ON ucb.id = sr.completed_by LEFT JOIN users ucr ON ucr.id = sr.created_by WHERE 1=1"
     );
     let mut query_params: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
-    let mut param_idx = 1;
 
+    // Placeholder numbers derive from the parameter vector rather than a
+    // separate counter, so they cannot drift out of sync with the bound values.
     if let Some(ref s) = status {
         if !s.is_empty() {
-            sql.push_str(&format!(" AND sr.status = ?{}", param_idx));
+            let i = query_params.len() + 1;
+            sql.push_str(&format!(" AND sr.status = ?{i}"));
             query_params.push(Box::new(s.clone()));
-            param_idx += 1;
         }
     }
 
     if let Some(cid) = customer_id {
-        sql.push_str(&format!(" AND sr.customer_id = ?{}", param_idx));
+        let i = query_params.len() + 1;
+        sql.push_str(&format!(" AND sr.customer_id = ?{i}"));
         query_params.push(Box::new(cid));
-        param_idx += 1;
     }
 
     sql.push_str(" ORDER BY sr.due_date ASC, sr.created_at DESC");

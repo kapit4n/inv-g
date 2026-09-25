@@ -262,8 +262,9 @@ fn validate_equivalent_row(
     })
 }
 
+// Resolves a SKU against the in-memory catalog and the freshly imported
+// rows, so it needs no database handle.
 fn resolve_equiv_side_final(
-    conn: &Connection,
     catalog: &Catalog,
     fresh: &HashMap<String, i64>,
     sku: &str,
@@ -1657,8 +1658,8 @@ fn execute_internal(
         // reference products created by this same file. INSERT OR IGNORE
         // makes the write idempotent against pre-existing pairs.
         for ve in &valid_equivs {
-            let sa = resolve_equiv_side_final(conn, &catalog, &fresh_sku_to_id, &ve.product_sku)?;
-            let sb = resolve_equiv_side_final(conn, &catalog, &fresh_sku_to_id, &ve.equivalent_sku)?;
+            let sa = resolve_equiv_side_final(&catalog, &fresh_sku_to_id, &ve.product_sku)?;
+            let sb = resolve_equiv_side_final(&catalog, &fresh_sku_to_id, &ve.equivalent_sku)?;
             if sa == sb {
                 continue;
             }

@@ -125,6 +125,10 @@ pub fn delete_device(id: i64) -> Result<(), String> {
 
 #[tauri::command]
 pub fn test_device(id: i64) -> Result<String, String> {
+    // The parameter name is part of the IPC contract: the frontend calls
+    // `invoke("test_device", { id })`, so it cannot be renamed to `_id`. The
+    // stub does not act on it yet.
+    let _ = id;
     let _db = DB_STATE.get().ok_or("Database not initialized")?;
     let _conn = _db.conn.lock().map_err(|e| e.to_string())?;
 

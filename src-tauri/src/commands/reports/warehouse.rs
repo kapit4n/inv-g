@@ -15,15 +15,6 @@ pub struct WarehouseUtilization {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct WarehouseTransferSummary {
-    pub period: String,
-    pub transfers_in: i64,
-    pub transfers_out: i64,
-    pub net_movement: i64,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct WarehouseAdjustmentSummary {
     pub warehouse_id: i64,
     pub warehouse_name: String,

@@ -65,8 +65,14 @@ pub struct SalesReportFilter {
     pub warehouse_id: Option<i64>,
     pub cashier_id: Option<i64>,
     pub customer_id: Option<i64>,
+    // Declared as part of the filter contract and accepted from the frontend,
+    // but `build_date_conditions` and the report queries do not apply these
+    // three yet. Kept so the API does not change when they are wired up.
+    #[allow(dead_code)]
     pub category_id: Option<i64>,
+    #[allow(dead_code)]
     pub brand_id: Option<i64>,
+    #[allow(dead_code)]
     pub product_id: Option<i64>,
     pub payment_method: Option<String>,
 }
@@ -193,6 +199,10 @@ pub fn get_sales_discount_analysis(f: SalesReportFilter) -> Result<DiscountAnaly
 
 #[tauri::command]
 pub fn get_sales_returns_summary(f: SalesReportFilter) -> Result<ReturnsSummary, String> {
+    // Part of the IPC contract: the frontend calls
+    // `invoke("get_sales_returns_summary", { f })`. The returns summary is not
+    // filtered by the report filter yet.
+    let _ = f;
     let db = DB_STATE.get().ok_or("Database not initialized")?;
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
 

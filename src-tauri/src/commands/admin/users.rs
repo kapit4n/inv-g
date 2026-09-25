@@ -304,9 +304,6 @@ pub fn lock_user_account(id: i64, duration_minutes: Option<i64>) -> Result<(), S
     let db = DB_STATE.get().ok_or("Database not initialized")?;
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
 
-    let locked_until = duration_minutes.map(|m| format!("datetime('now', '+{} minutes')", m))
-        .unwrap_or_else(|| "'datetime('now', '+1 hour')'".to_string());
-
     conn.execute(
         "UPDATE users SET is_locked = 1, locked_until = datetime('now', ?1), updated_at = datetime('now') WHERE id = ?2",
         rusqlite::params![duration_minutes.map_or("+60 minutes".to_string(), |m| format!("+{} minutes", m)), id],

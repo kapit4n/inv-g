@@ -576,6 +576,8 @@ fn row_to_timeline_entry(row: &rusqlite::Row) -> rusqlite::Result<TimelineEntry>
     })
 }
 
+/// Timeline helper, not yet called from the customer commands.
+#[allow(dead_code)]
 pub(crate) fn add_timeline_entry(
     customer_id: i64,
     event_type: &str,

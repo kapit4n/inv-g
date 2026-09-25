@@ -403,7 +403,6 @@ pub fn get_store_inventory(state: State<DbState>) -> Result<Vec<StoreInventoryRo
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::init_database;
     use crate::config::{PROFILE_DEFAULT, PROFILE_SINGLE_STORE, PROFILE_MULTI_STORE, PROFILE_EMPTY};
 
     fn test_db(profile: &str) -> Connection {

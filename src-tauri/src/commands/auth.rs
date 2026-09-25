@@ -26,6 +26,8 @@ pub struct LoginResponse {
     pub permissions: Vec<String>,
 }
 
+/// Only used by the RBAC tests, not by any command signature.
+#[cfg(test)]
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PermissionInfo {

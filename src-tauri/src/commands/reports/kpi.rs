@@ -72,7 +72,7 @@ pub fn get_kpi_values() -> Result<Vec<KpiValue>, String> {
 
     drop(conn);
 
-    let mut kpis = vec![
+    let kpis = vec![
         KpiValue { key: "revenue_growth".into(), name: "Revenue Growth".into(), value: revenue_growth, unit: Some("%".into()), target: Some(10.0), trend: Some(if revenue_growth > 0.0 { "up".into() } else { "down".into() }), category: "financial".into(), status: if revenue_growth >= 10.0 { "good".into() } else if revenue_growth >= 0.0 { "warning".into() } else { "critical".into() } },
         KpiValue { key: "sales_growth".into(), name: "Sales Growth".into(), value: sales_growth, unit: Some("%".into()), target: Some(10.0), trend: Some(if sales_growth > 0.0 { "up".into() } else { "down".into() }), category: "sales".into(), status: if sales_growth >= 10.0 { "good".into() } else if sales_growth >= 0.0 { "warning".into() } else { "critical".into() } },
         KpiValue { key: "inventory_turnover".into(), name: "Inventory Turnover".into(), value: inventory_turnover, unit: None, target: Some(4.0), trend: None, category: "inventory".into(), status: if inventory_turnover >= 4.0 { "good".into() } else if inventory_turnover >= 2.0 { "warning".into() } else { "critical".into() } },

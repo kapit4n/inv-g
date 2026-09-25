@@ -68,19 +68,20 @@ pub fn get_warranties(
         "SELECT w.id, w.warranty_number, w.sale_id, w.product_id, w.customer_id, w.vehicle_id, w.warranty_type, w.period_months, w.start_date, w.expiration_date, w.status, w.notes, w.created_by, w.created_at, w.updated_at, p.name AS product_name, c.name AS customer_name, CASE WHEN cv.id IS NOT NULL THEN COALESCE(cv.nickname, cv.license_plate, 'Vehicle #' || cv.id) ELSE NULL END AS vehicle_info, s.sale_number AS sale_number FROM warranties w LEFT JOIN products p ON p.id = w.product_id LEFT JOIN customers c ON c.id = w.customer_id LEFT JOIN customer_vehicles cv ON cv.id = w.vehicle_id LEFT JOIN sales s ON s.id = w.sale_id WHERE 1=1"
     );
     let mut query_params: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
-    let mut param_idx = 1;
 
+    // Placeholder numbers derive from the parameter vector rather than a
+    // separate counter, so they cannot drift out of sync with the bound values.
     if let Some(cid) = customer_id {
-        sql.push_str(&format!(" AND w.customer_id = ?{}", param_idx));
+        let i = query_params.len() + 1;
+        sql.push_str(&format!(" AND w.customer_id = ?{i}"));
         query_params.push(Box::new(cid));
-        param_idx += 1;
     }
 
     if let Some(ref s) = status {
         if !s.is_empty() {
-            sql.push_str(&format!(" AND w.status = ?{}", param_idx));
+            let i = query_params.len() + 1;
+            sql.push_str(&format!(" AND w.status = ?{i}"));
             query_params.push(Box::new(s.clone()));
-            param_idx += 1;
         }
     }
 

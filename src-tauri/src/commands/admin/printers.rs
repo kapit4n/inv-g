@@ -206,6 +206,8 @@ pub fn set_default_printer(id: i64) -> Result<(), String> {
 
 #[tauri::command]
 pub fn test_printer(id: i64) -> Result<String, String> {
+    // Part of the IPC contract: the frontend calls `invoke("test_printer", { id })`.
+    let _ = id;
     let _db = DB_STATE.get().ok_or("Database not initialized")?;
     let _conn = _db.conn.lock().map_err(|e| e.to_string())?;
 

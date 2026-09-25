@@ -168,6 +168,10 @@ pub fn get_inventory_overstock() -> Result<Vec<StockStatusItem>, String> {
 
 #[tauri::command]
 pub fn get_inventory_fast_slow(days: i64) -> Result<Vec<AgingItem>, String> {
+    // Part of the IPC contract: the frontend calls
+    // `invoke("get_inventory_fast_slow", { days })`. The aging is computed from
+    // `julianday('now')` in SQL, so the window parameter is not used here yet.
+    let _ = days;
     let db = DB_STATE.get().ok_or("Database not initialized")?;
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
     let mut stmt = conn.prepare("SELECT p.id, p.name, p.sku, COALESCE(s.qty, 0) AS qty, COALESCE(s.days, 999) AS days_since, (p.stock_quantity * p.cost_price) AS stock_value FROM products p LEFT JOIN (SELECT si.product_id, SUM(si.quantity) AS qty, julianday('now') - julianday(MAX(s.created_at)) AS days FROM sale_items si JOIN sales s ON s.id = si.sale_id GROUP BY si.product_id) s ON s.product_id = p.id WHERE p.is_active = 1 AND p.stock_quantity > 0 ORDER BY s.qty DESC").map_err(|e| e.to_string())?;

@@ -1674,7 +1674,7 @@ mod tests {
     use super::*;
     use crate::config::PROFILE_SINGLE_STORE;
     use crate::db::init_database_with_profile;
-    use chrono::{Datelike, Duration, Local, NaiveDate, TimeZone, Utc};
+    use chrono::{Datelike, Duration, Local, NaiveDate, NaiveDateTime, Utc};
 
     fn test_db() -> rusqlite::Connection {
         let dir = std::env::temp_dir().join(format!("ig_sales_test_{}", uuid::Uuid::new_v4()));
@@ -1823,7 +1823,10 @@ mod tests {
         let (month_start, _) = utc_bounds_for_local_month(n);
         let last_month = format!(
             "{}",
-            (Utc.datetime_from_str(&month_start, "%Y-%m-%d %H:%M:%S").unwrap() - Duration::seconds(1))
+            (NaiveDateTime::parse_from_str(&month_start, "%Y-%m-%d %H:%M:%S")
+                .unwrap()
+                .and_utc()
+                - Duration::seconds(1))
                 .format("%Y-%m-%d %H:%M:%S")
         );
         insert_sale(&db, 1, 777.0, "paid", &last_month);

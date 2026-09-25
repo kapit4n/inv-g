@@ -21,6 +21,9 @@ impl DbState {
     }
 }
 
+/// Only the schema tests build a database directly; the app always goes
+/// through `init_database_with_profile`, which also seeds.
+#[cfg(test)]
 pub fn init_database(db_path: &str) -> Result<Connection> {
     init_database_with_profile(db_path, crate::config::PROFILE_DEFAULT)
 }

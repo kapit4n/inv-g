@@ -134,15 +134,6 @@ pub struct PurchaseRequestItemResponse {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PurchaseRequestInput {
-    pub priority: String,
-    pub reason: String,
-    pub required_date: Option<String>,
-    pub items: Vec<PurchaseRequestItemInput>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct PurchaseRequestItemInput {
     pub product_id: i64,
     pub requested_quantity: i64,
@@ -221,15 +212,6 @@ pub struct PurchaseReturnItemResponse {
     pub unit_cost: f64,
     pub reason: Option<String>,
     pub created_at: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PurchaseReturnInput {
-    pub po_id: Option<i64>,
-    pub supplier_id: i64,
-    pub reason: String,
-    pub items: Vec<PurchaseReturnItemInput>,
 }
 
 #[derive(Debug, Deserialize)]

@@ -53,6 +53,9 @@ pub fn effective_price(suggested: f64, edited_price: Option<f64>) -> f64 {
 }
 
 /// Convenience: effective price straight from a product's inputs.
+/// Convenience wrapper over `effective_price`; not yet called from the
+/// command layer.
+#[allow(dead_code)]
 pub fn resolve_effective_price(
     cost: f64,
     margin_pct: Option<f64>,
