@@ -6,6 +6,75 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-25 — Picking a date left the calendar open with no way to close it
+
+**Symptom:** in *Compras → Nueva orden de compra*, choosing a date in
+*Entrega Esperada* left the calendar sitting on screen. Neither clicking again
+nor pressing Enter dismissed it.
+
+**Root cause: the calendar was not ours to close.** `DateField` rendered a native
+`<input type="date">`. Its calendar is drawn by the webview, outside the DOM, and
+the platform exposes `showPicker()` to *open* it with no counterpart to close it.
+There was no code path that could have hidden it, so the field could only ever
+be dismissed by whatever the webview chose to do. jsdom cannot show the symptom,
+and no source-level assertion could catch it: the component was doing exactly
+what it was written to do.
+
+**Fix.** `DateField` now owns its calendar, built on the `Popover` primitive the
+app already uses in `customer-search-field.tsx` and
+`product-search-combobox.tsx`. Dismissal is now deterministic — the calendar
+closes on:
+
+- picking a day (the reported bug)
+- `Enter`
+- `Escape`
+- a click outside
+- clicking the field again
+
+A new `Calendar` component renders the month grid with `date-fns` (already a
+dependency; it was previously used only by the status bar). It follows the
+selection when the value changes from outside, and month and weekday names
+follow the active language.
+
+**The value contract is unchanged: still `yyyy-MM-dd`.** Callers, the API and
+the database see exactly what they saw before, and a hidden input keeps the
+value in the DOM under its own `name` so native form posts still work. Nothing
+downstream needed changing.
+
+**Tests.** 9 new tests, mutation-tested rather than merely written:
+
+- dropping the `setOpen(false)` from the select handler — the original bug —
+  fails 4 of them;
+- additionally dropping the `Enter` handler fails a 5th, which is the one that
+  pins `Enter` specifically.
+
+They drive the real component with the real i18next resources and assert the
+popover is **absent from the document**, not merely hidden. The target day is
+derived from the current month rather than hardcoded, so the suite does not start
+failing on the 1st of a new month. Frontend: 470 → **479**.
+
+**One test bug worth recording, because it would have shipped a false
+pass.** The suite first located day cells by role plus accessible name. Once a
+date is set, the *field itself* reads the same "15 de septiembre de 2026", so
+the query matched two elements and the test failed for the wrong reason. Day
+cells are now scoped with `within(getByRole("group"))`. Related: the tests
+needed `ResizeObserver` and pointer-capture polyfills, which no test in the repo
+had, because nothing had ever opened a Radix overlay under jsdom. They are in
+`tests/helpers/setup.ts` now, for the next overlay component.
+
+**Not changed:** five other forms still use a raw `<Input type="date">` and so
+still get the native calendar — `crm-reminders-page.tsx`,
+`crm-warranties-page.tsx`, `quote-form-page.tsx` and the two date-range inputs
+in `report-filters.tsx`. `DateField` is now a drop-in for all of them; migrating
+them was outside what was reported and is left as a deliberate follow-up.
+
+**Files:** `src/components/ui/calendar.tsx` (new),
+`src/components/forms/date-field.tsx`, `src/i18n/locales/{es,en}/common.json`,
+`tests/regression/bug-009-date-picker-dismiss.test.tsx` (new),
+`tests/helpers/render.tsx`, `tests/helpers/setup.ts`.
+
+---
+
 ### 2026-09-25 — Saving a purchase order never persisted anything
 
 **Symptom:** *Compras → Nueva orden de compra → Guardar* appeared to do nothing.

@@ -77,3 +77,22 @@ vi.mock("@/lib/tauri", () => ({
     { storeId: 2, storeName: "North Branch", storeCode: "WH-002", productCount: 40, totalStockUnits: 310, inventoryValue: 8100 },
   ]),
 }))
+
+// Radix overlays (Popover, Select, DropdownMenu) position themselves with Popper,
+// which observes its trigger for size changes and captures pointers to tell a
+// click inside from a click outside. jsdom implements neither, so opening any of
+// them throws. This has bitten every overlay component the first time it was
+// rendered under test.
+if (!globalThis.ResizeObserver) {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+}
+
+if (!Element.prototype.hasPointerCapture) {
+  Element.prototype.hasPointerCapture = () => false
+  Element.prototype.setPointerCapture = () => {}
+  Element.prototype.releasePointerCapture = () => {}
+}

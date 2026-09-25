@@ -1,5 +1,9 @@
 {
   "appName": "Inventory Gear",
+  "dateFieldPlaceholder": "Select a date",
+  "dateFieldClear": "Clear date",
+  "dateFieldPreviousMonth": "Previous month",
+  "dateFieldNextMonth": "Next month",
   "loading": "Loading...",
   "save": "Save",
   "cancel": "Cancel",

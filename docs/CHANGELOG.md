@@ -6,6 +6,36 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- **Date fields no longer leave the calendar stuck open.** Choosing a date in
+  *Compras → Nueva orden de compra → Entrega Esperada* left the calendar on
+  screen with no way to dismiss it. The field used a native
+  `<input type="date">`, whose calendar is drawn by the webview and can only be
+  *opened* from JavaScript (`showPicker()`), never closed — so no code could have
+  hidden it. `DateField` now owns its calendar, which closes on selecting a day,
+  `Enter`, `Escape`, an outside click, or clicking the field again.
+- **Saving a purchase order now persists.** Creating, editing, approving,
+  deleting, requesting, returning and receiving purchase orders all deadlocked on
+  the database mutex and never completed — the same non-reentrant
+  `std::sync::Mutex` fault as "Abrir Caja", in a module the structural guard had
+  never actually scanned.
+
+### Added
+
+- **`Calendar` component** (`src/components/ui/calendar.tsx`) — a month grid on
+  `date-fns` with locale-aware month and weekday names, following the selected
+  date when it changes from outside.
+- **Date field dismissal tests** — 9 tests asserting the calendar is absent from
+  the document after each way of closing it, plus that the emitted value stays
+  `yyyy-MM-dd` for the API.
+- **Radix overlay polyfills** (`ResizeObserver`, pointer capture) in the test
+  setup, which no test needed until one opened a `Popover` under jsdom.
+
+---
+
 ## [1.0.0] - Windows Installer & Release Packaging
 
 > Shipped in `bf64f43` — see `docs/progress/MILESTONE_17.md`.

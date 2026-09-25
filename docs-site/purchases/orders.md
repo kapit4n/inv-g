@@ -32,6 +32,11 @@ Choose the supplier from the dropdown.
 - Add **notes** if needed
 - Set **expected delivery date**
 
+Click the date field to open a calendar, then pick a day. The calendar closes on
+its own as soon as you pick one, and you can also dismiss it with **Enter**,
+**Escape**, or a click outside. To unset a date, reopen it and choose **Clear
+date**.
+
 ### Step 5: Save & Send
 
 Click **Save** to create the PO. Status: **Draft**.
@@ -66,6 +71,9 @@ Draft → Sent → Confirmed → Partially Received → Received → Closed
 - Partial receiving is supported
 - PO history is maintained for auditing
 - Supplier products can be auto-populated from saved catalog
+- The expected delivery date is optional and can be cleared again after being set
+- A PO can only be edited while it is a **Draft**; any other status is refused
+  and the line items are left untouched
 
 ## Related
 
