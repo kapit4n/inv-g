@@ -6,6 +6,42 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-24 — Pricing feature compile/runtime issues fixed (seed deref, reprice return type, demo workbook corruption)
+
+**Symptom:**
+- `cargo test --lib` failed to compile after adding pricing fields: a deref of
+  a `&f64` price in the seed's implied-margin call, and a mismatched return
+  type on `reprice_following_global_default`.
+- An early regeneration of the demo workbook shifted the new pricing columns,
+  producing a file that would import corrupt values.
+
+**Investigation:**
+1. `seed.rs:743` called `implied_margin_pct(cost, price)` where `price` was
+   already `&f64` → borrow/deref compile error.
+2. `reprice_following_global_default` was declared `Result<i64, String>` but
+   returned a `rows_affected` count → type error.
+3. First demo-workbook regeneration used `ci >= 14 → ci + 2` before the index
+   shift was fully applied, duplicating a column; the corrupted file was
+   detected by dumping the parsed rows, restored with
+   `git checkout -- docs-site/public/samples/...` and regenerated with the
+   corrected mapping (`ci >= 14 → ci`, since the two new columns were inserted
+   at 14/15).
+
+**Root cause:**
+- Incorrect deref/return-type in new pricing code; column-index arithmetic bug
+  when regenerating the sample workbook with the two new columns.
+
+**Fix:**
+- `*price` deref in `seed.rs`; `Result<usize, String>` return type.
+- Re-ran the generation with correct indices, verified the workbook parses
+  (19-row demo test green), removed the temporary generator binaries.
+
+**Files:** `src-tauri/src/db/seed.rs`, `src-tauri/src/commands/admin/settings.rs`,
+`docs-site/public/samples/inventory-gear-product-import-example.xlsx`.
+**Commit:** `(commit)`
+
+---
+
 ### 2026-09-24 — Sales dashboard KPIs (Ingresos de Hoy, Transacciones, Pedido Promedio, Ventas del Mes) did not update after creating a sale, and used wrong date windows
 
 **Symptom:**

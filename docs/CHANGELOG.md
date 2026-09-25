@@ -6,6 +6,43 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased] - Per-product pricing & gains
+
+> Shipped in `(commit)` — see `docs/progress/MILESTONE_15.md`.
+
+### Added
+
+- Per-product gain margin (`profit_margin_pct`) and manual price override
+  (`edited_price`) on the products table; additive schema migration v13 → v14
+  that back-calculates implied margins so existing prices are preserved.
+- Pricing domain in `src-tauri/src/pricing.rs` (suggested price over cost,
+  effective price, margin range validation) mirrored in `src/lib/pricing.ts`.
+- Product create/update commands now resolve the **effective price** from
+  `edited` → `suggested(cost, margin)`; margin `NULL` means "follow the global
+  default" (`default_margin_percent` setting).
+- Changing the global default gain re-prices every product without its own
+  margin/edited price; product and setting changes are audited when a user
+  performs them.
+- Excel import/export now uses a 29-column layout with `% de ganancia` and
+  `Precio editado` after `Precio sugerido`; demo workbook regenerated
+  accordingly.
+- Products list shows `Precio sugerido` and `% de ganancia` columns; the Product
+  360° Pricing tab shows the realized margin over cost, configured margin,
+  suggested/edited/effective prices.
+
+### Changed
+
+- `SCHEMA_VERSION` 13 → 14 (additive, preserves data).
+- `update_app_setting` / `update_app_settings_bulk` accept an optional
+  `created_by` for auditing setting changes.
+
+### Fixed
+
+- `seed.rs` dereference of `&f64` price in implied-margin calculation;
+  `reprice_following_global_default` return type corrected to `usize`.
+
+---
+
 ## [Unreleased] - Demo catalog as the default seed
 
 > Shipped in `2104e76` — see "Seed = demo catalog" in

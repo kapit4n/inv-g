@@ -25,6 +25,8 @@
 | 11 | Administration Frontend | ✅ | `174da30`, `55a6252`, `d331084` |
 | 12 | Automated Screenshot Framework & Artifacts | ✅ | `1e60da7` … `3b6484e` |
 | 13 | Enterprise Quality Assurance & Testing | ✅ | `f2d9495` |
+| 15 | Per-Product Pricing & Gains | ✅ | `(commit)` |
+| 14 | Database Profiles (single/multi-store) | ✅ | (feature-gated; see `docs/progress/MILESTONE_14.md`) |
 
 ---
 
@@ -232,6 +234,24 @@
 - [x] GitHub Actions CI pipeline
 - [x] Quality dashboard at `quality/dashboard.md`
 - [x] `npm run verify` quality gate (typecheck → lint → vitest → coverage → cargo test)
+
+---
+
+## Milestone 15: Per-Product Pricing & Gains ✅
+**Status:** Complete (commit `(commit)`)
+**Complexity:** Medium
+**Dependencies:** Milestone 5 (inventory)
+
+### Tasks
+- [x] Pricing domain (`pricing.rs` / `pricing.ts`): suggested price over cost, effective price, margin range
+- [x] Schema v14 additive migration preserving existing prices (implied-margin back-calc)
+- [x] Seed demo catalog with implied margins
+- [x] Authoritative create/update pricing (`profitMarginPct`/`editedPrice`), pricing audit
+- [x] Global default gain setting re-prices products without own margin/edited price
+- [x] Excel import/export 29-column layout (`% de ganancia`, `Precio editado`), regenerated demo workbook
+- [x] Frontend: product form pricing fields + live effective-price summary, list columns, Pricing tab, i18n
+- [x] Tests: Rust (pricing/import migrations) + Vitest (pricing domain, Product 360 tabs); `npm test` 452 green
+- [x] Docs: products.md, import-export.md, CHANGELOG, IMPLEMENTATION_STATUS, `MILESTONE_15.md`
 
 ---
 

@@ -135,3 +135,15 @@ Feature marker: **in-progress from 2026-09-18.**
 - [x] `npm run verify` green
 - [ ] Live app check: run against single-store / multi-store / empty DBs
 - [ ] Final implementation report (`docs/IMPLEMENTATION_REPORT.md`)
+
+## Per-Product Pricing & Gains Milestone (2026-09-24)
+
+### Status
+- [x] Pricing domain (`src-tauri/src/pricing.rs`, mirrored in `src/lib/pricing.ts`)
+- [x] Schema v14 additive migration + seed with implied margins
+- [x] Backend: effective-price resolution on create/update, global-default reprice, pricing audit
+- [x] Excel import/export 29-column layout with `% de ganancia` / `Precio editado`
+- [x] Frontend: product form pricing fields, list columns, Pricing tab, i18n (es/en)
+- [x] Tests: Rust pricing/import (10 each), Vitest pricing domain + Product 360 tabs
+- [x] Docs: `docs-site/inventory/products.md`, `import-export.md`, CHANGELOG, ROADMAP, `MILESTONE_15.md`
+- [x] `npm test` green (452), `cargo test --lib` 118 passed (2 pre-existing config failures)
