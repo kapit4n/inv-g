@@ -92,6 +92,8 @@ assertion was widened to the invariant instead of the literal.
 `tests/regression/bug-010-page-header-clipped.test.ts` (new),
 `tests/regression/bug-007-tab-bar-clipping.test.ts`.
 
+**Commit:** `cff7588`
+
 ---
 
 ### 2026-09-25 — Picking a date left the calendar open with no way to close it
