@@ -184,20 +184,34 @@ pub struct PaginatedResult<T> {
     pub total_pages: i64,
 }
 
+/// Runs a paginated `SELECT *` plus a matching `COUNT(*)` over `table`.
+///
+/// `where_clause` is appended verbatim and must reference the caller's
+/// parameters as `?1..?{params.len()}` (they may be reused, e.g. `LIKE ?1`).
+/// `LIMIT`/`OFFSET` are appended afterwards with the *next* free indices, since
+/// SQLite numbers parameters by first appearance across the whole statement —
+/// reusing `?1`/`?2` would silently feed the LIKE pattern to `LIMIT`.
 fn paginate<T, F>(conn: &rusqlite::Connection, table: &str, page: i64, page_size: i64, where_clause: &str, params: Vec<Box<dyn rusqlite::types::ToSql>>, mapper: F) -> Result<PaginatedResult<T>, String>
 where F: Fn(&rusqlite::Row) -> rusqlite::Result<T>
 {
     let offset = (page - 1) * page_size;
-    let param_refs: Vec<&dyn rusqlite::types::ToSql> = params.iter().map(|p| p.as_ref()).collect();
-    let total: i64 = conn.query_row(
-        &format!("SELECT COUNT(*) FROM {}", table),
-        param_refs.as_slice(), |row| row.get(0)
-    ).map_err(|e| e.to_string())?;
+    let filter_params = params.len();
+
+    // The count must honour the same filter, otherwise the total (and thus
+    // total_pages) would describe the unfiltered table.
+    let total: i64 = {
+        let param_refs: Vec<&dyn rusqlite::types::ToSql> = params.iter().map(|p| p.as_ref()).collect();
+        conn.query_row(
+            &format!("SELECT COUNT(*) FROM {} {}", table, where_clause),
+            param_refs.as_slice(), |row| row.get(0)
+        ).map_err(|e| e.to_string())?
+    };
 
     let data = {
-        let mut stmt = conn.prepare(
-            &format!("SELECT * FROM {} {} ORDER BY id DESC LIMIT ?1 OFFSET ?2", table, where_clause)
-        ).map_err(|e| e.to_string())?;
+        let mut stmt = conn.prepare(&format!(
+            "SELECT * FROM {} {} ORDER BY id DESC LIMIT ?{} OFFSET ?{}",
+            table, where_clause, filter_params + 1, filter_params + 2
+        )).map_err(|e| e.to_string())?;
         let mut all_params = params;
         all_params.push(Box::new(page_size));
         all_params.push(Box::new(offset));
@@ -904,6 +918,109 @@ mod tests {
         assert_eq!(result["page"], 1);
         assert!(result["data"].is_array());
     }
+
+    // ── paginate() regression tests ──────────────────────────────────────
+    // `paginate` is used by get_products; its parameter numbering and its
+    // COUNT query used to break the product search.
+
+    use super::paginate;
+    use rusqlite::Connection;
+
+    fn products_conn() -> Connection {
+        let c = Connection::open_in_memory().unwrap();
+        c.execute_batch(
+            "CREATE TABLE products (
+               id INTEGER PRIMARY KEY, name TEXT, sku TEXT, barcode TEXT,
+               oem_number TEXT, internal_code TEXT
+             );
+             INSERT INTO products (name, sku) VALUES ('Brake Pad Set', 'BP-100');
+             INSERT INTO products (name, sku) VALUES ('Oil Filter', 'OIL-200');
+             INSERT INTO products (name, sku) VALUES ('Spark Plug', 'SPK-300');
+             INSERT INTO products (name, sku) VALUES ('Oil Filter Premium', 'OIL-300');",
+        )
+        .unwrap();
+        c
+    }
+
+    /// Same WHERE clause shape as get_products: a single `?1` reused by every
+    /// LIKE, plus LIMIT/OFFSET appended by paginate.
+    const SEARCH_WHERE: &str = "WHERE name LIKE ?1 OR sku LIKE ?1 OR barcode LIKE ?1 \
+                                 OR oem_number LIKE ?1 OR internal_code LIKE ?1";
+
+    fn search(c: &Connection, term: &str, page: i64, page_size: i64) -> super::PaginatedResult<(i64, String)> {
+        let params: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(format!("%{}%", term))];
+        paginate(c, "products", page, page_size, SEARCH_WHERE, params, |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        })
+        .unwrap_or_else(|e| panic!("paginate failed: {}", e))
+    }
+
+    #[test]
+    fn paginate_search_returns_matching_rows() {
+        let c = products_conn();
+        let res = search(&c, "Oil", 1, 20);
+        let names: Vec<&str> = res.data.iter().map(|(_, n)| n.as_str()).collect();
+        assert_eq!(names.len(), 2, "search must return both Oil Filter rows");
+        assert!(names.iter().all(|n| n.contains("Oil")));
+    }
+
+    #[test]
+    fn paginate_total_reflects_the_filter() {
+        let c = products_conn();
+        // 4 products overall, 2 match.
+        assert_eq!(search(&c, "Oil", 1, 20).total, 2);
+        assert_eq!(search(&c, "Brake", 1, 20).total, 1);
+    }
+
+    #[test]
+    fn paginate_search_narrows_total_pages() {
+        let c = products_conn();
+        let res = search(&c, "Oil", 1, 1);
+        assert_eq!(res.data.len(), 1);
+        assert_eq!(res.total, 2);
+        assert_eq!(res.total_pages, 2);
+    }
+
+    /// A multi-parameter filter must not have its `?1` stolen by LIMIT.
+    #[test]
+    fn paginate_handles_multiple_filter_params() {
+        let c = products_conn();
+        let where_clause = "WHERE (name LIKE ?1 OR sku LIKE ?1) AND id > ?2";
+        let params: Vec<Box<dyn rusqlite::types::ToSql>> =
+            vec![Box::new("%Filter%".to_string()), Box::new(1i64)];
+        let res = paginate(&c, "products", 1, 20, where_clause, params, |row| {
+            Ok(row.get::<_, String>(1)?)
+        })
+        .unwrap();
+        // Both "Oil Filter" rows match "%Filter%" with id > 1, ordered id DESC.
+        assert_eq!(res.data, vec!["Oil Filter Premium".to_string(), "Oil Filter".to_string()]);
+        assert_eq!(res.total, 2);
+    }
+
+    #[test]
+    fn paginate_without_filter_returns_everything() {
+        let c = products_conn();
+        let res: super::PaginatedResult<(i64, String)> =
+            paginate(&c, "products", 1, 20, "", vec![], |row| {
+                Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+            })
+            .unwrap();
+        assert_eq!(res.data.len(), 4);
+        assert_eq!(res.total, 4);
+        assert_eq!(res.total_pages, 1);
+    }
+
+    #[test]
+    fn paginate_second_page_returns_remaining_rows() {
+        let c = products_conn();
+        let res: super::PaginatedResult<(i64, String)> =
+            paginate(&c, "products", 2, 3, "", vec![], |row| {
+                Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+            })
+            .unwrap();
+        // Ordered by id DESC: ids 4,3,2 on page 1; id 1 on page 2.
+        assert_eq!(res.data.len(), 1);
+        assert_eq!(res.data[0].0, 1);
+        assert_eq!(res.total, 4);
+    }
 }
-
-

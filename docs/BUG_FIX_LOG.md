@@ -6,6 +6,64 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-25 — Product list search returned an error (paginate: COUNT missing WHERE, LIMIT stole the filter parameter)
+
+**Symptom:**
+- On **Inventory → Products**, typing in the list search produced no results —
+  the table went to its error/empty state instead of filtering. Unfiltered
+  loading worked fine.
+
+**Investigation:**
+1. Read `products-page.tsx`: `onSearch={setSearch}` → `getProducts(page, pageSize,
+   search || undefined)`, debounced 300 ms inside `DataTable`. Looked correct.
+2. Wrote a scratch test rendering `ProductsPage` with `getProducts` mocked to
+   filter in memory. **Search worked** — so the React wiring, the debounce and
+   the wrapper were all fine; the defect had to be in the real SQL path that the
+   mock bypassed.
+3. Read `get_products` (`commands/inventory.rs:638`): the WHERE clause reuses
+   `?1` across five `LIKE`s and hands one param to `paginate`.
+4. Read `paginate` (`:187`) and found two defects, then confirmed the first with
+   an in-memory SQLite probe that ran the exact `get_products` shape.
+
+**Root cause:**
+- `paginate` built the count query as `SELECT COUNT(*) FROM {table}` — **without**
+  the `where_clause` — while still binding the caller's filter parameters to it.
+  SQLite rejects that outright:
+  `Wrong number of parameters passed to query. Got 1, needed 0`.
+  Any search term therefore hard-failed the whole command.
+- `paginate` also appended `LIMIT ?1 OFFSET ?2` to the data query. SQLite numbers
+  parameters by *first appearance across the whole statement*, and the caller's
+  WHERE already used `?1`, so `LIMIT` would have been handed the `LIKE` pattern
+  (coerced to `0` → zero rows). Latent behind the first bug, but wrong.
+- Consequently `total`/`total_pages` would have described the **unfiltered**
+  table, so the row counter would have been wrong even once rows appeared.
+
+**Fix:**
+- `src-tauri/src/commands/inventory.rs` — `paginate` now:
+  - counts with the same `where_clause`
+    (`SELECT COUNT(*) FROM {table} {where_clause}`), so `total`/`total_pages`
+    reflect the filter;
+  - numbers `LIMIT`/`OFFSET` as `?{filter_params+1}` / `?{filter_params+2}`, so
+    they can never collide with the caller's `?1..?N`;
+  - documents the contract for callers on the function's doc comment.
+- No frontend change was needed.
+
+**Affected files:**
+- `src-tauri/src/commands/inventory.rs`
+
+**Commit:** (see `docs/progress/MILESTONE_16.md`)
+
+**Tests added** (`inventory::tests`, 6): search returns matching rows; `total`
+reflects the filter; `total_pages` narrows; a multi-parameter filter keeps its
+`?1` (the LIMIT-collision case); no filter returns everything; page 2 returns
+the remainder.
+
+**Verification:** `cargo test` 133 pass (was 127); `npm run typecheck` clean;
+`npm run lint` 0 errors; `npm test` 58 files / 461 tests pass. The 2
+`config.rs` failures remain the pre-existing environment-dependent ones.
+
+---
+
 ### 2026-09-25 — Product picker showed no products in the Equivalents tab
 
 **Symptom:**
