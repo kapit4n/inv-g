@@ -10,6 +10,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Page headers are no longer hidden under the top bar.** On *Inventario →
+  Fabricantes* the title was sliced by the bottom edge of the top bar while the
+  rest of the page rendered normally. The scroll container's only child used
+  `h-full` (`height: 100%`), a percentage resolved against a flex-item height
+  that can disagree with the box being scrolled — so `main` could acquire
+  scrollable overflow on a page that fits, and a scrolled short page clips its
+  first line box. The child is now `min-h-full` and `main` carries `min-h-0`, so
+  a page shorter than the viewport can never scroll.
+- **The top bar no longer labels unmapped pages "Panel de Control".** Its title
+  came from a hand-written list of thirteen routes that had drifted from the
+  sidebar — *Fabricantes* was not on it. Titles are now resolved from the
+  sidebar's navigation config by longest matching path, and an unknown route
+  falls back to its section's name.
 - **Date fields no longer leave the calendar stuck open.** Choosing a date in
   *Compras → Nueva orden de compra → Entrega Esperada* left the calendar on
   screen with no way to dismiss it. The field used a native

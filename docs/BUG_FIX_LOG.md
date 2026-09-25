@@ -6,6 +6,94 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-25 — A page header was hidden under the top bar, and the page called itself "Panel de Control"
+
+**Symptom:** on *Inventario → Fabricantes* the page title was cut in half by the
+bottom edge of the top bar — only the last four rows of "Fabricantes" were
+visible, while the description, the *Agregar Fabricante* button and the table
+rendered normally below it. The top bar itself read "Panel de Control".
+
+**Root cause: two defects, one report.**
+
+**1. The scroll container could report scrollable overflow on a page that fits.**
+`main` is the scroll container of the content column, and its only child carried
+`h-full` — `height: 100%`. A percentage height resolves against the containing
+block, and the containing block's own height is a *flex item* height, resolved
+from the free space of the column. Those two resolutions are not guaranteed to
+agree, so the child can end up computed taller than the box `main` actually
+scrolls. `main` then has scrollable overflow out of nothing, even though the page
+content is only a few hundred pixels tall — and `overflow` clips at the padding
+edge, so a scrolled short page shows its first line box sliced by the top of
+`main`.
+
+The screenshot is that state precisely. Measured off the image: `main` 927px
+tall, its child 45px taller, `scrollTop` 45, `h1` line box at 35 relative to the
+viewport where a correct layout puts it at 80, and *every* following element —
+description, button, table borders, pagination — displaced upward by the same
+45px. Nothing else in the app could produce that: a uniform shift of all page
+content, with the clipping happening exactly at `main`'s top edge, is the
+signature of a scroll offset and nothing else.
+
+**2. The top bar's title came from a hand-written map of thirteen routes.**
+`routeNameKeys` in `top-bar.tsx` fell back to `dashboard.title` for any path it
+did not list. `/inventory/manufacturers` was not listed — nor were most of the
+eleven child pages under *Inventario* — so the page announced itself as "Panel de
+Control", the very label the user described the header as being hidden
+underneath. The map had also drifted from the sidebar: it carried
+`inventory.transfersTitle` where the sidebar says `inventory.storeTransfers`, and
+listed `/customers`, `/vehicles`, `/reports` and `/employees`, which the sidebar
+files under *CRM* and secondary navigation.
+
+**Investigation, including what was ruled out.** The screenshot is 1920×1080 with
+the window at (70, 69), so the webview is 1850×1011; the sidebar measures 256px
+(`w-64`) and the top bar 56px (`h-14`) in screenshot pixels, which pins device
+pixel ratio 1 and rules out a scaled or HiDPI capture. `dist/` was confirmed
+stale (built 15:41, predating the `min-w-0` fix at 15:47) but that build only
+explains *horizontal* clipping, and the app was running through Vite at
+`localhost:5173`, so `dist/` was not what the screenshot rendered. The live app
+was then measured in the same engine at the same size with a stubbed Tauri IPC,
+and it reported `h1.top = 80`, `scrollTop = 0`, `scrollHeight === clientHeight`
+— i.e. the faulty state did not reproduce on demand, which is expected of a
+height-resolution disagreement and is why the invariant was removed rather than
+the trigger chased.
+
+**Fix.**
+
+- `app-shell.tsx`: the child is now `min-h-full` instead of `h-full`, and `main`
+  gains `min-h-0` with `overflow-y-auto overflow-x-hidden`. `min-h-full` cannot
+  exceed its container, so a page shorter than `main` can no longer produce
+  scrollable overflow at all; `min-h-0` lets the flex item shrink below its
+  content so `main` is the only box that scrolls. Horizontal scrolling stays with
+  the tables that need it, which scroll in their own container.
+- `top-bar.tsx`: the hand-written map is gone. Titles are resolved from the
+  sidebar's own navigation config — the single source of truth, so a page cannot
+  drift from the menu again — matching the **longest** href prefix, so
+  `/inventory/manufacturers/7/edit` reports "Fabricantes" and not "Inventario". A
+  route with no nav entry falls back to its section's label rather than to the
+  dashboard.
+- `src/config/navigation.ts`: new module holding `navigation` /
+  `secondaryNavigation` (moved verbatim out of `sidebar.tsx`, which now imports
+  them) plus `resolveRouteNameKey`. Nothing about the menu itself changed.
+
+**Tests.** `tests/regression/bug-010-page-header-clipped.test.ts`, 9 tests. The
+layout half asserts the invariant against the source, since jsdom performs no
+layout; reverting `min-h-full`/`min-h-0` fails 2 of them. The title half drives
+the real resolver: nested paths, longest-prefix preference, the routes the old map
+covered, trailing slashes, and the case that motivated the prefix rule —
+`/inventory/manufacturers-archive` must *not* resolve through
+`/inventory/manufacturers`. Frontend: 479 → **488**.
+
+`bug-007-tab-bar-clipping.test.ts` asserted main's exact old className string.
+Its intent — main shrinks and main is what scrolls — is unchanged, so the
+assertion was widened to the invariant instead of the literal.
+
+**Files.** `src/layouts/app-shell.tsx`, `src/layouts/top-bar.tsx`,
+`src/layouts/sidebar.tsx`, `src/config/navigation.ts` (new),
+`tests/regression/bug-010-page-header-clipped.test.ts` (new),
+`tests/regression/bug-007-tab-bar-clipping.test.ts`.
+
+---
+
 ### 2026-09-25 — Picking a date left the calendar open with no way to close it
 
 **Symptom:** in *Compras → Nueva orden de compra*, choosing a date in

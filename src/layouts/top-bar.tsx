@@ -32,22 +32,26 @@ import { runSeeds } from "@/lib/tauri"
 import { NotificationPanel } from "@/components/notification-panel"
 import { StoreSelector } from "@/components/store-selector"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { resolveRouteNameKey } from "@/config/navigation"
 
-const routeNameKeys: Record<string, string> = {
-  "/dashboard": "dashboard.title",
-  "/sales": "sales.title",
-  "/inventory": "inventory.title",
-  "/inventory/movements": "inventory.inventoryMovements",
-  "/inventory/transfers": "inventory.transfersTitle",
-  "/purchases": "purchases.title",
-  "/customers": "customers.title",
-  "/suppliers": "suppliers.title",
-  "/vehicles": "vehicles.title",
-  "/warehouse": "warehouse.title",
-  "/reports": "reports.title",
-  "/employees": "employees.title",
-  "/settings": "settings.title",
-  "/help": "help.title",
+/**
+ * Section labels used when a route has no sidebar entry of its own, so an
+ * unmapped page never borrows the dashboard title.
+ */
+const sectionNameKeys: Record<string, string> = {
+  dashboard: "dashboard.title",
+  sales: "sales.title",
+  inventory: "inventory.title",
+  purchases: "purchases.title",
+  crm: "crm.title",
+  suppliers: "suppliers.title",
+  "part-finder": "part-finder.title",
+  warehouse: "warehouse.title",
+  reports: "reports.title",
+  employees: "employees.title",
+  settings: "settings.title",
+  manual: "help.userManual",
+  help: "help.title",
 }
 
 export function TopBar() {
@@ -71,7 +75,11 @@ export function TopBar() {
     setTheme(next as Theme)
   }
 
-  const currentPageKey = routeNameKeys[location.pathname] || "dashboard.title"
+  const sectionKey = location.pathname.split("/")[1] ?? ""
+  const currentPageKey =
+    resolveRouteNameKey(location.pathname) ??
+    sectionNameKeys[sectionKey] ??
+    "dashboard.title"
   const ThemeIcon = theme === "dark" ? Moon : theme === "light" ? Sun : Monitor
 
   return (
