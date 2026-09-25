@@ -6,6 +6,75 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-25 — Sale detail page rendered `{{count}} artículos` instead of the item count
+
+**Symptom:** on *Ventas → venta individual*, a literal `{{count}}` appeared under
+the tab bar, where the item count should be. Reported alongside the tab names
+"Detalles", "Pagos" and "Recibos" being hidden.
+
+**The tab names were never broken.** Rendering the page with the real i18next
+resources and dumping the DOM showed the tabs present and correct:
+`Detalles | Pagos | Reembolsar | ...`, and `sales.details`, `sales.payments`,
+`sales.receipts` all resolve. The broken string sat immediately *below* the tab
+bar, which is what made it look as though the tabs were at fault.
+
+**Root cause:** `sales.items` was `"{{count}} artículos"`, and three call sites
+invoked it with no interpolation argument:
+
+- `sale-detail-page.tsx:201` - `t("sales.items")} ({items.length})`, so the page
+  read `{{count}} artículos (1)`: a broken placeholder *and* a count appended
+  separately.
+- `sale-detail-page.tsx:415` - refund summary label.
+- `quote-detail-page.tsx:124` - quote items heading.
+
+i18next substitutes only the arguments it is given, so a missing `count` is not
+replaced - the placeholder is emitted verbatim.
+
+**Investigation, including two wrong turns worth recording.** The first scanner
+built namespace-qualified keys from the JSON file *name* and reported six
+offenders; re-running with the filename as the namespace produced a different
+wrong answer of 320 missing keys, because i18next is configured with
+`nsSeparator: "."` and resolves `commandPalette.placeholder` and
+`admin.about.title` as namespace `common`/`admin` respectively. Both scans were
+fiction. Only querying the real i18next settled it: `admin.about.title` resolves
+to "Acerca de" and `commandPalette.placeholder` to "Escribe un comando o
+busca...", so all 320 were false positives, while `inventory.previewTable` is
+genuinely missing and renders as its own key.
+
+**Fix:** every call site now passes `count`, and the translation was split so a
+count-less call degrades cleanly instead of leaking a placeholder:
+
+```json
+"items":       "Artículos",
+"items_one":   "{{count}} artículo",
+"items_other": "{{count}} artículos"
+```
+
+Dropping the bare `{{count}}` string is deliberate: a future call site that
+forgets `count` renders "Artículos" rather than `{{count}} artículos`. This also
+fixes the agreement the old key could not express - `1 artículos` is now
+`1 artículo`, via i18next pluralisation, which the project had not used before.
+
+**Regression test:** `tests/regression/bug-006-i18n-placeholder-leak.test.tsx`
+renders the page with real translations and asserts no `{{...}}` reaches the DOM,
+that the tab names are present, and that the count agrees in number.
+
+That guard could not be validated by reinstating the original bug, because the
+fix removes the placeholder from the base key - restoring `count`-less calls now
+renders "Artículos (1)", which is correct-by-design. So the guard was mutation
+tested by putting a placeholder back into the base key instead; it fails with
+`unresolved i18n placeholders rendered: {{count}}`, and the singular/plural
+assertion covers the original regression.
+
+**Result:** 467 frontend tests across 60 files (was 464/59).
+
+**Also noticed, not fixed:** `no-print` is applied to four elements on this page
+but is defined nowhere in the project and there is no `@media print` rule
+outside `print-dialog.tsx`, so printing a sale still emits the action buttons and
+the tab bar. Unrelated to the reported symptom, and left alone.
+
+---
+
 ### 2026-09-25 — "Abrir Caja" never saved: the command deadlocked on the DB mutex
 
 **Symptom:** after the amount field was fixed (below), opening *Ventas → Caja

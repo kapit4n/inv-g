@@ -121,7 +121,7 @@ export function QuoteDetailPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <Card>
-            <CardHeader><CardTitle className="text-base">{t("sales.items")}</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">{t("sales.items", { count: items.length })}</CardTitle></CardHeader>
             <CardContent>
               <table className="w-full text-sm">
                 <thead>

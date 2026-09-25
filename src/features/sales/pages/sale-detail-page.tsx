@@ -198,7 +198,7 @@ export function SaleDetailPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
-                    <Receipt className="h-4 w-4" /> {t("sales.items")} ({items.length})
+                    <Receipt className="h-4 w-4" /> {t("sales.items", { count: items.length })}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
