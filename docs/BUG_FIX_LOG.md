@@ -38,7 +38,7 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 **Files:** `src-tauri/src/db/seed.rs`, `src-tauri/src/commands/admin/settings.rs`,
 `docs-site/public/samples/inventory-gear-product-import-example.xlsx`.
-**Commit:** `(commit)`
+**Commit:** `40a77d0`
 
 ---
 

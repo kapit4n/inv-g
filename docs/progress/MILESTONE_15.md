@@ -1,6 +1,6 @@
 # Milestone 15 — Per-Product Pricing & Gains
 
-**Status:** Complete
+**Status:** Complete (`40a77d0`, 2026-09-24)
 
 ## Summary
 

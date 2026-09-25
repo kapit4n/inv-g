@@ -25,7 +25,7 @@
 | 11 | Administration Frontend | ✅ | `174da30`, `55a6252`, `d331084` |
 | 12 | Automated Screenshot Framework & Artifacts | ✅ | `1e60da7` … `3b6484e` |
 | 13 | Enterprise Quality Assurance & Testing | ✅ | `f2d9495` |
-| 15 | Per-Product Pricing & Gains | ✅ | `(commit)` |
+| 15 | Per-Product Pricing & Gains | ✅ | `40a77d0` |
 | 14 | Database Profiles (single/multi-store) | ✅ | (feature-gated; see `docs/progress/MILESTONE_14.md`) |
 
 ---
@@ -238,7 +238,7 @@
 ---
 
 ## Milestone 15: Per-Product Pricing & Gains ✅
-**Status:** Complete (commit `(commit)`)
+**Status:** Complete (commit `40a77d0`)
 **Complexity:** Medium
 **Dependencies:** Milestone 5 (inventory)
 

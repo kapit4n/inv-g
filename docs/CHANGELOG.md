@@ -8,7 +8,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased] - Per-product pricing & gains
 
-> Shipped in `(commit)` — see `docs/progress/MILESTONE_15.md`.
+> Shipped in `40a77d0` — see `docs/progress/MILESTONE_15.md`.
 
 ### Added
 
