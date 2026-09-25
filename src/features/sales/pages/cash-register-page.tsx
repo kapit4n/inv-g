@@ -131,7 +131,7 @@ export function CashRegisterPage() {
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
         <DialogContent>
           <DialogHeader><DialogTitle>{t("openCashRegister")}</DialogTitle></DialogHeader>
-          <TextField label={t("openingBalance")} type="number" value={openingBalance} onChange={(v) => setOpeningBalance(Number(v))} />
+          <TextField label={t("openingBalance")} type="number" value={openingBalance} onChange={(e) => setOpeningBalance(Number(e.target.value) || 0)} />
           <TextareaField label={t("notes")} value={notes} onChange={(e) => setNotes(e.target.value)} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenDialog(false)}>{t("cancel")}</Button>
@@ -143,7 +143,7 @@ export function CashRegisterPage() {
       <Dialog open={closeDialog} onOpenChange={setCloseDialog}>
         <DialogContent>
           <DialogHeader><DialogTitle>{t("closeCashRegister")}</DialogTitle></DialogHeader>
-          <TextField label={t("closingBalanceCount")} type="number" value={closingBalance} onChange={(v) => setClosingBalance(Number(v))} />
+          <TextField label={t("closingBalanceCount")} type="number" value={closingBalance} onChange={(e) => setClosingBalance(Number(e.target.value) || 0)} />
           <TextareaField label={t("notes")} value={notes} onChange={(e) => setNotes(e.target.value)} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setCloseDialog(false)}>{t("cancel")}</Button>

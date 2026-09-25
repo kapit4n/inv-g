@@ -6,6 +6,78 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-25 — "Abrir Caja": the initial amount field rejected every keystroke
+
+**Symptom:** opening *Ventas → Caja Registradora → Abrir Caja* and trying to type
+the opening balance did nothing. The field would not accept numbers. The same
+field in *Cerrar Caja* was equally dead.
+
+**Root cause:** the codebase has two different `onChange` contracts and they are
+not interchangeable:
+
+| Component | Contract |
+|---|---|
+| `SelectField`, `Combobox` | `onChange(value: string)` |
+| `Input`, `TextField`, `TextareaField` | `onChange(event)` |
+
+`TextField` (`src/components/forms/text-field.tsx`) extends
+`React.InputHTMLAttributes<HTMLInputElement>` and spreads its props straight onto
+a native `<input>`, so it delivers a **ChangeEvent**. The field was written as if
+it delivered a value:
+
+```tsx
+<TextField type="number" value={openingBalance}
+           onChange={(v) => setOpeningBalance(Number(v))} />
+```
+
+`Number(changeEvent)` is `NaN`. Every keystroke therefore stored `NaN`, and a
+controlled `<input type="number">` whose value is `NaN` renders as an
+unparseable/empty field — so the input looked frozen rather than erroring. The
+failure was silent by construction: no console output, no thrown error, just a
+box that would not take a number.
+
+**Investigation:** traced the symptom from the page to the shared form
+component, then read the two component contracts to establish which usages were
+legitimate. Confirmed the frontend genuinely calls the sibling commands as
+`invoke("test_device", { id })`-style payloads elsewhere, so parameter naming is
+a live contract and could not be hand-waved. Rather than eyeball ~200 call sites,
+scanned the source for `onChange={(v|val|value) =>` and resolved the enclosing
+component for each hit: every `SelectField` usage was correct, and exactly **four
+native inputs** were wrong — two in `cash-register-page.tsx` (open *and* close)
+and two in `quote-form-page.tsx` (`taxRate`, `discountAmount`). The quote form
+had the same dead tax-rate and discount fields, unreported until now.
+
+**Fix:** read `e.target.value` in all four, using the codebase's established
+`Number(e.target.value) || 0` form (the `|| 0` keeps an emptied field at 0
+instead of `NaN`).
+
+**Regression test:** `tests/regression/bug-004-input-onchange-contract.test.ts`
+reads the source and fails on any native input whose handler consumes its
+argument as a value. The existing regression tests reimplement the logic under
+test, which structurally could not have caught this — the bug was in the wiring,
+not the arithmetic.
+
+The first version of that test was **vacuous and I caught it by mutation
+testing**: it passed with the bug deliberately reintroduced. Two defects, both
+in the scanner: it truncated the element at the first `>`, which is the arrow in
+`onChange={(v) => ...}`, so the handler was never even seen; and the "is this an
+event" predicate required a literal leading dot, so every correct
+`setSearch(e.target.value)` was a false positive (188 of them). After fixing
+brace-depth tracking and the predicate, the test reports exactly 1 offender with
+the bug present and 0 with it fixed.
+
+**Result:** 464 frontend tests across 59 files (was 461/58).
+
+**Files:** `src/features/sales/pages/cash-register-page.tsx`,
+`src/features/sales/pages/quote-form-page.tsx`,
+`tests/regression/bug-004-input-onchange-contract.test.ts`
+
+**Noticed, not fixed:** `openCashRegister(1, ...)` hardcodes user id `1` instead
+of the signed-in user, so a session is always attributed to whoever that id is.
+Separate pre-existing issue, left alone here.
+
+---
+
 ### 2026-09-25 — Rust build became strict in CI and failed on 29 pre-existing warnings
 
 **Symptom:** after fixing `npm ci`, the Windows workflow still failed, this time

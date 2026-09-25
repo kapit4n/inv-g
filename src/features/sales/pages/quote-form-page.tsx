@@ -163,8 +163,8 @@ export function QuoteFormPage() {
         <div className="space-y-4">
           <Card><CardContent className="p-4 space-y-3">
             <CustomerSearchField label={t("sales.customer")} value={customerId} onChange={setCustomerId} />
-            <TextField label={t("taxRate")} type="number" value={taxRate * 100} onChange={(v) => setTaxRate(Number(v) / 100)} />
-            <TextField label={t("discount")} type="number" value={discountAmount} onChange={(v) => setDiscountAmount(Number(v))} />
+            <TextField label={t("taxRate")} type="number" value={taxRate * 100} onChange={(e) => setTaxRate((Number(e.target.value) || 0) / 100)} />
+            <TextField label={t("discount")} type="number" value={discountAmount} onChange={(e) => setDiscountAmount(Number(e.target.value) || 0)} />
             <TextField label={t("validUntil")} type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
           </CardContent></Card>
 
