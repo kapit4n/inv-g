@@ -191,7 +191,7 @@ pub struct PaginatedResult<T> {
 /// `LIMIT`/`OFFSET` are appended afterwards with the *next* free indices, since
 /// SQLite numbers parameters by first appearance across the whole statement —
 /// reusing `?1`/`?2` would silently feed the LIKE pattern to `LIMIT`.
-fn paginate<T, F>(conn: &rusqlite::Connection, table: &str, page: i64, page_size: i64, where_clause: &str, params: Vec<Box<dyn rusqlite::types::ToSql>>, mapper: F) -> Result<PaginatedResult<T>, String>
+pub(crate) fn paginate<T, F>(conn: &rusqlite::Connection, table: &str, page: i64, page_size: i64, where_clause: &str, params: Vec<Box<dyn rusqlite::types::ToSql>>, mapper: F) -> Result<PaginatedResult<T>, String>
 where F: Fn(&rusqlite::Row) -> rusqlite::Result<T>
 {
     let offset = (page - 1) * page_size;
@@ -648,13 +648,19 @@ fn insert_product_audit(conn: &rusqlite::Connection, user_id: Option<i64>, actio
     .ok();
 }
 
+/// Filter for the product list search. Reuses a single `?1` across every LIKE,
+/// which is what makes the `?N`-collision class of bug possible — keep it in
+/// sync with `paginate`'s contract (see `paginate`).
+pub(crate) const PRODUCTS_SEARCH_WHERE: &str =
+    "WHERE name LIKE ?1 OR sku LIKE ?1 OR barcode LIKE ?1 OR oem_number LIKE ?1 OR internal_code LIKE ?1";
+
 #[tauri::command]
 pub fn get_products(state: State<DbState>, page: i64, page_size: i64, search: Option<String>) -> Result<PaginatedResult<Product>, String> {
     let conn = get_conn(&state)?;
     let default_margin_pct = crate::pricing::get_default_margin(&conn);
     let (where_clause, params_vec) = if let Some(q) = search {
         let q = format!("%{}%", q);
-        ("WHERE name LIKE ?1 OR sku LIKE ?1 OR barcode LIKE ?1 OR oem_number LIKE ?1 OR internal_code LIKE ?1".to_string(), vec![Box::new(q) as Box<dyn rusqlite::types::ToSql>])
+        (PRODUCTS_SEARCH_WHERE.to_string(), vec![Box::new(q) as Box<dyn rusqlite::types::ToSql>])
     } else {
         ("".to_string(), vec![])
     };

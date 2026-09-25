@@ -6,6 +6,81 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-25 — Audit: verified every other search in the app
+
+**Context:** after fixing the Products-list search (`paginate`), every other
+search was suspect — same bug class ("SQL that reads right but binds the wrong
+thing"). Reviewed all 11 backend searches plus their frontend call sites.
+
+**Result: no further defects.** All 11 are correct. What was wrong was my
+*confidence*, not the code, so the value here is the 15 new tests that now
+prove it and keep it true.
+
+**Backend audit — 11 searches, all sound:**
+
+| Command | Params | Verdict |
+|---|---|---|
+| `get_products` | `?1` reused ×5 + `LIMIT ?{n+1}` | fixed previously |
+| `search_products_for_pos` | `?1` reused ×5, `LIMIT 50` literal | ok |
+| `global_product_search` | `?1`..`?4` distinct (exact/prefix/contains/limit) | ok |
+| `search_sales` | `?1` reused ×2, `LIMIT 20` literal | ok |
+| `cross_reference_search` | `?1` exact + `?2` LIKE, ×2 statements | ok |
+| `get_customers` | `?1` reused ×3 | ok |
+| `get_vehicle_brands` / `get_vehicle_engines` | `?1` | ok |
+| `get_vehicle_models` | `?1` brand, `?2` search | ok |
+| `search_compatible_products` | up to `?6`; `year` correctly claims **two** indices | ok |
+| `get_purchase_orders` | 7 filters, each claiming `len()+1` | ok |
+
+The `?N` literals in `LIMIT` clauses are what keep the POS/sales/cross-ref
+searches safe — a literal cannot be bound, so it cannot steal `?1`.
+
+**Frontend audit:** all 10 `src/lib/tauri.ts` wrappers forward their search arg;
+every `useQuery` key includes the debounced search term; `sales-page` and
+`use-product-search` gate with `enabled`; `crm-compatibility-page` passes
+`search` in the correct positional slot. No query key omits its search term.
+
+**Tests added** — `src-tauri/src/commands/search_tests.rs`, 15 tests:
+- A parameter-index invariant test asserting the highest `?N` in each search
+  statement equals the number of bound values — the exact invariant the original
+  bug violated.
+- The real schema (`db::schema::create_tables`) seeded in memory. The 6
+  `DB_STATE`-backed commands are invoked **as real functions**; the 5 behind
+  `State<DbState>` (whose SQL was extracted to `pub(crate)` consts so there is no
+  duplicated SQL to drift) are executed through those consts.
+- `purchase_order_filter` — its condition builder was extracted from the command
+  into a pure function and is tested across all 9 filter subsets the UI can send.
+- `compatible_products_search_binds_after_every_other_filter` — pins the risky
+  case where `search` lands on `?6` behind four other filters.
+- `products_search_matches_each_searched_column` — name, sku, barcode,
+  oem_number, internal_code each confirmed individually.
+
+**Tests proven to catch the original bugs (mutation-checked):** reinstating
+`COUNT` without the `WHERE`, and separately reinstating `LIMIT ?1`, each makes
+exactly the 3 `paginate` tests fail and nothing else. An early version of the
+suite *cascaded* 8 failures from 1 bug, because a panic while holding the shared
+`Mutex` poisoned it and the commands turn a poisoned lock into an `Err`; the
+helpers now release the connection before failing, so failures stay independent.
+
+**Observations (not changed — flagged for a decision):**
+1. The product **list** has no `is_active` filter, while the POS search does
+   (`AND p.is_active = 1`). A discontinued product is therefore findable in
+   Inventory → Products but not sellable at the POS. Pinned by
+   `products_search_paginates_and_surfaces_inactive_items` so changing it is
+   deliberate.
+2. `crm-vehicles-page` filters brands/models **client-side** and calls
+   `getVehicleBrands()` / `getVehicleModels(brandId)` without `search`, so the
+   backend `search` parameter is unused from that page. Search works; it just
+   never exercises the server filter.
+3. `purchase-orders-page` has no debounce, so it fires a query per keystroke
+   (every other search page debounces). Performance, not correctness.
+
+**Files:** `src-tauri/src/commands/{search_tests.rs,mod.rs,inventory.rs,sales.rs,purchases.rs}`
+
+**Verification:** `cargo test` 148 pass (was 133); the 2 pre-existing
+`config.rs` failures unchanged.
+
+---
+
 ### 2026-09-25 — Product list search returned an error (paginate: COUNT missing WHERE, LIMIT stole the filter parameter)
 
 **Symptom:**

@@ -402,6 +402,61 @@ fn po_select_sql() -> &'static str {
      LEFT JOIN users ab ON po.approved_by = ab.id"
 }
 
+/// Builds the `WHERE` clause and bound values for `get_purchase_orders`.
+///
+/// Each filter claims the next free `?N` via `param_values.len() + 1`, so the
+/// indices stay in lockstep with the bound values. Split out from the command so
+/// tests can exercise the real builder instead of a copy of it.
+pub(crate) fn build_purchase_order_filter(
+    search: Option<&str>,
+    status: Option<&str>,
+    supplier_id: Option<i64>,
+    warehouse_id: Option<i64>,
+    buyer: Option<&str>,
+    date_from: Option<&str>,
+    date_to: Option<&str>,
+) -> (String, Vec<Box<dyn rusqlite::types::ToSql>>) {
+    let mut conditions: Vec<String> = Vec::new();
+    let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
+
+    if let Some(s) = search.filter(|s| !s.is_empty()) {
+        let n = param_values.len() + 1;
+        conditions.push(format!("(po.po_number LIKE ?{n} OR s.company_name LIKE ?{n} OR po.reference_number LIKE ?{n})"));
+        param_values.push(Box::new(format!("%{}%", s)));
+    }
+    if let Some(st) = status.filter(|s| !s.is_empty()) {
+        conditions.push(format!("po.status = ?{}", param_values.len() + 1));
+        param_values.push(Box::new(st.to_string()));
+    }
+    if let Some(sid) = supplier_id {
+        conditions.push(format!("po.supplier_id = ?{}", param_values.len() + 1));
+        param_values.push(Box::new(sid));
+    }
+    if let Some(wid) = warehouse_id {
+        conditions.push(format!("po.warehouse_id = ?{}", param_values.len() + 1));
+        param_values.push(Box::new(wid));
+    }
+    if let Some(b) = buyer.filter(|s| !s.is_empty()) {
+        conditions.push(format!("po.buyer LIKE ?{}", param_values.len() + 1));
+        param_values.push(Box::new(format!("%{}%", b)));
+    }
+    if let Some(df) = date_from.filter(|s| !s.is_empty()) {
+        conditions.push(format!("po.order_date >= ?{}", param_values.len() + 1));
+        param_values.push(Box::new(df.to_string()));
+    }
+    if let Some(dt) = date_to.filter(|s| !s.is_empty()) {
+        conditions.push(format!("po.order_date <= ?{}", param_values.len() + 1));
+        param_values.push(Box::new(dt.to_string()));
+    }
+
+    let where_clause = if conditions.is_empty() {
+        String::new()
+    } else {
+        format!("WHERE {}", conditions.join(" AND "))
+    };
+    (where_clause, param_values)
+}
+
 #[tauri::command]
 pub fn get_purchase_orders(
     state: State<DbState>,
@@ -414,52 +469,10 @@ pub fn get_purchase_orders(
     date_to: Option<String>,
 ) -> Result<Vec<PurchaseOrderResponse>, String> {
     let conn = get_conn(&state)?;
-    let mut conditions = Vec::new();
-    let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
-
-    if let Some(ref s) = search {
-        conditions.push(format!("(po.po_number LIKE ?{} OR s.company_name LIKE ?{} OR po.reference_number LIKE ?{})",
-            param_values.len() + 1, param_values.len() + 1, param_values.len() + 1));
-        param_values.push(Box::new(format!("%{}%", s)));
-    }
-    if let Some(ref st) = status {
-        if !st.is_empty() {
-            conditions.push(format!("po.status = ?{}", param_values.len() + 1));
-            param_values.push(Box::new(st.clone()));
-        }
-    }
-    if let Some(sid) = supplier_id {
-        conditions.push(format!("po.supplier_id = ?{}", param_values.len() + 1));
-        param_values.push(Box::new(sid));
-    }
-    if let Some(wid) = warehouse_id {
-        conditions.push(format!("po.warehouse_id = ?{}", param_values.len() + 1));
-        param_values.push(Box::new(wid));
-    }
-    if let Some(ref b) = buyer {
-        if !b.is_empty() {
-            conditions.push(format!("po.buyer LIKE ?{}", param_values.len() + 1));
-            param_values.push(Box::new(format!("%{}%", b)));
-        }
-    }
-    if let Some(ref df) = date_from {
-        if !df.is_empty() {
-            conditions.push(format!("po.order_date >= ?{}", param_values.len() + 1));
-            param_values.push(Box::new(df.clone()));
-        }
-    }
-    if let Some(ref dt) = date_to {
-        if !dt.is_empty() {
-            conditions.push(format!("po.order_date <= ?{}", param_values.len() + 1));
-            param_values.push(Box::new(dt.clone()));
-        }
-    }
-
-    let where_clause = if conditions.is_empty() {
-        String::new()
-    } else {
-        format!("WHERE {}", conditions.join(" AND "))
-    };
+    let (where_clause, param_values) = build_purchase_order_filter(
+        search.as_deref(), status.as_deref(), supplier_id, warehouse_id,
+        buyer.as_deref(), date_from.as_deref(), date_to.as_deref(),
+    );
 
     let sql = format!("{} {} ORDER BY po.created_at DESC", po_select_sql(), where_clause);
     let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;

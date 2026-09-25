@@ -418,23 +418,23 @@ fn map_quote(row: &rusqlite::Row) -> rusqlite::Result<Quote> {
 
 // ── POS Search ──
 
+/// Product search for the POS / order & quote forms. Reuses `?1` across every
+/// LIKE; `LIMIT 50` is a literal so it cannot steal a bound parameter.
+pub(crate) const SEARCH_PRODUCTS_FOR_POS_SQL: &str = "SELECT p.id, p.name, p.sku, p.barcode, p.sale_price, p.wholesale_price, p.stock_quantity, p.unit, p.image_url, p.tax_rate, c.name as category_name, b.name as brand_name, p.is_active, (SELECT COUNT(*) FROM product_equivalents e WHERE e.product_id = p.id OR e.equivalent_product_id = p.id) as equivalent_count FROM products p LEFT JOIN categories c ON p.category_id = c.id LEFT JOIN brands b ON p.brand_id = b.id WHERE (p.name LIKE ?1 OR p.sku LIKE ?1 OR p.barcode LIKE ?1 OR p.internal_code LIKE ?1 OR p.oem_number LIKE ?1) AND p.is_active = 1 ORDER BY p.name LIMIT 50";
+
+/// Relevance-ranked global product search. Uses four *distinct* parameter
+/// indices (?1 exact, ?2 prefix, ?3 contains, ?4 limit) which is what keeps the
+/// scored CASE and the `LIMIT` from colliding.
+pub(crate) const GLOBAL_PRODUCT_SEARCH_SQL: &str = "SELECT p.id, p.name, p.sku, p.barcode, p.sale_price, p.wholesale_price, p.stock_quantity, p.unit, p.image_url, p.tax_rate, c.name as category_name, b.name as brand_name, p.is_active, (SELECT COUNT(*) FROM product_equivalents e WHERE e.product_id = p.id OR e.equivalent_product_id = p.id) as equivalent_count, CASE WHEN p.name = ?1 OR p.sku = ?1 OR p.barcode = ?1 OR p.oem_number = ?1 THEN 0 WHEN p.name LIKE ?2 OR p.sku LIKE ?2 OR p.barcode LIKE ?2 THEN 1 WHEN p.name LIKE ?3 OR p.sku LIKE ?3 OR p.oem_number LIKE ?3 THEN 2 ELSE 3 END as relevance FROM products p LEFT JOIN categories c ON p.category_id = c.id LEFT JOIN brands b ON p.brand_id = b.id WHERE (p.name LIKE ?3 OR p.sku LIKE ?3 OR p.barcode LIKE ?3 OR p.internal_code LIKE ?3 OR p.oem_number LIKE ?3 OR b.name LIKE ?3) AND p.is_active = 1 ORDER BY relevance ASC, p.name ASC LIMIT ?4";
+
+/// Sale search by sale number or customer name.
+pub(crate) const SEARCH_SALES_SQL: &str = "SELECT s.*, c.name as customer_name, (SELECT COUNT(*) FROM sale_items si WHERE si.sale_id = s.id) as item_count FROM sales s LEFT JOIN customers c ON s.customer_id = c.id WHERE s.sale_number LIKE ?1 OR c.name LIKE ?1 ORDER BY s.created_at DESC LIMIT 20";
+
 #[tauri::command]
 pub fn search_products_for_pos(state: State<DbState>, search: String) -> Result<Vec<ProductForPos>, String> {
     let conn = get_conn(&state)?;
     let pattern = format!("%{}%", search);
-    let mut stmt = conn.prepare(
-        "SELECT p.id, p.name, p.sku, p.barcode, p.sale_price, p.wholesale_price,
-                p.stock_quantity, p.unit, p.image_url, p.tax_rate,
-                c.name as category_name, b.name as brand_name, p.is_active,
-                (SELECT COUNT(*) FROM product_equivalents e
-                  WHERE e.product_id = p.id OR e.equivalent_product_id = p.id) as equivalent_count
-         FROM products p
-         LEFT JOIN categories c ON p.category_id = c.id
-         LEFT JOIN brands b ON p.brand_id = b.id
-         WHERE (p.name LIKE ?1 OR p.sku LIKE ?1 OR p.barcode LIKE ?1 OR p.internal_code LIKE ?1 OR p.oem_number LIKE ?1)
-         AND p.is_active = 1
-         ORDER BY p.name LIMIT 50"
-    ).map_err(|e| e.to_string())?;
+    let mut stmt = conn.prepare(SEARCH_PRODUCTS_FOR_POS_SQL).map_err(|e| e.to_string())?;
     let rows = stmt.query_map(params![pattern], |row| {
         Ok(ProductForPos {
             id: row.get(0)?, name: row.get(1)?, sku: row.get(2)?,
@@ -461,28 +461,7 @@ pub fn global_product_search(state: State<DbState>, query: String, limit: Option
     let exact = query.clone();
     let prefix = format!("{}%", query);
 
-    let sql = "
-        SELECT p.id, p.name, p.sku, p.barcode, p.sale_price, p.wholesale_price,
-               p.stock_quantity, p.unit, p.image_url, p.tax_rate,
-               c.name as category_name, b.name as brand_name, p.is_active,
-               (SELECT COUNT(*) FROM product_equivalents e
-                 WHERE e.product_id = p.id OR e.equivalent_product_id = p.id) as equivalent_count,
-               CASE
-                   WHEN p.name = ?1 OR p.sku = ?1 OR p.barcode = ?1 OR p.oem_number = ?1 THEN 0
-                   WHEN p.name LIKE ?2 OR p.sku LIKE ?2 OR p.barcode LIKE ?2 THEN 1
-                   WHEN p.name LIKE ?3 OR p.sku LIKE ?3 OR p.oem_number LIKE ?3 THEN 2
-                   ELSE 3
-               END as relevance
-        FROM products p
-        LEFT JOIN categories c ON p.category_id = c.id
-        LEFT JOIN brands b ON p.brand_id = b.id
-        WHERE (p.name LIKE ?3 OR p.sku LIKE ?3 OR p.barcode LIKE ?3
-               OR p.internal_code LIKE ?3 OR p.oem_number LIKE ?3
-               OR b.name LIKE ?3)
-        AND p.is_active = 1
-        ORDER BY relevance ASC, p.name ASC
-        LIMIT ?4
-    ";
+    let sql = GLOBAL_PRODUCT_SEARCH_SQL;
 
     let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
     let rows = stmt.query_map(params![exact, prefix, pattern, max_results], |row| {
@@ -1678,14 +1657,7 @@ pub fn delete_held_sale(state: State<DbState>, held_sale_id: i64) -> Result<(), 
 pub fn search_sales(state: State<DbState>, query: String) -> Result<Vec<Sale>, String> {
     let conn = get_conn(&state)?;
     let pattern = format!("%{}%", query);
-    let mut stmt = conn.prepare(
-        "SELECT s.*, c.name as customer_name,
-                (SELECT COUNT(*) FROM sale_items si WHERE si.sale_id = s.id) as item_count
-         FROM sales s
-         LEFT JOIN customers c ON s.customer_id = c.id
-         WHERE s.sale_number LIKE ?1 OR c.name LIKE ?1
-         ORDER BY s.created_at DESC LIMIT 20"
-    ).map_err(|e| e.to_string())?;
+    let mut stmt = conn.prepare(SEARCH_SALES_SQL).map_err(|e| e.to_string())?;
     let rows = stmt.query_map(params![pattern], |row| {
         let mut sale = map_sale(row)?;
         sale.customer_name = row.get::<_, Option<String>>(16).ok().flatten();

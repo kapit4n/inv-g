@@ -16,3 +16,6 @@ pub mod sales;
 pub mod settings;
 pub mod vehicles;
 pub mod warranty;
+
+#[cfg(test)]
+mod search_tests;
