@@ -507,15 +507,13 @@ pub fn get_purchase_order_items(state: State<DbState>, purchase_order_id: i64) -
     Ok(result)
 }
 
-fn get_po_by_id(state: &State<DbState>, id: i64) -> Result<PurchaseOrderResponse, String> {
-    let conn = get_conn(state)?;
+fn get_po_by_id_inner(conn: &rusqlite::Connection, id: i64) -> Result<PurchaseOrderResponse, String> {
     let sql = format!("{} WHERE po.id = ?1", po_select_sql());
     let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
     stmt.query_row(params![id], map_po_row).map_err(|e| e.to_string())
 }
 
-fn get_po_status(state: &State<DbState>, id: i64) -> Result<String, String> {
-    let conn = get_conn(state)?;
+fn get_po_status_inner(conn: &rusqlite::Connection, id: i64) -> Result<String, String> {
     let status: String = conn.query_row(
         "SELECT status FROM purchase_orders WHERE id = ?1",
         params![id],
@@ -527,7 +525,17 @@ fn get_po_status(state: &State<DbState>, id: i64) -> Result<String, String> {
 #[tauri::command]
 pub fn create_purchase_order(state: State<DbState>, user_id: i64, input: PurchaseOrderInput) -> Result<PurchaseOrderResponse, String> {
     let conn = get_conn(&state)?;
-    let po_number = generate_number(&conn, "PO", "purchase_orders", "po_number")?;
+    create_purchase_order_inner(&conn, user_id, input)
+}
+
+/// BUG-008. Holds the guard for the whole save - insert, line items, read-back.
+///
+/// It used to finish with `get_po_by_id(&state, po_id)`, which locks the
+/// `std::sync::Mutex` a second time on a thread that already holds it. The
+/// mutex is not reentrant, so the Tauri `invoke` never resolved: no error, no
+/// log, the order just never showed up as saved.
+fn create_purchase_order_inner(conn: &rusqlite::Connection, user_id: i64, input: PurchaseOrderInput) -> Result<PurchaseOrderResponse, String> {
+    let po_number = generate_number(conn, "PO", "purchase_orders", "po_number")?;
     let subtotal: f64 = input.items.iter().map(|i| i.unit_cost * i.quantity as f64).sum();
     let total: f64 = input.items.iter().map(|i| i.total).sum();
     let tax_amount: f64 = input.items.iter().map(|i| i.tax).sum();
@@ -547,13 +555,20 @@ pub fn create_purchase_order(state: State<DbState>, user_id: i64, input: Purchas
         ).map_err(|e| e.to_string())?;
     }
 
-    get_po_by_id(&state, po_id)
+    get_po_by_id_inner(conn, po_id)
 }
 
+/// BUG-008. `update_purchase_order` used to read the status through
+/// `get_po_status(&state, id)` while already holding the lock, so it hung on
+/// the very first statement instead of on the read-back.
 #[tauri::command]
 pub fn update_purchase_order(state: State<DbState>, id: i64, input: PurchaseOrderInput) -> Result<PurchaseOrderResponse, String> {
     let conn = get_conn(&state)?;
-    let current_status = get_po_status(&state, id)?;
+    update_purchase_order_inner(&conn, id, input)
+}
+
+fn update_purchase_order_inner(conn: &rusqlite::Connection, id: i64, input: PurchaseOrderInput) -> Result<PurchaseOrderResponse, String> {
+    let current_status = get_po_status_inner(conn, id)?;
     if current_status != "draft" {
         return Err("Only draft purchase orders can be updated".to_string());
     }
@@ -578,13 +593,13 @@ pub fn update_purchase_order(state: State<DbState>, id: i64, input: PurchaseOrde
         ).map_err(|e| e.to_string())?;
     }
 
-    get_po_by_id(&state, id)
+    get_po_by_id_inner(conn, id)
 }
 
 #[tauri::command]
 pub fn update_purchase_order_status(state: State<DbState>, id: i64, status: String, user_id: i64) -> Result<PurchaseOrderResponse, String> {
     let conn = get_conn(&state)?;
-    let current_status = get_po_status(&state, id)?;
+    let current_status = get_po_status_inner(&conn, id)?;
 
     let valid_transition = match (current_status.as_str(), status.as_str()) {
         ("draft", "pending_approval") => true,
@@ -621,13 +636,13 @@ pub fn update_purchase_order_status(state: State<DbState>, id: i64, status: Stri
         ).map_err(|e| e.to_string())?;
     }
 
-    get_po_by_id(&state, id)
+    get_po_by_id_inner(&conn, id)
 }
 
 #[tauri::command]
 pub fn delete_purchase_order(state: State<DbState>, id: i64) -> Result<(), String> {
     let conn = get_conn(&state)?;
-    let current_status = get_po_status(&state, id)?;
+    let current_status = get_po_status_inner(&conn, id)?;
     if current_status != "draft" {
         return Err("Only draft purchase orders can be deleted".to_string());
     }
@@ -724,8 +739,7 @@ pub fn get_purchase_request_items(state: State<DbState>, request_id: i64) -> Res
     Ok(result)
 }
 
-fn get_pr_status(state: &State<DbState>, id: i64) -> Result<String, String> {
-    let conn = get_conn(state)?;
+fn get_pr_status_inner(conn: &rusqlite::Connection, id: i64) -> Result<String, String> {
     conn.query_row(
         "SELECT status FROM purchase_requests WHERE id = ?1",
         params![id],
@@ -733,8 +747,7 @@ fn get_pr_status(state: &State<DbState>, id: i64) -> Result<String, String> {
     ).map_err(|e| e.to_string())
 }
 
-fn get_pr_by_id(state: &State<DbState>, id: i64) -> Result<PurchaseRequestResponse, String> {
-    let conn = get_conn(state)?;
+fn get_pr_by_id_inner(conn: &rusqlite::Connection, id: i64) -> Result<PurchaseRequestResponse, String> {
     let sql = format!("{} WHERE pr.id = ?1", pr_select_sql());
     let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
     stmt.query_row(params![id], map_pr_row).map_err(|e| e.to_string())
@@ -773,13 +786,13 @@ pub fn create_purchase_request(
         ).map_err(|e| e.to_string())?;
     }
 
-    get_pr_by_id(&state, request_id)
+    get_pr_by_id_inner(&conn, request_id)
 }
 
 #[tauri::command]
 pub fn update_purchase_request_status(state: State<DbState>, id: i64, status: String) -> Result<PurchaseRequestResponse, String> {
     let conn = get_conn(&state)?;
-    let current_status = get_pr_status(&state, id)?;
+    let current_status = get_pr_status_inner(&conn, id)?;
 
     let valid_transition = match (current_status.as_str(), status.as_str()) {
         ("draft", "submitted") => true,
@@ -799,7 +812,7 @@ pub fn update_purchase_request_status(state: State<DbState>, id: i64, status: St
         params![status, id],
     ).map_err(|e| e.to_string())?;
 
-    get_pr_by_id(&state, id)
+    get_pr_by_id_inner(&conn, id)
 }
 
 // ── Receiving ──
@@ -889,8 +902,7 @@ pub fn get_purchase_receipt_items(state: State<DbState>, receipt_id: i64) -> Res
     Ok(result)
 }
 
-fn get_receipt_by_id(state: &State<DbState>, id: i64) -> Result<PurchaseReceiptResponse, String> {
-    let conn = get_conn(state)?;
+fn get_receipt_by_id_inner(conn: &rusqlite::Connection, id: i64) -> Result<PurchaseReceiptResponse, String> {
     let sql = format!("{} WHERE pr.id = ?1", receipt_select_sql());
     let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
     stmt.query_row(params![id], map_receipt_row).map_err(|e| e.to_string())
@@ -1016,7 +1028,7 @@ pub fn receive_purchase_order(
         params![new_po_status, po_id],
     ).map_err(|e| e.to_string())?;
 
-    get_receipt_by_id(&state, receipt_id)
+    get_receipt_by_id_inner(&conn, receipt_id)
 }
 
 // ── Purchase Returns ──
@@ -1104,8 +1116,7 @@ pub fn get_purchase_return_items(state: State<DbState>, return_id: i64) -> Resul
     Ok(result)
 }
 
-fn get_return_by_id(state: &State<DbState>, id: i64) -> Result<PurchaseReturnResponse, String> {
-    let conn = get_conn(state)?;
+fn get_return_by_id_inner(conn: &rusqlite::Connection, id: i64) -> Result<PurchaseReturnResponse, String> {
     let sql = format!("{} WHERE pr.id = ?1", return_select_sql());
     let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
     stmt.query_row(params![id], map_return_row).map_err(|e| e.to_string())
@@ -1147,7 +1158,7 @@ pub fn create_purchase_return(
         ).map_err(|e| e.to_string())?;
     }
 
-    get_return_by_id(&state, return_id)
+    get_return_by_id_inner(&conn, return_id)
 }
 
 // ── Supplier Catalog ──
@@ -1510,4 +1521,159 @@ pub fn get_reorder_suggestions(state: State<DbState>) -> Result<Vec<ReorderSugge
 pub fn get_supplier_performance(state: State<DbState>, supplier_id: Option<i64>) -> Result<Vec<SupplierPerformance>, String> {
     let conn = get_conn(&state)?;
     get_supplier_performance_internal(&conn, supplier_id)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::PROFILE_SINGLE_STORE;
+    use crate::db::init_database_with_profile;
+
+    fn test_db() -> rusqlite::Connection {
+        let dir = std::env::temp_dir().join(format!("ig_purchases_test_{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).expect("create temp dir");
+        let path = dir.join("purchases.db");
+        init_database_with_profile(path.to_str().unwrap(), PROFILE_SINGLE_STORE).expect("init db")
+    }
+
+    /// Minimal fixtures: `user_id` and `product_id` are both foreign keys.
+    fn seed(conn: &rusqlite::Connection) -> (i64, i64) {
+        conn.execute(
+            "INSERT INTO users (username, email, password_hash, full_name) VALUES ('buyer', 'buyer@test.com', 'hash', 'Buyer')",
+            [],
+        )
+        .expect("insert user");
+        let user_id = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO products (name, sku, cost_price, sale_price) VALUES ('Widget', 'PO-TEST-1', 10.0, 20.0)",
+            [],
+        )
+        .expect("insert product");
+        (user_id, conn.last_insert_rowid())
+    }
+
+    fn order_input(product_id: i64) -> PurchaseOrderInput {
+        PurchaseOrderInput {
+            supplier_id: None,
+            warehouse_id: None,
+            payment_terms: None,
+            shipping_method: None,
+            reference_number: None,
+            buyer: None,
+            notes: None,
+            expected_delivery_date: None,
+            items: vec![
+                PurchaseOrderItemInput {
+                    product_id,
+                    supplier_sku: Some("SKU-A".to_string()),
+                    quantity: 3,
+                    unit_cost: 10.0,
+                    discount: 0.0,
+                    tax: 0.0,
+                    total: 30.0,
+                },
+                PurchaseOrderItemInput {
+                    product_id,
+                    supplier_sku: None,
+                    quantity: 2,
+                    unit_cost: 25.0,
+                    discount: 5.0,
+                    tax: 3.0,
+                    total: 50.0,
+                },
+            ],
+        }
+    }
+
+    /// BUG-008: saving a purchase order never persisted anything.
+    ///
+    /// The command read the order back with a helper that locked the same
+    /// non-reentrant mutex again, so `invoke` hung forever and the UI showed no
+    /// error and no saved order. The lock itself is not observable from here -
+    /// `create_purchase_order` needs a `tauri::State` - so the save is driven
+    /// through `create_purchase_order_inner`, which holds the single guard the
+    /// command hands it, and asserted end to end on the database.
+    #[test]
+    fn created_purchase_order_is_persisted_with_its_items() {
+        let db = test_db();
+        let (user_id, product_id) = seed(&db);
+
+        let created = create_purchase_order_inner(&db, user_id, order_input(product_id))
+            .expect("saving a purchase order must succeed");
+
+        assert!(created.id > 0, "the order must get a real id");
+        assert_eq!(created.status, "draft", "a new order starts as a draft");
+        assert_eq!(created.item_count, Some(2), "both line items must be stored");
+        assert_eq!(created.subtotal, 80.0, "3*10 + 2*25");
+        assert_eq!(created.discount_amount, 5.0);
+        assert_eq!(created.tax_amount, 3.0);
+        assert_eq!(created.total, 80.0);
+
+        // Re-read from a fresh statement: the row must really be committed data,
+        // not just the response the command built.
+        let reread = get_po_by_id_inner(&db, created.id).expect("saved order must be readable");
+        assert_eq!(reread.id, created.id);
+        assert_eq!(reread.po_number, created.po_number);
+        assert_eq!(reread.item_count, Some(2));
+
+        let stored: i64 = db
+            .query_row(
+                "SELECT COUNT(*) FROM purchase_order_items WHERE purchase_order_id = ?1",
+                params![created.id],
+                |r| r.get(0),
+            )
+            .expect("count line items");
+        assert_eq!(stored, 2, "line items must be rows, not just a counter");
+    }
+
+    /// A second save must not collide on the generated `po_number`.
+    #[test]
+    fn po_numbers_are_unique_across_saves() {
+        let db = test_db();
+        let (user_id, product_id) = seed(&db);
+
+        let first = create_purchase_order_inner(&db, user_id, order_input(product_id)).unwrap();
+        let second = create_purchase_order_inner(&db, user_id, order_input(product_id)).unwrap();
+
+        assert_ne!(first.po_number, second.po_number, "po_number must advance");
+        assert_ne!(first.id, second.id);
+    }
+
+    /// Editing a draft must replace the line items, not append to them.
+    #[test]
+    fn updating_a_draft_replaces_its_line_items() {
+        let db = test_db();
+        let (user_id, product_id) = seed(&db);
+        let created = create_purchase_order_inner(&db, user_id, order_input(product_id)).unwrap();
+
+        let mut input = order_input(product_id);
+        input.items.truncate(1);
+        input.items[0].quantity = 10;
+        input.items[0].unit_cost = 10.0;
+        input.items[0].total = 100.0;
+
+        let updated = update_purchase_order_inner(&db, created.id, input).expect("draft must be editable");
+
+        assert_eq!(updated.id, created.id, "an update keeps the same order");
+        assert_eq!(updated.item_count, Some(1), "stale line items must be deleted");
+        assert_eq!(updated.subtotal, 100.0);
+        assert_eq!(updated.total, 100.0);
+    }
+
+    /// Only drafts may be edited; anything else is refused before touching data.
+    #[test]
+    fn a_non_draft_order_cannot_be_edited() {
+        let db = test_db();
+        let (user_id, product_id) = seed(&db);
+        let created = create_purchase_order_inner(&db, user_id, order_input(product_id)).unwrap();
+        db.execute(
+            "UPDATE purchase_orders SET status = 'approved' WHERE id = ?1",
+            params![created.id],
+        )
+        .unwrap();
+
+        let err = update_purchase_order_inner(&db, created.id, order_input(product_id))
+            .expect_err("an approved order must not be editable");
+        assert!(err.contains("draft"), "unexpected error: {err}");
+    }
 }

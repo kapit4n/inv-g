@@ -1729,60 +1729,60 @@ mod tests {
     /// `mark_receipt_printed` - all nine call sites deadlocked.
     #[test]
     fn no_command_calls_a_relocking_command_while_holding_the_lock() {
-        let raw = std::fs::read_to_string(
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/commands/sales.rs"),
-        )
-        .expect("read sales.rs");
-        // Comments are stripped first: prose that merely names a command would
-        // otherwise register as a call to it.
-        let source = strip_comments(&raw);
+        let sources = command_sources();
 
-        // Commands that acquire the lock, i.e. anything taking State<DbState>.
-        let re_locking: Vec<&str> = source
-            .match_indices("State<DbState>")
-            .filter_map(|(idx, _)| {
-                let head = &source[..idx];
-                let start = head.rfind("fn ").map(|p| p + 3)?;
-                let name: String = head[start..]
-                    .chars()
-                    .take_while(|c| c.is_alphanumeric() || *c == '_')
-                    .collect();
-                if name.is_empty() { None } else { Some(Box::leak(name.into_boxed_str()) as &str) }
-            })
+        // Functions that acquire the lock themselves: anything whose
+        // *signature* reaches `DbState`. Reading the signature matters - the
+        // previous version keyed on the literal `State<DbState>`, which skips
+        // `get_conn` (declared `State<'r, DbState>`) and would misread a
+        // `use crate::db::DbState;` import as a declaration.
+        let re_locking: std::collections::HashSet<String> = sources
+            .iter()
+            .flat_map(|(_, source)| function_bodies(source))
+            .filter(|(_, signature, _)| signature.contains("DbState"))
+            .map(|(name, _, _)| name)
             .collect();
-        assert!(!re_locking.is_empty(), "sanity: the scan must find commands");
+        assert!(
+            !re_locking.is_empty(),
+            "sanity: the scan must find lock-taking functions"
+        );
 
         let mut offenders = Vec::new();
-        for (name, body) in function_bodies(&source) {
-            if !re_locking.contains(&name.as_str()) {
-                continue;
-            }
-            let guards: Vec<&str> = body
-                .match_indices("get_conn(&state)")
-                .map(|(idx, _)| {
-                    let head = &body[..idx];
-                    let stmt = head.rfind("let ").map(|p| p + 4)?;
-                    let rest = &body[stmt..];
-                    let name: String = rest
-                        .chars()
-                        .take_while(|c| c.is_alphanumeric() || *c == '_')
-                        .collect();
-                    Some(Box::leak(name.into_boxed_str()) as &str)
-                })
-                .filter_map(|g| g)
-                .collect();
-            assert!(
-                guards.iter().all(|g| !g.is_empty()),
-                "could not name every lock guard in {name}() - the scan would be unreliable"
-            );
-
-            for (callee, at) in calls(&body) {
-                if callee == name || !re_locking.contains(&callee.as_str()) {
+        for (file, source) in &sources {
+            for (name, _signature, body) in function_bodies(source) {
+                if !re_locking.contains(&name) {
                     continue;
                 }
-                let dropped = drops_before(&body, at);
-                if guards.iter().any(|g| !dropped.iter().any(|d| d == *g)) {
-                    offenders.push(format!("  {name}() calls {callee}() while holding the lock"));
+
+                // Record where each guard is *acquired*, not just its name: the
+                // `get_conn` call that creates a guard is the one legitimate
+                // lock, so only a call strictly after acquisition can re-lock.
+                let guards: Vec<(String, usize)> = calls(&body)
+                    .iter()
+                    .filter(|(callee, _)| callee == "get_conn")
+                    .filter_map(|(_, at)| {
+                        let stmt = body[..*at].rfind("let ")? + 4;
+                        let bound: String = body[stmt..]
+                            .chars()
+                            .take_while(|c| c.is_alphanumeric() || *c == '_')
+                            .collect();
+                        if bound.is_empty() { None } else { Some((bound, *at)) }
+                    })
+                    .collect();
+
+                for (callee, at) in calls(&body) {
+                    if callee == name || !re_locking.contains(&callee) {
+                        continue;
+                    }
+                    let dropped = drops_before(&body, at);
+                    if guards
+                        .iter()
+                        .any(|(guard, acquired)| *acquired < at && !dropped.contains(guard))
+                    {
+                        offenders.push(format!(
+                            "  {file}: {name}() calls {callee}() while holding the lock"
+                        ));
+                    }
                 }
             }
         }
@@ -1794,6 +1794,30 @@ mod tests {
              before calling a command that locks for itself.",
             offenders.join("\n")
         );
+    }
+
+    /// Every `src/commands/*.rs` module with comments stripped, as
+    /// `(file name, source)`.
+    ///
+    /// This test is not about sales alone. It was originally hardcoded to
+    /// `sales.rs`, which meant `purchases.rs` was never scanned and
+    /// `create_purchase_order` shipped deadlocked. A second module can be
+    /// covered by no new test: every command file is in scope.
+    fn command_sources() -> Vec<(String, String)> {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/commands");
+        let mut out: Vec<(String, String)> = std::fs::read_dir(dir)
+            .expect("read src/commands")
+            .filter_map(|entry| entry.ok())
+            .map(|entry| entry.path())
+            .filter(|path| path.extension().is_some_and(|ext| ext == "rs"))
+            .map(|path| {
+                let file = path.file_name().unwrap().to_string_lossy().to_string();
+                let raw = std::fs::read_to_string(&path).expect("read command module");
+                (file, strip_comments(&raw))
+            })
+            .collect();
+        out.sort_by(|a, b| a.0.cmp(&b.0));
+        out
     }
 
     /// Drops `//` and `/* */` comments, keeping string literals intact.
@@ -1836,8 +1860,8 @@ mod tests {
         out
     }
 
-    /// Every function body in `source`, with its name.
-    fn function_bodies(source: &str) -> Vec<(String, String)> {
+    /// Every function body in `source`, with its name and signature.
+    fn function_bodies(source: &str) -> Vec<(String, String, String)> {
         let mut out = Vec::new();
         let mut rest = source;
         while let Some(at) = rest.find("fn ") {
@@ -1865,7 +1889,11 @@ mod tests {
                     _ => {}
                 }
             }
-            out.push((name, rest[body_at..end].to_string()));
+            out.push((
+                name,
+                rest[at..body_at].to_string(),
+                rest[body_at..end].to_string(),
+            ));
             rest = &rest[end..];
         }
         out

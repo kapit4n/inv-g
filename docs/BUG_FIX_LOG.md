@@ -6,6 +6,85 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-25 — Saving a purchase order never persisted anything
+
+**Symptom:** *Compras → Nueva orden de compra → Guardar* appeared to do nothing.
+No error appeared, the save button stayed busy, and the form never left for the
+order list. The same shape as the "Abrir Caja" hang fixed in BUG-005.
+
+**Root cause: the same non-reentrant lock, in a module nobody had scanned.**
+
+`DbState.conn` is an `Arc<Mutex<Connection>>` over `std::sync::Mutex`, which
+cannot be locked twice by one thread. Both save commands took the lock and then
+called a private helper that took it again:
+
+- `create_purchase_order` finished with `get_po_by_id(&state, po_id)`
+- `update_purchase_order` called `get_po_status(&state, id)` on its *first*
+  statement, and `get_po_by_id(&state, id)` at the end
+- `update_purchase_order_status`, `delete_purchase_order`,
+  `create_purchase_request`, `update_purchase_request_status`,
+  `receive_purchase_order`, `create_purchase_return` — same shape
+
+So the whole purchasing module was deadlocked, not just order creation: **11
+call sites across 9 commands.** Orders, purchase requests, returns and receiving
+were all affected. Every one of them hung silently, because a blocked `lock()`
+produces no error and no log — the Tauri `invoke` simply never resolved.
+
+**Why this survived the BUG-005 fix, which is the part worth remembering.**
+
+The structural guard added for BUG-005 passed, and it was reporting `0` findings
+for `purchases.rs`. That zero was false, for two independent reasons:
+
+1. **The guard was hardcoded to one file.** It read
+   `src/commands/sales.rs` and nothing else, so the other five command modules
+   were never scanned at all.
+2. **Its callee set was keyed on the literal string `State<DbState>`.** The six
+   helpers it needed to catch are declared `fn get_po_by_id(state: &State<DbState>,
+   id: i64)` — private, and behind a `&`. They were also called as
+   `get_po_by_id(&state, ...)`. Worse, `get_conn` itself is declared
+   `State<'r, DbState>`, with a lifetime, so the literal never matched it either.
+   The set was quietly missing exactly the functions that matter.
+
+An earlier ad-hoc script scan in this session was worse still: it reported
+`get_purchase_orders() -> get_conn()` and several hundred cross-file calls that
+do not exist. **Its output was noise and was discarded.** Three of the four
+scanners written for this bug were wrong, and the only one that could be trusted
+was the Rust test — once it was generalized.
+
+**Fix.** The 6 helpers became `*_inner(&rusqlite::Connection, ...)`, taking the
+guard the caller already holds, matching the convention BUG-005 established.
+`create_purchase_order` and `update_purchase_order` were also split into a thin
+`#[tauri::command]` that takes the lock once plus an `_inner` that does the work,
+so the save path itself became testable.
+
+The guard was rewritten to scan **every** `src/commands/*.rs` file, and to key
+re-locking functions off their **signature** containing `DbState` — which covers
+`&State<DbState>`, `State<'r, DbState>`, public and private alike, and cannot be
+fooled by a `use crate::db::DbState;` import. It also records *where* each guard
+is acquired, so the one legitimate `get_conn` call is not mistaken for a
+re-lock. `sales.rs` is clean; the 11 real findings were all in `purchases.rs`.
+
+**Tests.** The generalized guard was mutation-tested: reintroducing a
+state-taking `get_po_status` wrapper makes it fail with
+`purchases.rs: update_purchase_order() calls get_po_status() while holding the
+lock`, and it passes again once reverted. Four behavioural tests now drive the
+real save path through `create_purchase_order_inner` against a temp database and
+assert the order and its line items are genuinely stored, `po_number` advances
+across saves, updating a draft replaces rather than appends line items, and a
+non-draft order is refused. Rust: 152 → **156** passing under
+`RUSTFLAGS="-D warnings"`.
+
+**Lesson: a guard that reports zero findings has not been shown to work.** This
+one had passed review and a mutation check while silently covering a single file
+and matching the wrong signature shape. A structural test earns its keep only
+once it has been caught failing on a real instance of the bug.
+
+**Files:** `src-tauri/src/commands/purchases.rs` (6 helpers, 11 call sites, 2
+commands split, 4 new tests), `src-tauri/src/commands/sales.rs` (guard
+generalized to all command modules).
+
+---
+
 ### 2026-09-25 — Tab bar on the sale detail page could be clipped out of view
 
 **Symptom:** after the `{{count}}` fix, the tab names "Detalles", "Pagos" and
