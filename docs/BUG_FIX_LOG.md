@@ -6,6 +6,80 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-25 — "Abrir Caja" never saved: the command deadlocked on the DB mutex
+
+**Symptom:** after the amount field was fixed (below), opening *Ventas → Caja
+Registradora → Abrir Caja* still did nothing. The dialog stayed open, the button
+spun, no error, no log, no crash.
+
+**Root cause:** `open_cash_register` took the database lock and then called a
+helper that takes it again:
+
+```rust
+let conn = get_conn(&state)?;                          // guard now held
+let existing = get_cash_register_status(state.clone())?; // locks again
+```
+
+`DbState.conn` is `Arc<Mutex<Connection>>` with **`std::sync::Mutex`**, which is
+not reentrant. The second `lock()` blocks on a mutex the same thread already
+holds, so the command never returned and the Tauri `invoke` never resolved.
+Silent by construction: a deadlock produces no error to surface.
+
+Reproduced the exact shape standalone (`get_conn` + a helper that locks again)
+and confirmed the thread never returns.
+
+**Investigation:** rather than stop at the reported symptom, scanned all 114
+commands taking `State<DbState>` for functions that hold a `get_conn` guard and
+call another such command. **Six commands across nine call sites deadlocked**,
+and five had nothing to do with the cash register:
+
+| Command | Called |
+|---|---|
+| `open_cash_register` | `get_cash_register_status` |
+| `create_quote` | `get_quote` |
+| `update_quote` | `get_quote` |
+| `update_quote_status` | `get_quote` |
+| `convert_quote_to_sale` | `get_quote`, `get_quote_items`, `process_checkout` |
+| `close_daily_shift` | `get_daily_closeout` |
+| `mark_receipt_printed` | `get_receipt` |
+
+**Fix:** extracted a connection-scoped `*_inner(&Connection)` body for the five
+pure-read helpers and left the Tauri command as a two-line wrapper that takes the
+lock once and delegates, so every existing call site is unchanged. The nine
+offending call sites now reuse the guard they already hold.
+`convert_quote_to_sale` is the exception: `process_checkout` is a write that
+acquires the lock itself and is far too large to refactor here, so it drops the
+guard first with an explicit `drop(conn)` and re-acquires afterwards.
+
+**Regression test:** `no_command_calls_a_relocking_command_while_holding_the_lock`
+in `src-tauri/src/commands/sales.rs`. A behavioural test cannot cover this -
+reproducing it needs a `tauri::State`, and a hung test process is
+indistinguishable from a slow one - so it asserts the structural invariant
+instead. Three defects of my own, each caught by checking rather than assuming:
+
+1. It flagged `convert_quote_to_sale` even after the `drop(conn)` fix, because a
+   *comment* naming `process_checkout` registered as a call to it. The scanner
+   now strips comments, tracking string literals and escapes.
+2. It reported zero guards under the name `""`, which made it flag every call
+   site unconditionally: `rfind("let ") + 4` already skips past `"let "`, and I
+   then skipped to the next space as well, consuming the variable name. The
+   extraction is now asserted non-empty so a silent regression cannot recur.
+3. Neither bug was visible until the test was run with the deadlock
+   deliberately reintroduced, which is the only way to know a structural guard
+   still bites. It now reports the offending command by name.
+
+**Also hardened:** `openMutation` and `closeMutation` had no `onError`, so any
+backend failure was completely invisible. They now surface
+`notification.error(...)`, matching the POS pages.
+
+**Result:** 152 Rust tests (was 151), 464 frontend tests across 59 files.
+
+**Noticed, still not fixed:** `openCashRegister(1, ...)` hardcodes user id `1`
+instead of the signed-in user, so a session is always attributed to that user.
+Separate pre-existing issue.
+
+---
+
 ### 2026-09-25 — "Abrir Caja": the initial amount field rejected every keystroke
 
 **Symptom:** opening *Ventas → Caja Registradora → Abrir Caja* and trying to type

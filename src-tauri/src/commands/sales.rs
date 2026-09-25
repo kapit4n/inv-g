@@ -763,6 +763,12 @@ pub fn refund_sale(state: State<DbState>, sale_id: i64, reason: Option<String>) 
 #[tauri::command]
 pub fn get_daily_closeout(state: State<DbState>) -> Result<DailyCloseout, String> {
     let conn = get_conn(&state)?;
+    get_daily_closeout_inner(&conn)
+}
+
+/// Connection-scoped body of [`get_daily_closeout`], so callers that already hold the
+/// database lock can reuse their guard instead of re-locking it.
+fn get_daily_closeout_inner(conn: &rusqlite::Connection) -> Result<DailyCloseout, String> {
     let today = today_date();
 
     let total_sales: i64 = conn.query_row(
@@ -983,6 +989,12 @@ pub fn get_quotes(state: State<DbState>) -> Result<Vec<Quote>, String> {
 #[tauri::command]
 pub fn get_quote(state: State<DbState>, id: i64) -> Result<Quote, String> {
     let conn = get_conn(&state)?;
+    get_quote_inner(&conn,id)
+}
+
+/// Connection-scoped body of [`get_quote`], so callers that already hold the
+/// database lock can reuse their guard instead of re-locking it.
+fn get_quote_inner(conn: &rusqlite::Connection, id: i64) -> Result<Quote, String> {
     let mut stmt = conn.prepare(
         "SELECT q.*, c.name as customer_name,
                 (SELECT COUNT(*) FROM quote_items qi WHERE qi.quote_id = q.id) as item_count
@@ -1001,6 +1013,12 @@ pub fn get_quote(state: State<DbState>, id: i64) -> Result<Quote, String> {
 #[tauri::command]
 pub fn get_quote_items(state: State<DbState>, quote_id: i64) -> Result<Vec<QuoteItem>, String> {
     let conn = get_conn(&state)?;
+    get_quote_items_inner(&conn,quote_id)
+}
+
+/// Connection-scoped body of [`get_quote_items`], so callers that already hold the
+/// database lock can reuse their guard instead of re-locking it.
+fn get_quote_items_inner(conn: &rusqlite::Connection, quote_id: i64) -> Result<Vec<QuoteItem>, String> {
     let mut stmt = conn.prepare(
         "SELECT qi.*, p.name as product_name, p.sku as product_sku
          FROM quote_items qi
@@ -1045,7 +1063,7 @@ pub fn create_quote(state: State<DbState>, input: QuoteInput) -> Result<Quote, S
         ).map_err(|e| e.to_string())?;
     }
 
-    get_quote(state.clone(), quote_id)
+    get_quote_inner(&conn, quote_id)
 }
 
 #[tauri::command]
@@ -1071,7 +1089,7 @@ pub fn update_quote(state: State<DbState>, id: i64, input: QuoteInput) -> Result
         ).map_err(|e| e.to_string())?;
     }
 
-    get_quote(state.clone(), id)
+    get_quote_inner(&conn, id)
 }
 
 #[tauri::command]
@@ -1089,15 +1107,15 @@ pub fn update_quote_status(state: State<DbState>, id: i64, status: String) -> Re
         "UPDATE quotes SET status=?1, updated_at=datetime('now') WHERE id=?2",
         params![status, id],
     ).map_err(|e| e.to_string())?;
-    get_quote(state.clone(), id)
+    get_quote_inner(&conn, id)
 }
 
 #[tauri::command]
 pub fn convert_quote_to_sale(state: State<DbState>, quote_id: i64, user_id: Option<i64>) -> Result<CheckoutResult, String> {
     let conn = get_conn(&state)?;
 
-    let quote = get_quote(state.clone(), quote_id)?;
-    let items = get_quote_items(state.clone(), quote_id)?;
+    let quote = get_quote_inner(&conn, quote_id)?;
+    let items = get_quote_items_inner(&conn, quote_id)?;
 
     let sale_items: Vec<SaleItemInput> = items.iter().map(|qi| SaleItemInput {
         product_id: qi.product_id,
@@ -1123,7 +1141,12 @@ pub fn convert_quote_to_sale(state: State<DbState>, quote_id: i64, user_id: Opti
         notes: Some(format!("Converted from quote {}", quote.quote_number)),
     };
 
+    // `process_checkout` acquires the database lock itself, so the guard must be
+    // released first: `std::sync::Mutex` is not reentrant and re-locking it here
+    // would deadlock the command thread.
+    drop(conn);
     let result = process_checkout(state.clone(), input)?;
+    let conn = get_conn(&state)?;
 
     conn.execute(
         "UPDATE quotes SET status='converted', updated_at=datetime('now') WHERE id=?1",
@@ -1138,6 +1161,12 @@ pub fn convert_quote_to_sale(state: State<DbState>, quote_id: i64, user_id: Opti
 #[tauri::command]
 pub fn get_cash_register_status(state: State<DbState>) -> Result<Option<CashRegisterSession>, String> {
     let conn = get_conn(&state)?;
+    get_cash_register_status_inner(&conn)
+}
+
+/// Connection-scoped body of [`get_cash_register_status`], so callers that already hold the
+/// database lock can reuse their guard instead of re-locking it.
+fn get_cash_register_status_inner(conn: &rusqlite::Connection) -> Result<Option<CashRegisterSession>, String> {
     let result = conn.query_row(
         "SELECT cr.*, u.full_name as user_name
          FROM cash_register_sessions cr
@@ -1167,7 +1196,7 @@ pub fn get_cash_register_status(state: State<DbState>) -> Result<Option<CashRegi
 pub fn open_cash_register(state: State<DbState>, user_id: i64, opening_balance: f64, notes: Option<String>) -> Result<CashRegisterSession, String> {
     let conn = get_conn(&state)?;
 
-    let existing = get_cash_register_status(state.clone())?;
+    let existing = get_cash_register_status_inner(&conn)?;
     if existing.is_some() {
         return Err("A cash register session is already open".to_string());
     }
@@ -1300,7 +1329,7 @@ pub fn close_daily_shift(state: State<DbState>, closed_by: i64, notes: Option<St
         return Err("Daily closing already exists for today".to_string());
     }
 
-    let closeout = get_daily_closeout(state.clone())?;
+    let closeout = get_daily_closeout_inner(&conn)?;
     let net_revenue = closeout.total_revenue - closeout.refunded_total;
 
     conn.execute(
@@ -1388,6 +1417,12 @@ pub fn get_receipts_for_sale(state: State<DbState>, sale_id: i64) -> Result<Vec<
 #[tauri::command]
 pub fn get_receipt(state: State<DbState>, id: i64) -> Result<Receipt, String> {
     let conn = get_conn(&state)?;
+    get_receipt_inner(&conn,id)
+}
+
+/// Connection-scoped body of [`get_receipt`], so callers that already hold the
+/// database lock can reuse their guard instead of re-locking it.
+fn get_receipt_inner(conn: &rusqlite::Connection, id: i64) -> Result<Receipt, String> {
     let mut stmt = conn.prepare("SELECT * FROM receipts WHERE id = ?1").map_err(|e| e.to_string())?;
     stmt.query_row(params![id], |row| {
         Ok(Receipt {
@@ -1407,7 +1442,7 @@ pub fn mark_receipt_printed(state: State<DbState>, id: i64) -> Result<Receipt, S
         "UPDATE receipts SET is_printed=1, printed_at=datetime('now') WHERE id=?1",
         params![id],
     ).map_err(|e| e.to_string())?;
-    get_receipt(state.clone(), id)
+    get_receipt_inner(&conn, id)
 }
 
 // ── Hold / Resume Sales (TASK 07) ──
@@ -1675,6 +1710,207 @@ mod tests {
     use crate::config::PROFILE_SINGLE_STORE;
     use crate::db::init_database_with_profile;
     use chrono::{Datelike, Duration, Local, NaiveDate, NaiveDateTime, Utc};
+
+    /// BUG-005: opening the cash register never returned.
+    ///
+    /// `open_cash_register` took the database lock with `get_conn`, then called
+    /// `get_cash_register_status`, which locks again. `std::sync::Mutex` is not
+    /// reentrant, so the second `lock()` blocks on a mutex the same thread
+    /// already holds: the command deadlocked and the Tauri `invoke` never
+    /// resolved. No error, no log - the UI just sat there.
+    ///
+    /// A behavioural test cannot catch this, because reproducing it needs a
+    /// `tauri::State` and a hung test process is indistinguishable from a slow
+    /// one. So assert the structural invariant instead: no command may call
+    /// another re-locking command while still holding a guard.
+    ///
+    /// The same shape affected `create_quote`, `update_quote`,
+    /// `update_quote_status`, `convert_quote_to_sale`, `close_daily_shift` and
+    /// `mark_receipt_printed` - all nine call sites deadlocked.
+    #[test]
+    fn no_command_calls_a_relocking_command_while_holding_the_lock() {
+        let raw = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/commands/sales.rs"),
+        )
+        .expect("read sales.rs");
+        // Comments are stripped first: prose that merely names a command would
+        // otherwise register as a call to it.
+        let source = strip_comments(&raw);
+
+        // Commands that acquire the lock, i.e. anything taking State<DbState>.
+        let re_locking: Vec<&str> = source
+            .match_indices("State<DbState>")
+            .filter_map(|(idx, _)| {
+                let head = &source[..idx];
+                let start = head.rfind("fn ").map(|p| p + 3)?;
+                let name: String = head[start..]
+                    .chars()
+                    .take_while(|c| c.is_alphanumeric() || *c == '_')
+                    .collect();
+                if name.is_empty() { None } else { Some(Box::leak(name.into_boxed_str()) as &str) }
+            })
+            .collect();
+        assert!(!re_locking.is_empty(), "sanity: the scan must find commands");
+
+        let mut offenders = Vec::new();
+        for (name, body) in function_bodies(&source) {
+            if !re_locking.contains(&name.as_str()) {
+                continue;
+            }
+            let guards: Vec<&str> = body
+                .match_indices("get_conn(&state)")
+                .map(|(idx, _)| {
+                    let head = &body[..idx];
+                    let stmt = head.rfind("let ").map(|p| p + 4)?;
+                    let rest = &body[stmt..];
+                    let name: String = rest
+                        .chars()
+                        .take_while(|c| c.is_alphanumeric() || *c == '_')
+                        .collect();
+                    Some(Box::leak(name.into_boxed_str()) as &str)
+                })
+                .filter_map(|g| g)
+                .collect();
+            assert!(
+                guards.iter().all(|g| !g.is_empty()),
+                "could not name every lock guard in {name}() - the scan would be unreliable"
+            );
+
+            for (callee, at) in calls(&body) {
+                if callee == name || !re_locking.contains(&callee.as_str()) {
+                    continue;
+                }
+                let dropped = drops_before(&body, at);
+                if guards.iter().any(|g| !dropped.iter().any(|d| d == *g)) {
+                    offenders.push(format!("  {name}() calls {callee}() while holding the lock"));
+                }
+            }
+        }
+
+        assert!(
+            offenders.is_empty(),
+            "commands that re-lock a non-reentrant std::sync::Mutex and deadlock:\n{}\n\
+             Pass the already-held guard to a *_inner(&Connection) helper, or drop(conn) \
+             before calling a command that locks for itself.",
+            offenders.join("\n")
+        );
+    }
+
+    /// Drops `//` and `/* */` comments, keeping string literals intact.
+    fn strip_comments(source: &str) -> String {
+        let b: Vec<char> = source.chars().collect();
+        let mut out = String::with_capacity(source.len());
+        let mut i = 0;
+        while i < b.len() {
+            if b[i] == '"' {
+                out.push(b[i]);
+                i += 1;
+                while i < b.len() {
+                    out.push(b[i]);
+                    if b[i] == '\\' && i + 1 < b.len() {
+                        out.push(b[i + 1]);
+                        i += 2;
+                        continue;
+                    }
+                    let done = b[i] == '"';
+                    i += 1;
+                    if done {
+                        break;
+                    }
+                }
+            } else if b[i] == '/' && i + 1 < b.len() && b[i + 1] == '/' {
+                while i < b.len() && b[i] != '\n' {
+                    i += 1;
+                }
+            } else if b[i] == '/' && i + 1 < b.len() && b[i + 1] == '*' {
+                i += 2;
+                while i + 1 < b.len() && !(b[i] == '*' && b[i + 1] == '/') {
+                    i += 1;
+                }
+                i = (i + 2).min(b.len());
+            } else {
+                out.push(b[i]);
+                i += 1;
+            }
+        }
+        out
+    }
+
+    /// Every function body in `source`, with its name.
+    fn function_bodies(source: &str) -> Vec<(String, String)> {
+        let mut out = Vec::new();
+        let mut rest = source;
+        while let Some(at) = rest.find("fn ") {
+            let tail = &rest[at + 3..];
+            let name: String = tail
+                .chars()
+                .take_while(|c| c.is_alphanumeric() || *c == '_')
+                .collect();
+            let body_at = match rest[at..].find('{') {
+                Some(b) => at + b,
+                None => break,
+            };
+            let mut depth = 0i32;
+            let mut end = rest.len();
+            for (i, ch) in rest[body_at..].char_indices() {
+                match ch {
+                    '{' => depth += 1,
+                    '}' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            end = body_at + i;
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            out.push((name, rest[body_at..end].to_string()));
+            rest = &rest[end..];
+        }
+        out
+    }
+
+    /// `(callee, byte offset of the call)` for every `name(` in `body`.
+    fn calls(body: &str) -> Vec<(String, usize)> {
+        let mut out = Vec::new();
+        let bytes = body.as_bytes();
+        let mut i = 0;
+        while i < bytes.len() {
+            if bytes[i] == b'_' || bytes[i].is_ascii_alphabetic() {
+                let start = i;
+                while i < bytes.len() && (bytes[i] == b'_' || bytes[i].is_ascii_alphanumeric()) {
+                    i += 1;
+                }
+                let name = &body[start..i];
+                if !name.is_empty() {
+                    let mut j = i;
+                    while j < bytes.len() && bytes[j].is_ascii_whitespace() {
+                        j += 1;
+                    }
+                    if j < bytes.len() && bytes[j] == b'(' {
+                        out.push((name.to_string(), start));
+                    }
+                }
+            } else {
+                i += 1;
+            }
+        }
+        out
+    }
+
+    /// Guard names explicitly dropped in `body` before byte offset `at`.
+    fn drops_before(body: &str, at: usize) -> Vec<String> {
+        body[..at]
+            .match_indices("drop(")
+            .filter_map(|(i, _)| {
+                let rest = &body[i + 5..];
+                let end = rest.find(')')?;
+                let name = rest[..end].trim();
+                if name.is_empty() { None } else { Some(name.to_string()) }
+            })
+            .collect()
+    }
 
     fn test_db() -> rusqlite::Connection {
         let dir = std::env::temp_dir().join(format!("ig_sales_test_{}", uuid::Uuid::new_v4()));

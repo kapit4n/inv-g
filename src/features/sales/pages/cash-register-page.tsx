@@ -48,6 +48,9 @@ export function CashRegisterPage() {
       notification.success(t("common.success"), t("registerOpened"))
       setOpenDialog(false)
     },
+    onError: (err) => {
+      notification.error(t("common.error"), String(err))
+    },
   })
 
   const closeMutation = useMutation({
@@ -57,6 +60,9 @@ export function CashRegisterPage() {
       queryClient.invalidateQueries({ queryKey: ["cash-register-sessions"] })
       notification.success(t("common.success"), t("registerClosed"))
       setCloseDialog(false)
+    },
+    onError: (err) => {
+      notification.error(t("common.error"), String(err))
     },
   })
 
