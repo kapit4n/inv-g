@@ -8,6 +8,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased] - Product equivalents
 
+> Shipped in `616a168` — see `docs/progress/MILESTONE_16.md`.
+
 ### Added
 
 - **Product Equivalents** — a one-to-one `product_equivalents` relationship

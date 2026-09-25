@@ -1,6 +1,6 @@
 # Milestone 16 — Product Equivalents
 
-**Status:** Complete (working tree; commit pending)
+**Status:** Complete (`616a168`)
 
 ## Summary
 
