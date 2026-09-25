@@ -6,6 +6,70 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-25 — Product picker showed no products in the Equivalents tab
+
+**Symptom:**
+- In Product 360° → **Equivalents** tab, clicking **+ Add** ("Agregar
+  equivalente") opened a panel whose product search never displayed any
+  product. The panel showed only a bare search input; nothing appeared until
+  text was typed, and searching for a product's own name produced an empty box
+  with no message.
+
+**Investigation:**
+1. Grepped for the dialog wording ("relacionado"/"related"); no such feature
+   existed, so the report was narrowed to the newest product-picker dialog —
+   the Equivalents add panel introduced in `616a168`.
+2. Confirmed the backend search was healthy: `get_products`
+   (`commands/inventory.rs:638`) matches name/sku/barcode/oem_number/internal_code,
+   and the wrapper call `getProducts(page, pageSize, search)` is byte-for-byte the
+   same convention that `products-page.tsx` uses successfully.
+3. Wrote a scratch test that clicked **+ Add** and typed into the box: results
+   *did* render. So the IPC/backend was fine.
+4. A second scratch test asserted the state on open: `getProducts` was **never
+   called** when the panel opened, and no list container, hint, or empty-state
+   message existed in the DOM.
+5. Re-read the component and found two independent defects in the picker.
+
+**Root cause:**
+- The results block was gated behind `{pickQuery.trim().length > 0 && ...}` and
+  the query used `enabled: showAdd && pickQuery.trim().length > 0`, so nothing
+  was fetched or rendered until the user typed — the panel opened looking
+  broken/empty.
+- The self-reference filter ran *after* the emptiness check
+  (`.filter((p) => p.id !== productId)` applied to a list whose length had
+  already been tested), so a search matching only the current product rendered
+  a blank container with no message.
+- Secondary: the input was undebounced (a query per keystroke) and
+  already-linked products were still offered, which would produce a
+  duplicate-pair error from the backend.
+
+**Fix:**
+- `src/features/inventory/components/product-equivalents-tab.tsx`
+  - Query is now `enabled: showAdd` and passes `debouncedPick || undefined`,
+    so the catalog loads on open and the list is never an empty box (mirrors the
+    POS search, which uses `queryAllWhenEmpty: true`).
+  - Added a 250 ms debounce on the search term.
+  - Filtering (self + already-linked) now happens *before* the empty check, so
+    a fully-filtered result shows a message instead of a blank area.
+  - Added `data-testid="product-equiv-picker"` for scoped assertions.
+- New i18n key `inventory.equivalents.noProductsToLink` (es/en).
+- `tests/unit/components/product-360-tabs.test.tsx`: 4 new cases covering
+  "lists products on open without typing", the hint when there is nothing to
+  link, hiding already-linked products, and the debounced search term.
+
+**Affected files:**
+- `src/features/inventory/components/product-equivalents-tab.tsx`
+- `src/i18n/locales/es/inventory.json`
+- `src/i18n/locales/en/inventory.json`
+- `tests/unit/components/product-360-tabs.test.tsx`
+
+**Commit:** (see `docs/progress/MILESTONE_16.md`)
+
+**Verification:** `npm run typecheck` clean; `npm run lint` 0 errors; `npm test`
+58 files / 461 tests pass.
+
+---
+
 ### 2026-09-24 — Pricing feature compile/runtime issues fixed (seed deref, reprice return type, demo workbook corruption)
 
 **Symptom:**

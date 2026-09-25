@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Plus, Trash2, RefreshCw, Search } from "lucide-react"
@@ -32,13 +32,32 @@ export function ProductEquivalentsTab({ productId }: Props) {
 
   const [showAdd, setShowAdd] = useState(false)
   const [pickQuery, setPickQuery] = useState("")
+  const [debouncedPick, setDebouncedPick] = useState("")
   const [newNote, setNewNote] = useState("")
 
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedPick(pickQuery.trim()), 250)
+    return () => clearTimeout(timer)
+  }, [pickQuery])
+
+  // Loaded as soon as the panel opens (like the POS search) so the list is never
+  // an empty box, and filtered as the user types.
   const { data: pickResults = [], isFetching: picking } = useQuery({
-    queryKey: ["product-equiv-picker", pickQuery],
-    queryFn: async () => (await getProducts(1, 20, pickQuery)).data,
-    enabled: showAdd && pickQuery.trim().length > 0,
+    queryKey: ["product-equiv-picker", debouncedPick],
+    queryFn: async () => (await getProducts(1, 20, debouncedPick || undefined)).data,
+    enabled: showAdd,
   })
+
+  // Hide the product itself and anything already linked, so the list can never
+  // render as an empty box and we never trigger a duplicate-pair error.
+  const linkedIds = useMemo(
+    () => new Set(equivalents.map((eq) => eq.equivalentProductId)),
+    [equivalents]
+  )
+  const pickable = useMemo(
+    () => pickResults.filter((p) => p.id !== productId && !linkedIds.has(p.id)),
+    [pickResults, productId, linkedIds]
+  )
 
   const addMutation = useMutation({
     mutationFn: (equivalentProductId: number) =>
@@ -87,35 +106,33 @@ export function ProductEquivalentsTab({ productId }: Props) {
                 onChange={(e) => setPickQuery(e.target.value)}
               />
             </div>
-            {pickQuery.trim().length > 0 && (
-              <div className="max-h-56 overflow-y-auto rounded-md border">
-                {picking ? (
-                  <p className="p-3 text-sm text-muted-foreground">{t("common.loading")}</p>
-                ) : pickResults.length === 0 ? (
-                  <p className="p-3 text-sm text-muted-foreground">{t("inventory.equivalents.noResults")}</p>
-                ) : (
-                  pickResults
-                    .filter((p) => p.id !== productId)
-                    .map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => addMutation.mutate(p.id)}
-                        disabled={addMutation.isPending}
-                        className="flex w-full items-center justify-between gap-2 border-b px-3 py-2 text-left text-sm last:border-b-0 hover:bg-muted"
-                      >
-                        <span>
-                          <span className="font-medium">{p.name}</span>
-                          <span className="ml-2 text-muted-foreground">{p.sku}</span>
-                        </span>
-                        <span className="whitespace-nowrap text-muted-foreground">
-                          {p.stockQuantity} {p.unit}
-                        </span>
-                      </button>
-                    ))
-                )}
-              </div>
-            )}
+            <div className="max-h-56 overflow-y-auto rounded-md border" data-testid="product-equiv-picker">
+              {picking && pickable.length === 0 ? (
+                <p className="p-3 text-sm text-muted-foreground">{t("common.loading")}</p>
+              ) : pickable.length === 0 ? (
+                <p className="p-3 text-sm text-muted-foreground">
+                  {debouncedPick ? t("inventory.equivalents.noResults") : t("inventory.equivalents.noProductsToLink")}
+                </p>
+              ) : (
+                pickable.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => addMutation.mutate(p.id)}
+                    disabled={addMutation.isPending}
+                    className="flex w-full items-center justify-between gap-2 border-b px-3 py-2 text-left text-sm last:border-b-0 hover:bg-muted"
+                  >
+                    <span>
+                      <span className="font-medium">{p.name}</span>
+                      <span className="ml-2 text-muted-foreground">{p.sku}</span>
+                    </span>
+                    <span className="whitespace-nowrap text-muted-foreground">
+                      {p.stockQuantity} {p.unit}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
             <Input
               placeholder={t("inventory.equivalents.notePlaceholder")}
               value={newNote}

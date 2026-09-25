@@ -206,6 +206,7 @@
     "created": "Equivalentes creados",
     "searchPlaceholder": "Buscar producto por nombre o SKU...",
     "noResults": "No se encontraron productos",
+    "noProductsToLink": "No hay otros productos para vincular. Escribe para buscar.",
     "notePlaceholder": "Nota (opcional)",
     "empty": "Este producto no tiene equivalentes registrados",
     "sku": "SKU",

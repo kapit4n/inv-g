@@ -1,6 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
-import { render, screen } from "@tests/helpers/render"
+import { describe, it, expect, vi } from "vitest"
+import { render, screen, fireEvent, waitFor } from "@tests/helpers/render"
+import { within } from "@testing-library/react"
 import { setupI18n } from "@/i18n"
+import { getProducts, getProductEquivalents } from "@/lib/tauri"
 import { ProductOverviewTab } from "@/features/inventory/components/product-overview-tab"
 import { ProductInventoryTab } from "@/features/inventory/components/product-inventory-tab"
 import { ProductPricingTab } from "@/features/inventory/components/product-pricing-tab"
@@ -262,5 +264,72 @@ describe("ProductEquivalentsTab", () => {
     ])
     render(<ProductEquivalentsTab productId={1} />)
     expect(await screen.findByText("Inactive")).toBeInTheDocument()
+  })
+
+  const selfProduct = { id: 1, name: "Brake Pad Set", sku: "BP-100", stockQuantity: 4, unit: "set" }
+  const altProduct = { id: 7, name: "Brake Pad Ceramic", sku: "BP-700", stockQuantity: 9, unit: "set" }
+  const altProduct2 = { id: 8, name: "Brake Pad Economy", sku: "BP-800", stockQuantity: 2, unit: "set" }
+  const page = (data: unknown[]) =>
+    ({ data, total: data.length, page: 1, pageSize: 20, totalPages: 1 }) as never
+
+  it("offers products as soon as the add panel opens, without typing", async () => {
+    vi.mocked(getProductEquivalents).mockResolvedValue([])
+    vi.mocked(getProducts).mockResolvedValue(page([selfProduct, altProduct, altProduct2]))
+
+    render(<ProductEquivalentsTab productId={1} />)
+    fireEvent.click(screen.getByRole("button", { name: /add/i }))
+
+    expect(await screen.findByText("Brake Pad Ceramic")).toBeInTheDocument()
+    const picker = within(screen.getByTestId("product-equiv-picker"))
+    expect(picker.getByText("BP-800")).toBeInTheDocument()
+    // The product being edited is never offered.
+    expect(picker.queryByText("BP-100")).toBeNull()
+  })
+
+  it("shows a hint instead of an empty box when there is nothing to link", async () => {
+    vi.mocked(getProductEquivalents).mockResolvedValue([])
+    vi.mocked(getProducts).mockResolvedValue(page([selfProduct]))
+
+    render(<ProductEquivalentsTab productId={1} />)
+    fireEvent.click(screen.getByRole("button", { name: /add/i }))
+
+    expect(
+      await screen.findByText("There are no other products to link yet. Type to search.")
+    ).toBeInTheDocument()
+  })
+
+  it("hides products that are already linked from the picker", async () => {
+    vi.mocked(getProductEquivalents).mockResolvedValue([
+      {
+        id: 1, productId: 1, equivalentProductId: 7, note: undefined, createdAt: "2024-01-01T00:00:00Z",
+        name: "Brake Pad Ceramic", sku: "BP-700", brandName: undefined, categoryName: undefined,
+        stockQuantity: 9, unit: "set", salePrice: 10, wholesalePrice: 7, taxRate: 0.13,
+        imageUrl: undefined, isActive: true,
+      },
+    ])
+    vi.mocked(getProducts).mockResolvedValue(page([selfProduct, altProduct, altProduct2]))
+
+    render(<ProductEquivalentsTab productId={1} />)
+    fireEvent.click(screen.getByRole("button", { name: /add/i }))
+
+    expect(await screen.findByText("Brake Pad Economy")).toBeInTheDocument()
+    const picker = within(screen.getByTestId("product-equiv-picker"))
+    expect(picker.queryByText("BP-700")).toBeNull()
+    expect(picker.queryByText("BP-100")).toBeNull()
+  })
+
+  it("searches the picker with a debounced term", async () => {
+    vi.mocked(getProductEquivalents).mockResolvedValue([])
+    vi.mocked(getProducts).mockResolvedValue(page([selfProduct, altProduct, altProduct2]))
+
+    render(<ProductEquivalentsTab productId={1} />)
+    fireEvent.click(screen.getByRole("button", { name: /add/i }))
+
+    fireEvent.change(screen.getByPlaceholderText("Search product by name or SKU..."), {
+      target: { value: "ceramic" },
+    })
+    await waitFor(() => {
+      expect(getProducts).toHaveBeenCalledWith(1, 20, "ceramic")
+    }, { timeout: 2000 })
   })
 })
