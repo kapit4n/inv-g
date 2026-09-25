@@ -3,33 +3,59 @@ mod config;
 mod db;
 mod error;
 mod pricing;
+mod startup;
 
-use db::{init_database_with_profile, DbState};
+use db::DbState;
 use std::sync::OnceLock;
+use tauri::Manager;
 
 static DB_STATE: OnceLock<DbState> = OnceLock::new();
 
 pub fn run() {
-    env_logger::init();
-
     let app_config = config::AppConfig::default();
 
-    let db_path = app_config.db_path.to_string_lossy().to_string();
+    // A packaged Windows build has no console, so this writes to
+    // <data dir>/logs/inventory-gear.log rather than being discarded.
+    startup::init_logging(&app_config.data_dir);
 
-    if let Some(parent) = app_config.db_path.parent() {
-        std::fs::create_dir_all(parent).expect("Failed to create database directory");
-    }
+    log::info!(
+        "Inventory Gear {} iniciando (perfil: {})",
+        app_config.version,
+        app_config.profile
+    );
 
-    let conn = init_database_with_profile(&db_path, &app_config.profile).expect("Failed to initialize database");
-
-    let db_state = DbState::new(conn, app_config.db_path, &app_config.profile);
-    let tauri_state = db_state.clone();
-    DB_STATE.set(db_state).expect("Failed to set database state");
+    let data_dir = app_config.data_dir.clone();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
-        .manage(tauri_state)
+        .setup(move |app| {
+            // Opening the database inside `setup` means a failure is reported in
+            // a native dialog before any window appears, instead of panicking
+            // with no console to print to.
+            match startup::bootstrap_database(&app_config) {
+                Ok(db_state) => {
+                    let tauri_state = db_state.clone();
+                    // Commands in crm/settings/reports read this global; the rest
+                    // take State<DbState>. Both must point at the same database.
+                    if DB_STATE.set(db_state).is_err() {
+                        log::warn!("DB_STATE ya había sido inicializado; se conserva el original");
+                    }
+                    app.manage(tauri_state);
+                    Ok(())
+                }
+                Err(detail) => {
+                    startup::show_fatal_error(
+                        app.handle(),
+                        &data_dir,
+                        "No se pudo inicializar la base de datos",
+                        &detail,
+                    );
+                    // The app cannot function without its database.
+                    std::process::exit(1);
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             commands::app::get_app_version,
             commands::app::health_check,

@@ -3,7 +3,7 @@
 ## Building
 
 ```bash
-npm run build:tauri
+npm run tauri:build
 ```
 
 ## Platforms

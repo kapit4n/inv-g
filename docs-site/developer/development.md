@@ -57,7 +57,7 @@ inventory-gear/
 | `npm run dev` | Start Vite dev server |
 | `npm run dev:tauri` | Start full Tauri app |
 | `npm run build` | Build frontend |
-| `npm run build:tauri` | Build full Tauri app |
+| `npm run tauri:build` | Build full Tauri app |
 | `npm run lint` | Lint code |
 | `npm run typecheck` | TypeScript check |
 | `npm test` | Run all tests |

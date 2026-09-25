@@ -151,11 +151,19 @@ export function TopBar() {
               {t("common.settings")}
               <Badge variant="secondary" className="ml-auto text-[10px]">{t("common.comingSoon")}</Badge>
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={async () => { setSeeding(true); try { await runSeeds(); alert("Seed completed!"); } catch (e) { alert("Seed failed: " + e); } finally { setSeeding(false); } }}>
-              {seeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
-              {seeding ? "Seeding..." : "Seed Demo Data"}
-            </DropdownMenuItem>
+            {/* Development-only: `run_seeds` shells out to `npx`, which does not
+                exist on an end user's machine. The in-app demo catalog under
+                Inventario → Importar/Exportar is the supported path and is pure
+                Rust, so it works in production. */}
+            {import.meta.env.DEV && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={async () => { setSeeding(true); try { await runSeeds(); alert("Seed completed!"); } catch (e) { alert("Seed failed: " + e); } finally { setSeeding(false); } }}>
+                  {seeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
+                  {seeding ? "Seeding..." : "Seed Demo Data"}
+                </DropdownMenuItem>
+              </>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={async () => { await logout(); navigate("/login", { replace: true }) }}>
               <LogOut className="mr-2 h-4 w-4" />

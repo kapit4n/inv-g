@@ -13,8 +13,27 @@ pub fn greet(name: &str) -> String {
     format!("Hello, {}! Welcome to Inventory Gear.", name)
 }
 
+/// Developer-only: shells out to `npx tsx database/seed/run.ts`.
+///
+/// This has no place in a packaged build. There is no Node.js on a normal
+/// Windows install and no `database/seed/run.ts` next to the executable, so the
+/// command could only ever fail — it used to surface to users as "Seed failed:
+/// ... Is Node.js installed?" from a menu item in the top bar. In release builds
+/// it now refuses up front, and the menu entry is hidden by the frontend.
+///
+/// The production seed path is `db::seed::seed_database_with_profile`, which
+/// runs automatically on an empty database. For demo data use the
+/// `execute_demo_catalog` command, which is pure Rust and needs no Node.js.
 #[tauri::command]
 pub fn run_seeds() -> Result<String, String> {
+    if !cfg!(debug_assertions) {
+        return Err(
+            "Este comando solo está disponible en builds de desarrollo. \
+             Para cargar datos de ejemplo usa Inventario → Importar/Exportar → Catálogo de demostración."
+                .to_string(),
+        );
+    }
+
     // Try to find the seed runner script
     let cwd = std::env::current_dir().map_err(|e| e.to_string())?;
     

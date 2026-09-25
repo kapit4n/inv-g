@@ -35,7 +35,7 @@ npm run dev:tauri
 | `npm run dev` | Start Vite dev server |
 | `npm run dev:tauri` | Start Tauri development |
 | `npm run build` | Build frontend |
-| `npm run build:tauri` | Build Tauri application |
+| `npm run tauri:build` | Build Tauri application |
 | `npm run lint` | Run ESLint |
 | `npm run format` | Format with Prettier |
 | `npm run typecheck` | TypeScript type checking |

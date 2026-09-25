@@ -1,0 +1,140 @@
+name: Windows Installer
+
+# Builds the NSIS installer on a real Windows runner.
+#
+# This must run on Windows. On Linux/macOS, `tauri build --bundles nsis` exits 0
+# and produces *nothing* — no installer, no error — so a green build elsewhere
+# does not mean a working installer exists. See docs/windows-installer.md.
+#
+# Manual run:  Actions → Windows Installer → Run workflow
+# Release:     push a `v*` tag (e.g. v1.0.0) to publish a GitHub Release.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Create/update a GitHub Release for this build"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  # The build machine has no GPU or display; keep the webview headless.
+  CI: true
+
+jobs:
+  build-installer:
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          components: clippy, rustfmt
+
+      # Windows Defender quarantines freshly-built unsigned Rust binaries and
+      # can corrupt or stall the NSIS build, producing a broken installer that
+      # looks fine. Excluding the build tree is the documented mitigation.
+      - name: Exclude build tree from Windows Defender
+        shell: pwsh
+        run: |
+          $paths = @(
+            "$env:GITHUB_WORKSPACE\src-tauri\target",
+            "$env:GITHUB_WORKSPACE\node_modules"
+          )
+          foreach ($p in $paths) {
+            if (Test-Path $p) {
+              Add-MpPreference -ExclusionPath $p
+              Write-Host "Excluded from Defender: $p"
+            }
+          }
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify version sync
+        run: npm run version:check
+
+      - name: TypeScript check
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Frontend tests
+        run: npx vitest run
+
+      - name: Rust tests
+        run: cd src-tauri; cargo test
+
+      - name: Cache Rust build
+        uses: actions/cache@v4
+        with:
+          path: src-tauri/target
+          key: ${{ runner.os }}-nsis-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-nsis-
+
+      - name: Build NSIS installer
+        run: npx tauri build --bundles nsis
+
+      # The bundler names the output from `productName` + version. Rename it to
+      # a stable, predictable asset name so release download links and the docs
+      # can reference one path regardless of bundler naming changes.
+      - name: Normalize installer name
+        shell: pwsh
+        run: |
+          $bundle = "src-tauri\target\release\bundle\nsis"
+          if (-not (Test-Path $bundle)) {
+            Write-Error "No NSIS bundle directory at $bundle — the build produced no installer."
+            exit 1
+          }
+          $installer = Get-ChildItem -Path $bundle -Filter "*.exe" | Select-Object -First 1
+          if (-not $installer) {
+            Write-Error "No .exe found in $bundle — the NSIS bundle did not produce an installer."
+            exit 1
+          }
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $target = "src-tauri\target\release\bundle\nsis\InventoryGear-$version-setup.exe"
+          Move-Item -Path $installer.FullName -Destination $target -Force
+          Write-Host "Installer: $target"
+          "INSTALLER_PATH=$target" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: InventoryGear-${{ env.VERSION }}-windows-installer
+          path: src-tauri/target/release/bundle/nsis/InventoryGear-${{ env.VERSION }}-setup.exe
+          if-no-files-found: error
+          retention-days: 30
+
+      # Signing is Windows-only and requires a certificate. Until a code-signing
+      # certificate is configured, release builds are unsigned and SmartScreen
+      # will warn on first run. See docs/windows-installer.md#code-signing.
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.publish
+        uses: softprops/action-gh-release@v2
+        with:
+          files: src-tauri/target/release/bundle/nsis/InventoryGear-${{ env.VERSION }}-setup.exe
+          draft: true
+          generate_release_notes: true
+          fail_on_unmatched_files: true

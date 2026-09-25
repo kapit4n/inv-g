@@ -1,13 +1,16 @@
 {
   "name": "inventory-gear",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "start": "tauri dev",
     "dev": "vite",
     "dev:tauri": "tauri dev",
     "build": "tsc -b && vite build",
+    "tauri:build": "tauri build",
+    "tauri:build:windows": "node scripts/tauri-build-windows.mjs",
+    "tauri:dev": "tauri dev",
     "build:tauri": "tauri build",
     "preview": "vite preview",
     "lint": "eslint . --ext .ts,.tsx --report-unused-disable-directives",
@@ -41,11 +44,15 @@
     "test:smoke": "vitest run tests/smoke",
     "test:tauri": "vitest run tests/tauri",
     "test:rust": "cd src-tauri && cargo test",
-    "verify": "npm run typecheck && npm run lint && vitest run && cd src-tauri && cargo test",
+    "verify": "npm run typecheck && npm run lint && vitest run && npm run version:check && cd src-tauri && cargo test",
     "docs:dev": "vitepress dev docs-site",
     "docs:build": "node scripts/build-docs.mjs",
     "docs:preview": "vitepress preview docs-site",
-    "docs:pdf": "node scripts/generate-pdf.mjs"
+    "docs:pdf": "node scripts/generate-pdf.mjs",
+    "icons:generate": "node scripts/icons/generate-icons.mjs",
+    "version:check": "node scripts/version.mjs check",
+    "version:sync": "node scripts/version.mjs sync",
+    "version:set": "node scripts/version.mjs set"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.5.7",

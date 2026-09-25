@@ -114,7 +114,7 @@ This starts the Vite dev server and launches the Tauri desktop window. Hot-reloa
 npm run build
 
 # Build the full Tauri desktop application
-npm run build:tauri
+npm run tauri:build
 ```
 
 Outputs are placed in:

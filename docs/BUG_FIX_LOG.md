@@ -6,6 +6,99 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-25 — Packaging for 1.0.0: five defects that only appear in a real install
+
+Preparing the first formal release surfaced five problems that testing in dev
+mode had hidden, because dev mode is not what ships. None of them reproduce with
+`npm run tauri:dev`.
+
+**1. `run_seeds` was reachable in production and could only ever fail**
+
+- **Symptom:** a top-bar menu item, "Seed Demo Data", called a Tauri command
+  that shells out to `npx tsx database/seed/run.ts`. On a normal Windows install
+  there is no Node.js and no such script, so it failed with *"Seed failed: …
+  Is Node.js installed?"* — a user-facing error about a developer tool.
+- **Root cause:** the command was registered in `generate_handler!` and the menu
+  item rendered unconditionally. It was a development utility that shipped.
+- **Investigation:** read `commands/app.rs` (the `npx` shell-out) and
+  `layouts/top-bar.tsx:31,155` (the menu entry, with raw `alert()` calls and
+  English-only strings). Confirmed the supported in-app path is the demo catalog
+  under *Inventario → Importar/Exportar* (`execute_demo_catalog`, pure Rust), so
+  nothing is lost by hiding the developer command.
+- **Fix:** the command returns a clear error when `cfg!(debug_assertions)` is
+  false, pointing at the demo catalog; the menu item renders only under
+  `import.meta.env.DEV`.
+- **Files:** `src-tauri/src/commands/app.rs`, `src/layouts/top-bar.tsx`
+
+**2. Startup failures panicked with no visible output**
+
+- **Symptom:** `lib.rs::run()` did `.expect("Failed to initialize database")`
+  *before* the Tauri builder. A packaged Windows binary is a GUI-subsystem app
+  with no console, so the panic text went nowhere: the user saw a flash or an
+  empty window, and support had nothing to go on.
+- **Root cause:** database init ran outside the Tauri runtime, so there was no
+  window or dialog to report through, and `expect` is the wrong tool for a
+  recoverable user-facing condition.
+- **Fix:** a new `startup` module opens the database inside the builder's
+  `setup` hook (after the runtime exists, before the window shows). Failure now
+  logs, shows a native message box naming the problem and the log path, and
+  exits non-zero. The dialog is in Spanish, matching the app's UI.
+- **Files:** `src-tauri/src/startup.rs` (new), `src-tauri/src/lib.rs`
+
+**3. Production logs were silently discarded**
+
+- **Symptom:** `env_logger::init()` writes to stderr. A GUI-subsystem Windows
+  binary has nowhere to send it, so every diagnostic was lost — which is why
+  defect 2 was undiagnosable in the field.
+- **Root cause:** the default target is correct for a terminal app and useless
+  for a windowed one.
+- **Fix:** logs go to `<data dir>\logs\inventory-gear.log` (append, with simple
+  5 MB rotation). stderr is kept in debug builds so `npm run tauri:dev` still
+  shows output, and `RUST_LOG` still overrides the level so support can raise
+  verbosity without a rebuild. Every write failure is swallowed deliberately: a
+  full disk must not prevent the app from starting.
+- **Files:** `src-tauri/src/startup.rs`
+
+**4. Two tests failed depending on the developer's machine**
+
+- **Symptom:** `config::tests::test_default_config` and
+  `test_config_default_profile_db_file` failed locally. `AppConfig::default()`
+  resolves the profile from the *real* data dir, so both tests asserted
+  `default` regardless of which profile the machine happened to have selected.
+- **Root cause:** tests asserted a machine-dependent value instead of an
+  invariant.
+- **Fix:** both now assert what is true regardless of machine state — the db
+  path is the profile's own file inside the data dir. Replaced the deleted
+  assertion with `test_db_path_is_never_inside_program_files`, which enforces a
+  real packaging requirement: user data must never resolve under `Program Files`
+  (not writable without elevation, and destroyed by reinstall).
+- **Result:** 151 Rust tests pass, 0 failures (was 148 passing + 2 failing).
+- **Files:** `src-tauri/src/config.rs`
+
+**5. `tauri build --bundles nsis` exits 0 on Linux while producing nothing**
+
+- **Symptom:** no error, no artifact, green run. The most dangerous possible
+  packaging failure, because it looks like success.
+- **Root cause:** NSIS requires Windows; the bundler skips the installer
+  elsewhere without failing. Verified empirically: `--bundles nsis` exits 0 with
+  no `bundle/` directory, and `--target x86_64-pc-windows-msvc` fails outright
+  (MSVC linker and Windows SDK are Windows-only).
+- **Fix:** `npm run tauri:build:windows` routes through
+  `scripts/tauri-build-windows.mjs`, which exits 1 with an explanation and
+  points at the CI workflow on any non-Windows host. The CI workflow
+  independently fails if the `bundle\nsis` directory or the `.exe` is missing.
+- **Files:** `scripts/tauri-build-windows.mjs` (new),
+  `.github/workflows/windows-installer.yml` (new)
+
+**Also fixed while packaging:** no `icon.ico` existed at all and the four PNGs
+were flat single-colour squares, so the installer and shortcut would have had
+no real icon. Generated a complete, valid multi-resolution icon set
+(`scripts/icons/generate-icons.mjs`, placeholder artwork pending the real
+logo). Added `npm run version:check` to prevent `Cargo.toml` drifting from
+`package.json`, since `tauri.conf.json` reads the latter directly.
+
+---
+
 ### 2026-09-25 — Audit: verified every other search in the app
 
 **Context:** after fixing the Products-list search (`paginate`), every other

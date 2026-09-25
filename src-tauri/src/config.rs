@@ -157,11 +157,49 @@ mod tests {
 
     #[test]
     fn test_default_config() {
+        // `AppConfig::default()` resolves the profile from the *real* data dir
+        // (~/.local/share/inventory-gear on Linux, %LOCALAPPDATA% on Windows), so
+        // asserting a specific profile here made the test depend on whatever
+        // profile the developer last selected on this machine. It only asserts
+        // what is true regardless of machine state.
         let config = AppConfig::default();
         assert_eq!(config.app_name, "Inventory Gear");
         assert_eq!(config.log_level, "info");
         assert!(!config.version.is_empty());
-        assert_eq!(config.profile, PROFILE_DEFAULT);
+        assert!(
+            is_valid_profile(&config.profile),
+            "profile must be a known one, got {}",
+            config.profile
+        );
+    }
+
+    #[test]
+    fn test_db_file_matches_resolved_profile() {
+        // The invariant is that the db path is the profile's file *inside the
+        // data dir* — not that it is always the default profile's file.
+        let config = AppConfig::default();
+        assert_eq!(
+            config.db_path,
+            config.data_dir.join(profile_db_file_name(&config.profile))
+        );
+        assert_eq!(
+            config.db_path.extension().and_then(|e| e.to_str()),
+            Some("db")
+        );
+    }
+
+    #[test]
+    fn test_db_path_is_never_inside_program_files() {
+        // User data must not land in Program Files: it needs write access
+        // without elevation and must survive reinstall/upgrade.
+        let config = AppConfig::default();
+        let text = config.db_path.to_string_lossy().to_lowercase();
+        assert!(
+            !text.contains("program files") && !text.contains("programfiles (x86)"),
+            "database must not be installed under Program Files: {}",
+            config.db_path.display()
+        );
+        assert!(config.db_path.is_absolute(), "db path must be absolute");
     }
 
     #[test]
@@ -180,12 +218,6 @@ mod tests {
         assert_eq!(profile_db_file_name(PROFILE_MULTI_STORE), "inventory-gear-multi.db");
         assert_eq!(profile_db_file_name(PROFILE_EMPTY), "inventory-gear-empty.db");
         assert_eq!(profile_db_file_name("unknown"), "inventory_gear.db");
-    }
-
-    #[test]
-    fn test_config_default_profile_db_file() {
-        let cfg = AppConfig::default();
-        assert!(cfg.db_path.ends_with("inventory_gear.db"));
     }
 
     #[test]

@@ -42,7 +42,7 @@ npm run dev:tauri
 npm run build
 
 # Build full Tauri application
-npm run build:tauri
+npm run tauri:build
 ```
 
 ## Testing
