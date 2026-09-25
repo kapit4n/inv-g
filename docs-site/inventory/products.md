@@ -36,10 +36,43 @@ Click the **+ New Product** button on the products page.
 | Field | Description |
 |-------|-------------|
 | Cost Price | What you pay the supplier |
-| Sale Price | Price charged to customers |
+| % de ganancia | Optional per-product **gain margin** over cost (empty = use the global default configured in Settings → Business) |
+| Precio editado | Optional manual **price override** (empty = automatic) |
 | Wholesale Price | Bulk/wholesale price |
-| Suggested Retail Price | MSRP reference |
+| Suggested Retail Price | MSRP reference (reference only, not used to calculate the final price) |
 | Tax Rate | Applicable tax percentage |
+
+The final sale price is the **effective price**:
+
+- If **Precio editado** is set, it wins (it locks the sales price so nothing
+  overrides it).
+- Otherwise the price is calculated automatically from cost:
+  `costo × (1 + % de ganancia / 100)`, using the product's own percentage or the
+  global default when the field is left empty.
+
+While you type, the form shows the **suggested price**, the **configured
+margin** (the product's own or the global one) and the resulting **effective
+price** that will be saved. A warning appears if the effective price is equal to
+or below cost.
+
+See [How Pricing Works](#how-pricing-works) below.
+
+### How Pricing Works
+
+- **Global default gain** — Settings → Business → *Default profit margin (%).
+  This is the gain applied to any product without its own percentage. Changing
+  it re-prices every product that has no own gain and no edited price.
+- **Per-product gain** — each product can override the global default with its
+  own percentage. The products list shows the **configured margin** for each
+  row (own value, or the global one).
+- **Suggested price** — calculated from cost and the configured margin; it is
+  always up to date and never entered by hand.
+- **Edited price** — any price that must not change automatically (a contract
+  price, a price fixed by a supplier, a legacy imported price).
+- **Pricing history** — the Pricing tab of the Product 360° view shows the
+  realized margin of the current sale price over cost, the configured margin,
+  the suggested price and whether the price is edited or automatic. Saving a
+  product or changing its pricing is recorded in the activity timeline.
 
 ### Step 4: Set Stock Levels
 
@@ -71,11 +104,21 @@ Click any product to see the full detail view with 7 tabs:
 |-----|---------|
 | Overview | Basic info, pricing, stock summary |
 | Inventory | Stock levels, movements history |
-| Pricing | Price history, cost changes |
+| Pricing | Realized margin over cost, configured margin, suggested/edited/effective price |
 | Suppliers | Supplier associations, lead times |
 | Compatibility | Vehicle compatibility matrix |
 | Identifiers | Cross-reference numbers (OEM, aftermarket, etc.) |
 | Activity | Timeline of changes |
+
+## Product List Columns
+
+The products list shows several pricing-related columns out of the box:
+
+- **Costo** — cost price
+- **Precio de venta** — the effective (final) sale price
+- **Precio sugerido** — the calculated suggested price for the configured margin
+- **% de ganancia** — the configured margin: the product's own value, or the
+  global default when the product follows it
 
 ## How to Edit a Product
 
@@ -143,6 +186,8 @@ field a full product record requires so the file round-trips with the
 | Precio de venta | `products.sale_price` | price |
 | Precio mayorista | `products.wholesale_price` | 85% of price |
 | Precio sugerido | `products.suggested_retail_price` | 115% of price |
+| % de ganancia | `products.profit_margin_pct` (empty = follows global default) | 42.9 |
+| Precio editado | `products.edited_price` (empty = automatic) | (empty) |
 | Impuesto (%) | `products.tax_rate` | 0 |
 | Stock inicial | `products.stock_quantity` | Cant |
 | Stock mínimo | `products.min_stock_level` | 1 |

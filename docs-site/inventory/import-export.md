@@ -46,7 +46,7 @@ confirms how many products were exported.
 
 The workbook contains two sheets:
 
-- **Productos** — one row per product with the 27 official columns (see
+- **Productos** — one row per product with the 29 official columns (see
   [Reference format](#reference-format) below).
 - **Maestros de referencia** — the reference values (categories, brands,
   manufacturers, suppliers, warehouses, storage locations) the importer must
@@ -124,7 +124,7 @@ counts, errors, stock delta, who ran it, and when.
 
 ## Reference Format
 
-The *Productos* sheet uses these 27 columns (the order of the official
+The *Productos* sheet uses these 29 columns (the order of the official
 template):
 
 | # | Column | Notes |
@@ -140,22 +140,36 @@ template):
 | 9 | Fabricante | Manufacturer name (from refs sheet) |
 | 10 | Proveedor | Supplier name (from refs sheet) |
 | 11 | Precio de compra (costo) | Cost price |
-| 12 | Precio de venta | Sale price |
+| 12 | Precio de venta | Sale price (final display price) |
 | 13 | Precio mayorista | Wholesale price |
-| 14 | Precio sugerido | Suggested retail price |
-| 15 | Impuesto (%) | Tax rate |
-| 16 | Stock inicial | Initial/absolute stock quantity |
-| 17 | Stock mínimo | Min stock level |
-| 18 | Stock máximo | Max stock level |
-| 19 | Punto de reorden | Reorder point |
-| 20 | Unidad | Unit (pcs, kg, L, …) |
-| 21 | Peso (kg) | Weight in kg |
-| 22 | Código de barras | Barcode (used to match rows) |
-| 23 | Almacén | Warehouse code (from refs sheet) |
-| 24 | Ubicación | Storage location code (from refs sheet) |
-| 25 | URL imagen | Image URL |
-| 26 | Activo | `1`/`0` (1 = active) |
-| 27 | Descontinuado | `1`/`0` (0 = not discontinued) |
+| 14 | Precio sugerido | Suggested retail price (reference only) |
+| 15 | % de ganancia | Per-product gain margin over cost (empty = use the global default) |
+| 16 | Precio editado | Optional manual price override (empty = automatic) |
+| 17 | Impuesto (%) | Tax rate |
+| 18 | Stock inicial | Initial/absolute stock quantity |
+| 19 | Stock mínimo | Min stock level |
+| 20 | Stock máximo | Max stock level |
+| 21 | Punto de reorden | Reorder point |
+| 22 | Unidad | Unit (pcs, kg, L, …) |
+| 23 | Peso (kg) | Weight in kg |
+| 24 | Código de barras | Barcode (used to match rows) |
+| 25 | Almacén | Warehouse code (from refs sheet) |
+| 26 | Ubicación | Storage location code (from refs sheet) |
+| 27 | URL imagen | Image URL |
+| 28 | Activo | `1`/`0` (1 = active) |
+| 29 | Descontinuado | `1`/`0` (0 = not discontinued) |
+
+### How prices are decided on import
+
+The final sale price of a product is its **effective price**:
+
+`Precio editado` → if provided, it wins (it locks the sales price).
+`% de ganancia` → otherwise, if provided, the sale price is calculated as
+`costo × (1 + %/100)`.
+`Precio de venta` → otherwise, if provided (legacy files), it is stored as an
+**edited** price so the price is preserved.
+Nothing → existing values are kept (Update mode), or the price is suggested
+from the global default gain (Append mode).
 
 Import rules:
 
@@ -169,6 +183,9 @@ Import rules:
    entire import is blocked until cleared.
 5. **Stock absolutes** — in Update mode, Stock inicial is the resulting stock,
    not an increment; the movement is the difference.
+6. **Pricing precedence** — `Precio editado` > `% de ganancia` > `Precio de
+   venta` (legacy) > existing value / suggested from the global default. See
+   [How prices are decided on import](#how-prices-are-decided-on-import).
 
 ## Considerations
 
@@ -181,6 +198,13 @@ Import rules:
   warehouse will error.
 - Empty cells keep the current value in Update mode, so you can update only
   prices (one column) without touching anything else.
+- Files created with the previous 27-column layout are not recognized
+  automatically: add the two new columns **% de ganancia** and **Precio
+  editado** (after **Precio sugerido**) before importing, or re-export a fresh
+  template.
+- `% de ganancia` and `Precio editado` export exactly what is stored — an
+  empty `% de ganancia` means the product follows the global default
+  configured in Settings → Business.
 
 ## Related
 
