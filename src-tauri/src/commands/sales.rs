@@ -116,6 +116,7 @@ pub struct ProductForPos {
     pub category_name: Option<String>,
     pub brand_name: Option<String>,
     pub is_active: bool,
+    pub equivalent_count: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -424,7 +425,9 @@ pub fn search_products_for_pos(state: State<DbState>, search: String) -> Result<
     let mut stmt = conn.prepare(
         "SELECT p.id, p.name, p.sku, p.barcode, p.sale_price, p.wholesale_price,
                 p.stock_quantity, p.unit, p.image_url, p.tax_rate,
-                c.name as category_name, b.name as brand_name, p.is_active
+                c.name as category_name, b.name as brand_name, p.is_active,
+                (SELECT COUNT(*) FROM product_equivalents e
+                  WHERE e.product_id = p.id OR e.equivalent_product_id = p.id) as equivalent_count
          FROM products p
          LEFT JOIN categories c ON p.category_id = c.id
          LEFT JOIN brands b ON p.brand_id = b.id
@@ -440,6 +443,7 @@ pub fn search_products_for_pos(state: State<DbState>, search: String) -> Result<
             unit: row.get(7)?, image_url: row.get(8)?, tax_rate: row.get(9)?,
             category_name: row.get(10)?, brand_name: row.get(11)?,
             is_active: row.get::<_, i64>(12)? != 0,
+            equivalent_count: row.get(13)?,
         })
     }).map_err(|e| e.to_string())?;
     let mut result = Vec::new();
@@ -461,6 +465,8 @@ pub fn global_product_search(state: State<DbState>, query: String, limit: Option
         SELECT p.id, p.name, p.sku, p.barcode, p.sale_price, p.wholesale_price,
                p.stock_quantity, p.unit, p.image_url, p.tax_rate,
                c.name as category_name, b.name as brand_name, p.is_active,
+               (SELECT COUNT(*) FROM product_equivalents e
+                 WHERE e.product_id = p.id OR e.equivalent_product_id = p.id) as equivalent_count,
                CASE
                    WHEN p.name = ?1 OR p.sku = ?1 OR p.barcode = ?1 OR p.oem_number = ?1 THEN 0
                    WHEN p.name LIKE ?2 OR p.sku LIKE ?2 OR p.barcode LIKE ?2 THEN 1
@@ -487,6 +493,7 @@ pub fn global_product_search(state: State<DbState>, query: String, limit: Option
             unit: row.get(7)?, image_url: row.get(8)?, tax_rate: row.get(9)?,
             category_name: row.get(10)?, brand_name: row.get(11)?,
             is_active: row.get::<_, i64>(12)? != 0,
+            equivalent_count: row.get(13)?,
         })
     }).map_err(|e| e.to_string())?;
     let mut result = Vec::new();

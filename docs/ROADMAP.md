@@ -26,6 +26,7 @@
 | 12 | Automated Screenshot Framework & Artifacts | ✅ | `1e60da7` … `3b6484e` |
 | 13 | Enterprise Quality Assurance & Testing | ✅ | `f2d9495` |
 | 15 | Per-Product Pricing & Gains | ✅ | `40a77d0` |
+| 16 | Product Equivalents | ✅ | (see `docs/progress/MILESTONE_16.md`) |
 | 14 | Database Profiles (single/multi-store) | ✅ | (feature-gated; see `docs/progress/MILESTONE_14.md`) |
 
 ---

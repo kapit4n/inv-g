@@ -1,6 +1,6 @@
 use rusqlite::{Connection, Result};
 
-const SCHEMA_VERSION: i32 = 14;
+const SCHEMA_VERSION: i32 = 15;
 
 fn get_user_version(conn: &Connection) -> Result<i32> {
     let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
@@ -19,24 +19,51 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
         return Ok(());
     }
 
-    // Additive migration for the immediately previous schema version. This
-    // preserves existing business data (requirement: do not lose current
-    // product prices) instead of dropping everything. The new pricing columns
-    // are appended at the end of `products` and every existing product gets an
-    // implied individual margin computed so that its current `sale_price` is
-    // reproduced by the computed suggested price.
-    if current_version == SCHEMA_VERSION - 1 {
+    // Additive migration for the two immediately-previous schema versions
+    // (13 and 14). This preserves existing business data (requirement: do not
+    // lose current product prices or equivalents) instead of dropping the
+    // world. A database on version 13 gets every step applied in order, so a
+    // single pass upgrades it straight to the current version.
+    if current_version >= SCHEMA_VERSION - 2 {
         conn.execute_batch("PRAGMA foreign_keys=OFF;")?;
-        conn.execute_batch(
-            "ALTER TABLE products ADD COLUMN profit_margin_pct REAL;
-             ALTER TABLE products ADD COLUMN edited_price REAL;
-             UPDATE products
-                SET edited_price = sale_price
-              WHERE cost_price <= 0;
-             UPDATE products
-                SET profit_margin_pct = ROUND((sale_price / cost_price - 1) * 100, 1)
-              WHERE cost_price > 0;",
-        )?;
+
+        // v13 -> v14: per-product pricing columns. Every existing product gets
+        // an implied individual margin computed so that its current
+        // `sale_price` is reproduced by the computed suggested price; products
+        // with no cost lock their price as an explicit edit.
+        if current_version <= 13 {
+            conn.execute_batch(
+                "ALTER TABLE products ADD COLUMN profit_margin_pct REAL;
+                 ALTER TABLE products ADD COLUMN edited_price REAL;
+                 UPDATE products
+                    SET edited_price = sale_price
+                  WHERE cost_price <= 0;
+                 UPDATE products
+                    SET profit_margin_pct = ROUND((sale_price / cost_price - 1) * 100, 1)
+                  WHERE cost_price > 0;",
+            )?;
+        }
+
+        // v14 -> v15: equivalent products. Symmetric relationship stored as a
+        // canonical (min, max) pair; read queries match either column.
+        if current_version <= 14 {
+            conn.execute_batch(
+                "CREATE TABLE IF NOT EXISTS product_equivalents (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    product_id INTEGER NOT NULL,
+                    equivalent_product_id INTEGER NOT NULL,
+                    note TEXT,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+                    FOREIGN KEY (equivalent_product_id) REFERENCES products(id) ON DELETE CASCADE,
+                    CONSTRAINT uq_product_equivalent_pair UNIQUE (product_id, equivalent_product_id),
+                    CONSTRAINT ck_product_equivalent_ordered CHECK (product_id < equivalent_product_id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_pe_product ON product_equivalents(product_id);
+                CREATE INDEX IF NOT EXISTS idx_pe_equivalent ON product_equivalents(equivalent_product_id);",
+            )?;
+        }
+
         conn.execute_batch("PRAGMA foreign_keys=ON;")?;
         set_user_version(conn, SCHEMA_VERSION)?;
         return Ok(());
@@ -63,6 +90,7 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             DROP TABLE IF EXISTS quotes;
             DROP TABLE IF EXISTS sale_payments;
             DROP TABLE IF EXISTS inventory_movements;
+            DROP TABLE IF EXISTS product_equivalents;
             DROP TABLE IF EXISTS product_identifiers;
             DROP TABLE IF EXISTS product_vehicle_compatibility;
             DROP TABLE IF EXISTS product_images;
@@ -1167,6 +1195,22 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
         CREATE INDEX IF NOT EXISTS idx_pi_product ON product_identifiers(product_id);
         CREATE INDEX IF NOT EXISTS idx_pi_type ON product_identifiers(identifier_type);
 
+        -- Equivalent (alternative) products: symmetric relationship stored as
+        -- a canonical (min, max) pair. Read queries match either column.
+        CREATE TABLE IF NOT EXISTS product_equivalents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL,
+            equivalent_product_id INTEGER NOT NULL,
+            note TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+            FOREIGN KEY (equivalent_product_id) REFERENCES products(id) ON DELETE CASCADE,
+            CONSTRAINT uq_product_equivalent_pair UNIQUE (product_id, equivalent_product_id),
+            CONSTRAINT ck_product_equivalent_ordered CHECK (product_id < equivalent_product_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_pe_product ON product_equivalents(product_id);
+        CREATE INDEX IF NOT EXISTS idx_pe_equivalent ON product_equivalents(equivalent_product_id);
+
         -- Held sales (TASK 07)
         CREATE TABLE IF NOT EXISTS held_sales (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1277,6 +1321,7 @@ mod tests {
         "permissions",
         "printer_settings",
         "product_cost_history",
+        "product_equivalents",
         "product_images",
         "product_vehicle_compatibility",
         "products",
@@ -1684,7 +1729,7 @@ mod tests {
         }
 
         let conn = Connection::open(path).expect("open for migration");
-        crate::db::schema::create_tables(&conn).expect("v13 -> v14 additive migration should succeed");
+        crate::db::schema::create_tables(&conn).expect("v13 -> v15 additive migration should succeed");
         assert_eq!(get_schema_version(&conn), SCHEMA_VERSION);
 
         // Data is preserved (no drop), not re-seeded away.
@@ -1712,6 +1757,100 @@ mod tests {
             .query_row("SELECT edited_price FROM products WHERE sku = 'V13-B'", [], |row| row.get(0))
             .unwrap();
         assert_eq!(zero_edited, Some(12.0));
+    }
+
+    #[test]
+    fn migration_v14_to_v15_adds_equivalents_and_preserves_prices() {
+        let td = TestDb::new();
+        let path = td.path.to_str().unwrap();
+
+        {
+            let conn = Connection::open(path).unwrap();
+            conn.execute_batch(
+                "
+                CREATE TABLE products (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    sku TEXT NOT NULL UNIQUE,
+                    barcode TEXT,
+                    oem_number TEXT,
+                    internal_code TEXT,
+                    description TEXT,
+                    category_id INTEGER,
+                    brand_id INTEGER,
+                    manufacturer_id INTEGER,
+                    supplier_id INTEGER,
+                    cost_price REAL NOT NULL DEFAULT 0,
+                    sale_price REAL NOT NULL DEFAULT 0,
+                    wholesale_price REAL NOT NULL DEFAULT 0,
+                    suggested_retail_price REAL NOT NULL DEFAULT 0,
+                    tax_rate REAL NOT NULL DEFAULT 0,
+                    stock_quantity INTEGER NOT NULL DEFAULT 0,
+                    min_stock_level INTEGER NOT NULL DEFAULT 0,
+                    max_stock_level INTEGER NOT NULL DEFAULT 0,
+                    reorder_point INTEGER NOT NULL DEFAULT 0,
+                    unit TEXT NOT NULL DEFAULT 'pcs',
+                    weight REAL,
+                    warehouse_id INTEGER,
+                    storage_location_id INTEGER,
+                    image_url TEXT,
+                    is_active INTEGER NOT NULL DEFAULT 1,
+                    is_discontinued INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    profit_margin_pct REAL,
+                    edited_price REAL
+                );
+                INSERT INTO products (name, sku, cost_price, sale_price, profit_margin_pct, edited_price) VALUES
+                    ('V14-A', 'V14-A', 20.0, 30.0, 50.0, NULL),
+                    ('V14-B', 'V14-B', 10.0, 15.0, NULL, 15.0);
+                PRAGMA user_version=14;
+                ",
+            )
+            .unwrap();
+        }
+
+        let conn = Connection::open(path).expect("open for migration");
+        crate::db::schema::create_tables(&conn).expect("v14 -> v15 additive migration should succeed");
+        assert_eq!(get_schema_version(&conn), SCHEMA_VERSION);
+
+        // Existing products keep their individual pricing.
+        let (margin, edited): (Option<f64>, Option<f64>) = conn
+            .query_row("SELECT profit_margin_pct, edited_price FROM products WHERE sku = 'V14-B'", [], |row| {
+                Ok((row.get(0)?, row.get(1)?))
+            })
+            .unwrap();
+        assert_eq!(margin, None);
+        assert_eq!(edited, Some(15.0));
+
+        // The new equivalents table exists and accepts a symmetric pair.
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM product_equivalents", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(count, 0);
+        conn.execute(
+            "INSERT INTO product_equivalents (product_id, equivalent_product_id, note) VALUES (1, 2, 'migrado')",
+            [],
+        )
+        .unwrap();
+        // Reversed storage is rejected by the CHECK ordering constraint: the
+        // insert above used the canonical (min, max) order.
+        assert!(
+            conn.execute(
+                "INSERT INTO product_equivalents (product_id, equivalent_product_id) VALUES (2, 1)",
+                [],
+            )
+            .is_err(),
+            "non-canonical (reversed) equivalent pair must be rejected"
+        );
+        let dup: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM product_equivalents WHERE (product_id = 1 AND equivalent_product_id = 2)",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(dup, 1);
     }
 
     // ── Idempotency tests ────────────────────────────────────────────

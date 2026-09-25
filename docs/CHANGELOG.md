@@ -6,6 +6,33 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased] - Product equivalents
+
+### Added
+
+- **Product Equivalents** — a one-to-one `product_equivalents` relationship
+  linking two interchangeable products (same part, different brand/SKU),
+  managed from a new **Equivalents** tab in the Product 360° view. Additive
+  schema migration v14 → v15 (existing products keep their prices).
+- POS now surfaces in-stock equivalents: tapping an **Out of stock** product
+  that has equivalents opens a panel listing the active, in-stock substitutes;
+  picking one adds it to the cart. Checkout invalidates the global product
+  search so stock stays fresh.
+- Product 360° **Equivalents** tab lets you link/unlink equivalents with an
+  optional note; the picker searches the catalog by name or SKU.
+- Excel import/export gained a **Productos equivalentes** sheet (columns:
+  Producto, SKU producto, Producto equivalente, SKU equivalente, Nota).
+  Pairs are matched by SKU, stored once regardless of direction, duplicates
+  are skipped, and self/unknown references block the import. The demo workbook
+  ships an example pair.
+- Import preview and result now report how many equivalent relationships were
+  created.
+- Documentation: new **Product Equivalents** guide under
+  [Inventory](/inventory/product-equivalents), with cross-links from Products,
+  Import/Export, Cross References, and POS.
+
+---
+
 ## [Unreleased] - Per-product pricing & gains
 
 > Shipped in `40a77d0` — see `docs/progress/MILESTONE_15.md`.

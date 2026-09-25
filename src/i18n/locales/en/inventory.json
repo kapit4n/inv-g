@@ -195,8 +195,26 @@
       "suppliers": "Suppliers",
       "compatibility": "Compatibility",
       "identifiers": "Identifiers",
+      "equivalents": "Equivalents",
       "activity": "Activity"
     }
+  },
+  "equivalents": {
+    "title": "Equivalent Products",
+    "description": "Products interchangeable with this item. They are suggested at the point of sale when the product is out of stock.",
+    "addProduct": "Add equivalent",
+    "created": "Equivalents created",
+    "searchPlaceholder": "Search product by name or SKU...",
+    "noResults": "No products found",
+    "notePlaceholder": "Note (optional)",
+    "empty": "This product has no registered equivalents",
+    "sku": "SKU",
+    "stock": "Stock",
+    "salePrice": "Sale price",
+    "wholesalePrice": "Wholesale price",
+    "note": "Note",
+    "status": "Status",
+    "inactive": "Inactive"
   },
   "pricing": {
     "margin": "Margin",

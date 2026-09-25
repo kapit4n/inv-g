@@ -10,13 +10,13 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { CustomerSearchField, TextareaField } from "@/components/forms"
-import { processCheckout, getSaleItems, getHeldSales, getHeldSaleItems, holdSale, deleteHeldSale } from "@/lib/tauri"
+import { processCheckout, getSaleItems, getHeldSales, getHeldSaleItems, holdSale, deleteHeldSale, getProductEquivalents } from "@/lib/tauri"
 import { useNotification } from "@/hooks/use-notification"
 import { usePrint, usePrintConfig, useProductSearch } from "@/hooks"
 import { useBusinessStore } from "@/stores"
 import { buildSaleReceiptModel, type ReceiptLabels } from "@/lib/print"
 import { cn } from "@/lib/utils"
-import type { ProductForPos, PaymentInput, CheckoutResult } from "@/types"
+import type { ProductForPos, PaymentInput, CheckoutResult, ProductEquivalent } from "@/types"
 
 interface CartItem {
   productId: number
@@ -60,6 +60,18 @@ export function PosPage() {
   const [holdDialogOpen, setHoldDialogOpen] = useState(false)
   const [completedSale, setCompletedSale] = useState<CheckoutResult | null>(null)
   const [notesExpanded, setNotesExpanded] = useState(false)
+  const [equivTarget, setEquivTarget] = useState<ProductForPos | null>(null)
+
+  const { data: equivOptions = [] as ProductEquivalent[], isFetching: equivLoading } = useQuery({
+    queryKey: ["product-equivalents", equivTarget?.id],
+    queryFn: () => getProductEquivalents(equivTarget!.id),
+    enabled: !!equivTarget,
+  })
+
+  const availableEquivalents = useMemo(
+    () => equivOptions.filter((eq) => eq.isActive && eq.stockQuantity > 0),
+    [equivOptions]
+  )
 
   const { data: heldSales = [], refetch: refetchHeld } = useQuery({
     queryKey: ["held-sales"],
@@ -179,7 +191,11 @@ export function PosPage() {
   const handleProductClick = useCallback((product: ProductForPos) => {
     const inCart = cart.find((item) => item.productId === product.id)?.quantity ?? 0
     if (product.stockQuantity <= 0) {
-      notification.warning(t("sales.stockOut"), product.name)
+      if (product.equivalentCount > 0) {
+        setEquivTarget(product)
+      } else {
+        notification.warning(t("sales.stockOut"), product.name)
+      }
       return
     }
     if (inCart >= product.stockQuantity) {
@@ -188,6 +204,22 @@ export function PosPage() {
     }
     addToCart(product)
   }, [cart, addToCart, notification, t])
+
+  const addEquivalentToCart = useCallback((eq: ProductEquivalent) => {
+    addToCart({
+      id: eq.equivalentProductId,
+      name: eq.name,
+      sku: eq.sku,
+      salePrice: eq.salePrice,
+      wholesalePrice: eq.wholesalePrice,
+      stockQuantity: eq.stockQuantity,
+      unit: eq.unit,
+      taxRate: eq.taxRate,
+      isActive: eq.isActive,
+      equivalentCount: 0,
+    })
+    setEquivTarget(null)
+  }, [addToCart])
 
   const updateQuantity = useCallback((productId: number, delta: number) => {
     setCart((prev) =>
@@ -288,6 +320,7 @@ export function PosPage() {
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["sales"] })
       queryClient.invalidateQueries({ queryKey: ["pos-search"] })
+      queryClient.invalidateQueries({ queryKey: ["global-product-search"] })
       queryClient.invalidateQueries({ queryKey: ["daily-closeout"] })
       queryClient.invalidateQueries({ queryKey: ["sales-summary"] })
       queryClient.invalidateQueries({ queryKey: ["dashboard-widgets"] })
@@ -553,6 +586,50 @@ export function PosPage() {
               </div>
             )}
           </div>
+
+          {equivTarget && (
+            <Card data-testid="pos-equivalents-panel" className="border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40">
+              <CardContent className="pt-6 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="font-semibold text-sm">{t("sales.equivalentsTitle")}</h3>
+                    <p className="text-xs text-muted-foreground">
+                      {t("sales.equivalentsOutOfStock", { name: equivTarget.name })}
+                    </p>
+                  </div>
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setEquivTarget(null)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {equivLoading ? (
+                  <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
+                ) : availableEquivalents.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">{t("sales.equivalentsNoneAvailable")}</p>
+                ) : (
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {availableEquivalents.map((eq) => (
+                      <Button
+                        key={eq.id}
+                        variant="outline"
+                        className="h-auto justify-between whitespace-normal py-2 text-left"
+                        onClick={() => addEquivalentToCart(eq)}
+                        data-testid={`pos-equivalent-${eq.equivalentProductId}`}
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-medium">{eq.name}</span>
+                          <span className="block text-xs font-normal text-muted-foreground">{eq.sku}</span>
+                        </span>
+                        <span className="ml-2 shrink-0 text-xs font-normal text-muted-foreground">
+                          {eq.stockQuantity} {eq.unit}
+                        </span>
+                      </Button>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <div className="xl:col-span-2 space-y-4">

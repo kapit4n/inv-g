@@ -8,14 +8,14 @@ import { PosPage } from "@/features/sales/pages/pos-page"
 import { PrintHost } from "@/components/print/print-host"
 import { NotificationCenter } from "@/components/notification-center"
 import { usePrintStore, useNotificationStore } from "@/stores"
-import { globalProductSearch, processCheckout, getSaleItems, getPrinters, getCustomers, getHeldSales, getHeldSaleItems, holdSale, resumeHeldSale, deleteHeldSale } from "@/lib/tauri"
-import type { ProductForPos, CheckoutResult, HeldSale, HeldSaleItem } from "@/types"
+import { globalProductSearch, processCheckout, getSaleItems, getPrinters, getCustomers, getHeldSales, getHeldSaleItems, holdSale, resumeHeldSale, deleteHeldSale, getProductEquivalents } from "@/lib/tauri"
+import type { ProductForPos, CheckoutResult, HeldSale, HeldSaleItem, ProductEquivalent } from "@/types"
 
 const products: ProductForPos[] = [
-  { id: 1, name: "Brake Pads", sku: "BRK-100", barcode: "750100", salePrice: 100, wholesalePrice: 70, stockQuantity: 10, unit: "set", taxRate: 16, isActive: true, brandName: "Bosch" },
-  { id: 2, name: "Oil Filter", sku: "OIL-200", barcode: "750200", salePrice: 50, wholesalePrice: 35, stockQuantity: 8, unit: "unit", taxRate: 16, isActive: true, brandName: "Mann" },
-  { id: 3, name: "Spark Plug", sku: "SPK-300", barcode: "750300", salePrice: 20, wholesalePrice: 12, stockQuantity: 0, unit: "unit", taxRate: 16, isActive: true },
-  { id: 4, name: "Discontinued Part", sku: "DISC-400", barcode: "750400", salePrice: 5, wholesalePrice: 2, stockQuantity: 100, unit: "unit", taxRate: 0, isActive: false },
+  { id: 1, name: "Brake Pads", sku: "BRK-100", barcode: "750100", salePrice: 100, wholesalePrice: 70, stockQuantity: 10, unit: "set", taxRate: 16, isActive: true, brandName: "Bosch", equivalentCount: 0 },
+  { id: 2, name: "Oil Filter", sku: "OIL-200", barcode: "750200", salePrice: 50, wholesalePrice: 35, stockQuantity: 8, unit: "unit", taxRate: 16, isActive: true, brandName: "Mann", equivalentCount: 0 },
+  { id: 3, name: "Spark Plug", sku: "SPK-300", barcode: "750300", salePrice: 20, wholesalePrice: 12, stockQuantity: 0, unit: "unit", taxRate: 16, isActive: true, equivalentCount: 1 },
+  { id: 4, name: "Discontinued Part", sku: "DISC-400", barcode: "750400", salePrice: 5, wholesalePrice: 2, stockQuantity: 100, unit: "unit", taxRate: 0, isActive: false, equivalentCount: 0 },
 ]
 
 const checkoutResult: CheckoutResult = {
@@ -53,6 +53,7 @@ vi.mock("@/lib/tauri", () => ({
   holdSale: vi.fn(),
   resumeHeldSale: vi.fn(),
   deleteHeldSale: vi.fn(),
+  getProductEquivalents: vi.fn(),
 }))
 
 setupI18n("en")
@@ -87,6 +88,7 @@ describe("PosPage", () => {
     vi.mocked(holdSale).mockReset()
     vi.mocked(resumeHeldSale).mockReset()
     vi.mocked(deleteHeldSale).mockReset()
+    vi.mocked(getProductEquivalents).mockReset()
 
     vi.mocked(globalProductSearch).mockImplementation(async (q: string) =>
       products.filter((p) => p.isActive && (!q || p.name.toLowerCase().includes(q.toLowerCase()) || p.sku.toLowerCase().includes(q.toLowerCase())))
@@ -99,6 +101,7 @@ describe("PosPage", () => {
     vi.mocked(getHeldSaleItems).mockResolvedValue([])
     vi.mocked(holdSale).mockResolvedValue(heldSales[0])
     vi.mocked(deleteHeldSale).mockResolvedValue(undefined)
+    vi.mocked(getProductEquivalents).mockResolvedValue([])
   })
 
   it("shows active products and hides inactive ones", async () => {
@@ -127,10 +130,51 @@ describe("PosPage", () => {
   })
 
   it("blocks adding an out-of-stock product and warns", async () => {
+    // Product 3 has no equivalents in stock, so it only warns.
+    vi.mocked(getProductEquivalents).mockResolvedValue([])
     renderPos()
     await screen.findByTestId("pos-product-3")
     fireEvent.click(screen.getByTestId("pos-product-3"))
+    await screen.findByTestId("pos-equivalents-panel")
+    expect(await screen.findByText("No equivalents with stock are available.")).toBeTruthy()
     expect(screen.queryByText("Cart (1)")).toBeNull()
+  })
+
+  it("offers in-stock equivalents when tapping an out-of-stock product", async () => {
+    vi.mocked(getProductEquivalents).mockResolvedValue([
+      {
+        id: 1, productId: 3, equivalentProductId: 5, note: undefined, createdAt: "2026-01-01T00:00:00Z",
+        name: "Iridium Plug", sku: "SPK-500", brandName: "NGK", categoryName: "Engine",
+        stockQuantity: 4, unit: "unit", salePrice: 45, wholesalePrice: 30, taxRate: 16,
+        imageUrl: undefined, isActive: true,
+      },
+    ] as ProductEquivalent[])
+    renderPos()
+    await screen.findByTestId("pos-product-3")
+    fireEvent.click(screen.getByTestId("pos-product-3"))
+
+    const panel = await screen.findByTestId("pos-equivalents-panel")
+    expect(await within(panel).findByText("Iridium Plug")).toBeTruthy()
+    expect(within(panel).getByText("SPK-500")).toBeTruthy()
+  })
+
+  it("adds the chosen equivalent to the cart", async () => {
+    vi.mocked(getProductEquivalents).mockResolvedValue([
+      {
+        id: 1, productId: 3, equivalentProductId: 5, note: undefined, createdAt: "2026-01-01T00:00:00Z",
+        name: "Iridium Plug", sku: "SPK-500", brandName: "NGK", categoryName: "Engine",
+        stockQuantity: 4, unit: "unit", salePrice: 45, wholesalePrice: 30, taxRate: 16,
+        imageUrl: undefined, isActive: true,
+      },
+    ] as ProductEquivalent[])
+    renderPos()
+    await screen.findByTestId("pos-product-3")
+    fireEvent.click(screen.getByTestId("pos-product-3"))
+
+    fireEvent.click(await screen.findByTestId("pos-equivalent-5"))
+    await waitFor(() => expect(screen.getByText("Cart (1)")).toBeTruthy(), { timeout: 3000 })
+    // The panel closes once the equivalent is added.
+    expect(screen.queryByTestId("pos-equivalents-panel")).toBeNull()
   })
 
   it("caps quantity at available stock", async () => {

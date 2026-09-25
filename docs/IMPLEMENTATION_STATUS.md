@@ -56,6 +56,7 @@ docs/manual/*.md (Markdown source — single source of truth)
 | Help | 1 | help.md | — |
 | Part Finder | 1 | — | — |
 | Cross References | 1 | — | — |
+| Product Equivalents | 1 | — | — |
 | Warehouse | 1 | — | — |
 
 ---

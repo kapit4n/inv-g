@@ -195,8 +195,26 @@
       "suppliers": "Proveedores",
       "compatibility": "Compatibilidad",
       "identifiers": "Identificadores",
+      "equivalents": "Equivalentes",
       "activity": "Actividad"
     }
+  },
+  "equivalents": {
+    "title": "Productos Equivalentes",
+    "description": "Productos intercambiables con este artículo. Se usan como sugerencias en el punto de venta cuando el producto no tiene existencias.",
+    "addProduct": "Agregar equivalente",
+    "created": "Equivalentes creados",
+    "searchPlaceholder": "Buscar producto por nombre o SKU...",
+    "noResults": "No se encontraron productos",
+    "notePlaceholder": "Nota (opcional)",
+    "empty": "Este producto no tiene equivalentes registrados",
+    "sku": "SKU",
+    "stock": "Existencias",
+    "salePrice": "Precio de venta",
+    "wholesalePrice": "Precio mayorista",
+    "note": "Nota",
+    "status": "Estado",
+    "inactive": "Inactivo"
   },
   "pricing": {
     "margin": "Margen",

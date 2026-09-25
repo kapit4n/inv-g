@@ -7,6 +7,7 @@ import { ProductPricingTab } from "@/features/inventory/components/product-prici
 import { ProductSuppliersTab } from "@/features/inventory/components/product-suppliers-tab"
 import { ProductCompatibilityTab } from "@/features/inventory/components/product-compatibility-tab"
 import { ProductActivityTab } from "@/features/inventory/components/product-activity-tab"
+import { ProductEquivalentsTab } from "@/features/inventory/components/product-equivalents-tab"
 import type { InventoryProduct, ProductImage } from "@/types/inventory"
 
 setupI18n("en")
@@ -19,6 +20,10 @@ vi.mock("@/lib/tauri", () => ({
   getProductCompatibility: vi.fn().mockResolvedValue([]),
   getProductImages: vi.fn().mockResolvedValue([]),
   getWarehouses: vi.fn().mockResolvedValue([]),
+  getProductEquivalents: vi.fn().mockResolvedValue([]),
+  getProducts: vi.fn().mockResolvedValue({ data: [], total: 0, page: 1, pageSize: 20, totalPages: 0 }),
+  addProductEquivalent: vi.fn().mockResolvedValue({}),
+  removeProductEquivalent: vi.fn().mockResolvedValue(undefined),
 }))
 
 const baseProduct: InventoryProduct = {
@@ -220,5 +225,42 @@ describe("ProductActivityTab", () => {
   it("shows no data message when empty", () => {
     render(<ProductActivityTab productId={1} />)
     expect(screen.getByText("No data")).toBeInTheDocument()
+  })
+})
+
+describe("ProductEquivalentsTab", () => {
+  it("shows empty message when there are no equivalents", async () => {
+    render(<ProductEquivalentsTab productId={1} />)
+    expect(await screen.findByText("This product has no registered equivalents")).toBeInTheDocument()
+  })
+
+  it("renders each equivalent with name, sku and stock", async () => {
+    const { getProductEquivalents } = await import("@/lib/tauri")
+    vi.mocked(getProductEquivalents).mockResolvedValueOnce([
+      {
+        id: 1, productId: 1, equivalentProductId: 2, note: undefined, createdAt: "2024-01-01T00:00:00Z",
+        name: "Alternate Pad", sku: "AP-002", brandName: "Brembo", categoryName: "Brakes",
+        stockQuantity: 7, unit: "pcs", salePrice: 25, wholesalePrice: 20, taxRate: 0.13,
+        imageUrl: undefined, isActive: true,
+      },
+    ])
+    render(<ProductEquivalentsTab productId={1} />)
+    expect(await screen.findByText(/Alternate Pad/)).toBeInTheDocument()
+    expect(screen.getByText("AP-002")).toBeInTheDocument()
+    expect(screen.getByText("7 pcs")).toBeInTheDocument()
+  })
+
+  it("flags an inactive equivalent", async () => {
+    const { getProductEquivalents } = await import("@/lib/tauri")
+    vi.mocked(getProductEquivalents).mockResolvedValueOnce([
+      {
+        id: 1, productId: 1, equivalentProductId: 3, note: undefined, createdAt: "2024-01-01T00:00:00Z",
+        name: "Old Pad", sku: "OP-003", brandName: undefined, categoryName: undefined,
+        stockQuantity: 0, unit: "pcs", salePrice: 18, wholesalePrice: 14, taxRate: 0.13,
+        imageUrl: undefined, isActive: false,
+      },
+    ])
+    render(<ProductEquivalentsTab productId={1} />)
+    expect(await screen.findByText("Inactive")).toBeInTheDocument()
   })
 })

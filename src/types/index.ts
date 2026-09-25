@@ -77,6 +77,25 @@ export interface Product {
   updatedAt: string
 }
 
+export interface ProductEquivalent {
+  id: number
+  productId: number
+  equivalentProductId: number
+  note?: string
+  createdAt: string
+  name: string
+  sku: string
+  brandName?: string
+  categoryName?: string
+  stockQuantity: number
+  unit: string
+  salePrice: number
+  wholesalePrice: number
+  taxRate: number
+  imageUrl?: string
+  isActive: boolean
+}
+
 export interface Category {
   id: number
   name: string
@@ -367,6 +386,7 @@ export interface ProductForPos {
   categoryName?: string
   brandName?: string
   isActive: boolean
+  equivalentCount: number
 }
 
 export interface DailyCloseout {

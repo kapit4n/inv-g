@@ -213,6 +213,7 @@ export interface ImportPreview {
   stockIncreaseCount: number
   stockDecreaseCount: number
   stockUnchangedCount: number
+  equivalentCount: number
   rows: RowPreview[]
   errorRows: RowError[]
   rowsTruncated: boolean
@@ -229,6 +230,7 @@ export interface ImportResult {
   errors: number
   stockIncreased: number
   stockDecreased: number
+  equivalentCreated: number
   errorRows: RowError[]
   importId: number | null
   message: string | null

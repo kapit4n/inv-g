@@ -39,7 +39,7 @@ import type {
   DiscountAnalysis, ReturnsSummary, TaxSummary,
   InventoryReportFilter, InventoryReportRow, InventoryValuation,
   StockStatusItem, MovementSummary, AgingItem,
-  ProductIdentifier, CrossReferenceResult,
+  ProductIdentifier, CrossReferenceResult, ProductEquivalent,
   PurchaseReportFilter, PurchaseReportRow, PurchaseBySupplier,
   SupplierPerformance as SupplierPerformanceReport, POStatusSummary, ProductToReorder,
   CustomerReportRow, CustomerGrowthRow, CustomerLocation,
@@ -797,6 +797,17 @@ export async function deleteProductIdentifier(id: number): Promise<void> {
 }
 export async function crossReferenceSearch(query: string): Promise<CrossReferenceResult[]> {
   return invoke<CrossReferenceResult[]>("cross_reference_search", { query })
+}
+
+// ── Equivalent Products ──
+export async function getProductEquivalents(productId: number): Promise<ProductEquivalent[]> {
+  return invoke<ProductEquivalent[]>("get_product_equivalents", { productId })
+}
+export async function addProductEquivalent(productId: number, equivalentProductId: number, note?: string, createdBy?: number): Promise<ProductEquivalent> {
+  return invoke<ProductEquivalent>("add_product_equivalent", { productId, equivalentProductId, note, createdBy })
+}
+export async function removeProductEquivalent(relationshipId: number, createdBy?: number): Promise<void> {
+  return invoke<void>("remove_product_equivalent", { relationshipId, createdBy })
 }
 
 // ── Service Reminders ──

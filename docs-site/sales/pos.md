@@ -89,3 +89,4 @@ Taxes are calculated automatically based on product tax rates.
 - [Cash Register](/sales/cash-register) — Open sessions
 - [Sales History](/sales/history) — View past sales
 - [Returns](/sales/returns) — Process returns
+- [Product Equivalents](/inventory/product-equivalents) — Offer substitutes when out of stock

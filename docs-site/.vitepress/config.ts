@@ -59,6 +59,7 @@ export default defineConfig({
           { text: "Warehouses & Locations", link: "/inventory/warehouses" },
           { text: "Stock & Movements", link: "/inventory/stock-movements" },
           { text: "Cross References", link: "/inventory/cross-references" },
+          { text: "Product Equivalents", link: "/inventory/product-equivalents" },
           { text: "Import / Export", link: "/inventory/import-export" },
         ],
       },

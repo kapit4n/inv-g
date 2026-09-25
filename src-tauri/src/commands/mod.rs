@@ -6,6 +6,7 @@ pub mod compatibility;
 pub mod cross_references;
 pub mod crm;
 pub mod customers;
+pub mod equivalents;
 pub mod inventory;
 pub mod import_export;
 pub mod purchases;

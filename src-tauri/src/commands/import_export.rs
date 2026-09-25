@@ -92,6 +92,192 @@ const HEADERS: [&str; 29] = [
 
 const PREVIEW_ROW_LIMIT: usize = 500;
 
+// ── Equivalent products sheet ─────────────────────────────────────────────
+
+const SHEET_EQUIVALENTES: &str = "Productos equivalentes";
+const EQUIV_COL_SKU_PRODUCTO: usize = 1;
+const EQUIV_COL_SKU_EQUIVALENTE: usize = 3;
+const EQUIV_COL_NOTA: usize = 4;
+const EQUIV_HEADERS: [&str; 5] = [
+    "Producto",
+    "SKU producto",
+    "Producto equivalente",
+    "SKU equivalente",
+    "Nota",
+];
+
+#[derive(Debug, Clone)]
+struct EquivalentRow {
+    row_number: usize,
+    product_sku: String,
+    equivalent_sku: String,
+    note: Option<String>,
+}
+
+struct ValidatedEquivalent {
+    row_number: usize,
+    product_sku: String,
+    equivalent_sku: String,
+    note: Option<String>,
+    key: String,
+    already_exists: bool,
+}
+
+enum ResolvedSide {
+    Existing(i64),
+    Fresh(String),
+}
+
+fn looks_like_equiv_header(row: &[Data]) -> bool {
+    let headers: Vec<String> = EQUIV_HEADERS.iter().map(|h| h.to_lowercase()).collect();
+    for c in row.iter().take(5) {
+        if let Some(s) = cell_str(c) {
+            let s = s.to_lowercase();
+            if headers.iter().any(|h| s == *h) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn parse_equivalents_sheet(path: &str) -> Result<Vec<EquivalentRow>, String> {
+    let mut wb: Xlsx<_> =
+        open_workbook(path).map_err(|e| format!("No es un archivo Excel (.xlsx) válido: {}", e))?;
+
+    let sheet_names = wb.sheet_names().to_vec();
+    let Some(sheet_name) = sheet_names.iter().find(|n| n.eq_ignore_ascii_case(SHEET_EQUIVALENTES)) else {
+        return Ok(Vec::new());
+    };
+
+    let range = wb
+        .worksheet_range(sheet_name)
+        .map_err(|e| format!("Error al leer la hoja '{}': {}", sheet_name, e))?;
+
+    let mut rows = Vec::new();
+    for (idx, cells) in range.rows().enumerate() {
+        if looks_like_equiv_header(cells) {
+            continue;
+        }
+        if cells.iter().all(is_empty_cell) {
+            continue;
+        }
+        let product_sku = cell_str_opt(cells, EQUIV_COL_SKU_PRODUCTO).unwrap_or_default();
+        let equivalent_sku = cell_str_opt(cells, EQUIV_COL_SKU_EQUIVALENTE).unwrap_or_default();
+        let note = cell_str_opt(cells, EQUIV_COL_NOTA);
+        if product_sku.is_empty() && equivalent_sku.is_empty() {
+            continue;
+        }
+        rows.push(EquivalentRow {
+            row_number: idx + 1,
+            product_sku,
+            equivalent_sku,
+            note,
+        });
+    }
+    Ok(rows)
+}
+
+fn build_file_sku_map(parsed: &[ParsedRow]) -> HashMap<String, Vec<usize>> {
+    let mut map: HashMap<String, Vec<usize>> = HashMap::new();
+    for (idx, p) in parsed.iter().enumerate() {
+        if p.matched.is_none() && !p.sku.is_empty() {
+            map.entry(p.sku.to_lowercase()).or_default().push(idx);
+        }
+    }
+    map
+}
+
+fn resolve_equiv_side(
+    catalog: &Catalog,
+    file_skus: &HashMap<String, Vec<usize>>,
+    sku: &str,
+) -> Result<ResolvedSide, String> {
+    let s = sku.trim();
+    if s.is_empty() {
+        return Err("SKU vacío.".to_string());
+    }
+    if let Some(id) = catalog.find(s, s, "") {
+        return Ok(ResolvedSide::Existing(id));
+    }
+    let key = s.to_lowercase();
+    if let Some(idxs) = file_skus.get(&key) {
+        if idxs.len() > 1 {
+            return Err(format!("El SKU '{}' aparece varias veces entre los productos a crear.", s));
+        }
+        return Ok(ResolvedSide::Fresh(key));
+    }
+    Err(format!("No existe un producto con el SKU '{}'.", s))
+}
+
+fn validate_equivalent_row(
+    row: &EquivalentRow,
+    catalog: &Catalog,
+    file_skus: &HashMap<String, Vec<usize>>,
+    conn: &Connection,
+) -> Result<ValidatedEquivalent, String> {
+    let a = resolve_equiv_side(catalog, file_skus, &row.product_sku)?;
+    let b = resolve_equiv_side(catalog, file_skus, &row.equivalent_sku)?;
+
+    let same = match (&a, &b) {
+        (ResolvedSide::Existing(x), ResolvedSide::Existing(y)) => x == y,
+        (ResolvedSide::Fresh(x), ResolvedSide::Fresh(y)) => x == y,
+        _ => false,
+    };
+    if same {
+        return Err("Un producto no puede ser equivalente de sí mismo.".into());
+    }
+
+    let (key, canonical_ids) = match (&a, &b) {
+        (ResolvedSide::Existing(x), ResolvedSide::Existing(y)) => {
+            let (lo, hi) = if x < y { (*x, *y) } else { (*y, *x) };
+            (format!("id:{}:{}", lo, hi), Some((lo, hi)))
+        }
+        _ => {
+            let mut parts = [row.product_sku.to_lowercase(), row.equivalent_sku.to_lowercase()];
+            parts.sort();
+            (format!("sku:{}:{}", parts[0], parts[1]), None)
+        }
+    };
+
+    let mut already_exists = false;
+    if let Some((lo, hi)) = canonical_ids {
+        let n: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM product_equivalents WHERE product_id=?1 AND equivalent_product_id=?2",
+                params![lo, hi],
+                |r| r.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        already_exists = n > 0;
+    }
+
+    Ok(ValidatedEquivalent {
+        row_number: row.row_number,
+        product_sku: row.product_sku.clone(),
+        equivalent_sku: row.equivalent_sku.clone(),
+        note: row.note.clone(),
+        key,
+        already_exists,
+    })
+}
+
+fn resolve_equiv_side_final(
+    conn: &Connection,
+    catalog: &Catalog,
+    fresh: &HashMap<String, i64>,
+    sku: &str,
+) -> Result<i64, String> {
+    let s = sku.trim();
+    if let Some(id) = catalog.find(s, s, "") {
+        return Ok(id);
+    }
+    if let Some(id) = fresh.get(&s.to_lowercase()) {
+        return Ok(*id);
+    }
+    Err(format!("No se pudo resolver el producto con SKU '{}' al importar.", sku))
+}
+
 // ── Cells / parsing ─────────────────────────────────────────────────────────
 
 fn is_empty_cell(c: &Data) -> bool {
@@ -915,6 +1101,7 @@ pub struct ImportPreview {
     pub stock_increase_count: usize,
     pub stock_decrease_count: usize,
     pub stock_unchanged_count: usize,
+    pub equivalent_count: usize,
     pub rows: Vec<RowPreview>,
     pub error_rows: Vec<RowError>,
     pub rows_truncated: bool,
@@ -1043,6 +1230,41 @@ fn preview_internal(
         .map(|s| s.to_string_lossy().to_string())
         .unwrap_or_else(|| path.to_string());
 
+    // Equivalent products sheet: a pair referencing unknown or repeated SKUs
+    // blocks the whole import, mirroring the product-row behavior.
+    let equivalences = parse_equivalents_sheet(path)?;
+    let file_skus = build_file_sku_map(&parsed);
+    let mut equivalent_insert = 0usize;
+    let mut seen_pairs: HashSet<String> = HashSet::new();
+    for row in &equivalences {
+        match validate_equivalent_row(row, &catalog, &file_skus, conn) {
+            Ok(ve) => {
+                if ve.already_exists {
+                    continue;
+                }
+                if seen_pairs.contains(&ve.key) {
+                    error += 1;
+                    error_rows.push(RowError {
+                        row_number: ve.row_number,
+                        sku: format!("{} ↔ {}", ve.product_sku, ve.equivalent_sku),
+                        message: "La relación de equivalencia está duplicada en el archivo.".into(),
+                    });
+                    continue;
+                }
+                seen_pairs.insert(ve.key);
+                equivalent_insert += 1;
+            }
+            Err(msg) => {
+                error += 1;
+                error_rows.push(RowError {
+                    row_number: row.row_number,
+                    sku: format!("{} ↔ {}", row.product_sku, row.equivalent_sku),
+                    message: msg,
+                });
+            }
+        }
+    }
+
     Ok(ImportPreview {
         filename,
         store_id,
@@ -1055,6 +1277,7 @@ fn preview_internal(
         stock_increase_count: inc,
         stock_decrease_count: dec,
         stock_unchanged_count: same,
+        equivalent_count: equivalent_insert,
         rows,
         error_rows,
         rows_truncated: truncated,
@@ -1076,6 +1299,7 @@ pub struct ImportResult {
     pub errors: usize,
     pub stock_increased: usize,
     pub stock_decreased: usize,
+    pub equivalent_created: usize,
     pub error_rows: Vec<RowError>,
     pub import_id: Option<i64>,
     pub message: Option<String>,
@@ -1133,6 +1357,41 @@ fn execute_internal(
         }
     }
 
+    // Validate equivalent pairs before the transaction. Errors cancel the
+    // import, exactly like product-row errors.
+    let equivalences = parse_equivalents_sheet(path)?;
+    let file_skus = build_file_sku_map(&parsed);
+    let mut valid_equivs: Vec<ValidatedEquivalent> = Vec::new();
+    let mut seen_pairs: HashSet<String> = HashSet::new();
+    for row in &equivalences {
+        match validate_equivalent_row(row, &catalog, &file_skus, conn) {
+            Ok(ve) => {
+                if ve.already_exists {
+                    continue;
+                }
+                if seen_pairs.contains(&ve.key) {
+                    any_error = true;
+                    error_rows.push(RowError {
+                        row_number: ve.row_number,
+                        sku: format!("{} ↔ {}", ve.product_sku, ve.equivalent_sku),
+                        message: "La relación de equivalencia está duplicada en el archivo.".into(),
+                    });
+                    continue;
+                }
+                seen_pairs.insert(ve.key.clone());
+                valid_equivs.push(ve);
+            }
+            Err(msg) => {
+                any_error = true;
+                error_rows.push(RowError {
+                    row_number: row.row_number,
+                    sku: format!("{} ↔ {}", row.product_sku, row.equivalent_sku),
+                    message: msg,
+                });
+            }
+        }
+    }
+
     let filename = std::path::Path::new(path)
         .file_name()
         .map(|s| s.to_string_lossy().to_string())
@@ -1150,6 +1409,7 @@ fn execute_internal(
             errors: error_rows.len(),
             stock_increased: 0,
             stock_decreased: 0,
+            equivalent_created: 0,
             error_rows,
             import_id: None,
             message: Some("La importación se canceló: se encontraron errores de validación.".into()),
@@ -1162,6 +1422,8 @@ fn execute_internal(
     let mut skipped = 0usize;
     let mut inc = 0usize;
     let mut dec = 0usize;
+    let mut inserted_equiv = 0usize;
+    let mut fresh_sku_to_id: HashMap<String, i64> = HashMap::new();
 
     conn.execute_batch("BEGIN IMMEDIATE").map_err(|e| e.to_string())?;
     let tx_result: std::result::Result<(), String> = (|| {
@@ -1367,6 +1629,7 @@ fn execute_internal(
                 )
                 .map_err(|e| e.to_string())?;
                 let product_id = conn.last_insert_rowid();
+                fresh_sku_to_id.insert(p.sku.to_lowercase(), product_id);
 
                 if let Some(c) = &codigo {
                     upsert_identifier(&conn, product_id, c, "oem")?;
@@ -1387,6 +1650,28 @@ fn execute_internal(
                     dec += 1;
                 }
                 inserted += 1;
+            }
+        }
+
+        // Equivalent products: inserted after all products so pairs may
+        // reference products created by this same file. INSERT OR IGNORE
+        // makes the write idempotent against pre-existing pairs.
+        for ve in &valid_equivs {
+            let sa = resolve_equiv_side_final(conn, &catalog, &fresh_sku_to_id, &ve.product_sku)?;
+            let sb = resolve_equiv_side_final(conn, &catalog, &fresh_sku_to_id, &ve.equivalent_sku)?;
+            if sa == sb {
+                continue;
+            }
+            let (lo, hi) = if sa < sb { (sa, sb) } else { (sb, sa) };
+            let changes = conn
+                .execute(
+                    "INSERT OR IGNORE INTO product_equivalents (product_id, equivalent_product_id, note)
+                     VALUES (?1, ?2, ?3)",
+                    params![lo, hi, ve.note],
+                )
+                .map_err(|e| e.to_string())?;
+            if changes > 0 {
+                inserted_equiv += 1;
             }
         }
         Ok(())
@@ -1454,6 +1739,7 @@ fn execute_internal(
         errors: 0,
         stock_increased: inc,
         stock_decreased: dec,
+        equivalent_created: inserted_equiv,
         error_rows: Vec::new(),
         import_id,
         message: None,
@@ -1629,6 +1915,68 @@ fn masters_names(conn: &Connection, table: &str, col: &str) -> Result<Vec<String
         out.push(r.map_err(|e| e.to_string())?);
     }
     Ok(out)
+}
+
+fn write_equivalents_sheet(conn: &Connection, wb: &mut rust_xlsxwriter::Workbook, example_rows: Option<&[[&str; 5]]>) -> Result<(), String> {
+    let ws = wb
+        .add_worksheet()
+        .set_name(SHEET_EQUIVALENTES)
+        .map_err(|e| e.to_string())?;
+    let header_fmt = rust_xlsxwriter::Format::new()
+        .set_bold()
+        .set_background_color(rust_xlsxwriter::Color::Gray)
+        .set_align(rust_xlsxwriter::FormatAlign::Center);
+    for (col, h) in EQUIV_HEADERS.iter().enumerate() {
+        ws.write_string_with_format(0, col as u16, *h, &header_fmt)
+            .map_err(|e| e.to_string())?;
+    }
+    ws.set_freeze_panes(1, 0).map_err(|e| e.to_string())?;
+    ws.set_column_width(0, 36.0).map_err(|e| e.to_string())?;
+    ws.set_column_width(1, 16.0).map_err(|e| e.to_string())?;
+    ws.set_column_width(2, 42.0).map_err(|e| e.to_string())?;
+    ws.set_column_width(3, 16.0).map_err(|e| e.to_string())?;
+    ws.set_column_width(4, 60.0).map_err(|e| e.to_string())?;
+
+    if let Some(rows) = example_rows {
+        for (i, r) in rows.iter().enumerate() {
+            let row = (i + 1) as u32;
+            for (col, v) in r.iter().enumerate() {
+                ws.write_string(row, col as u16, *v).map_err(|e| e.to_string())?;
+            }
+        }
+    }
+
+    let mut stmt = conn
+        .prepare(
+            "SELECT p1.sku, p1.name, p2.sku, p2.name, e.note
+             FROM product_equivalents e
+             JOIN products p1 ON p1.id = e.product_id
+             JOIN products p2 ON p2.id = e.equivalent_product_id
+             ORDER BY p1.sku COLLATE NOCASE, p2.sku COLLATE NOCASE",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, Option<String>>(4)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?;
+    let mut r = 1u32;
+    for row in rows {
+        let (s1, n1, s2, n2, note) = row.map_err(|e| e.to_string())?;
+        ws.write_string(r, 0, &n1).map_err(|e| e.to_string())?;
+        ws.write_string(r, 1, &s1).map_err(|e| e.to_string())?;
+        ws.write_string(r, 2, &n2).map_err(|e| e.to_string())?;
+        ws.write_string(r, 3, &s2).map_err(|e| e.to_string())?;
+        ws.write_string(r, 4, note.as_deref().unwrap_or("")).map_err(|e| e.to_string())?;
+        r += 1;
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone)]
@@ -1854,6 +2202,7 @@ fn build_export_workbook(conn: &Connection, scope: &str) -> Result<rust_xlsxwrit
     }
 
     write_masters_sheet(conn, &mut wb)?;
+    write_equivalents_sheet(conn, &mut wb, None)?;
     Ok(wb)
 }
 
@@ -1932,6 +2281,15 @@ pub fn export_products_template(
 
     write_masters_sheet(&conn, &mut wb)?;
 
+    let example_equiv: [[&str; 5]; 1] = [[
+        "MUÑON DIREC. TOY COROLLA/IPSU 84/95",
+        "860067",
+        "TERMINAL DE DIRECCION IPSU/CALDINA L",
+        "860068",
+        "Ejemplo de equivalencia (elimine esta fila antes de importar)",
+    ]];
+    write_equivalents_sheet(&conn, &mut wb, Some(&example_equiv))?;
+
     let instr = wb
         .add_worksheet()
         .set_name("INSTRUCCIONES")
@@ -1952,6 +2310,7 @@ pub fn export_products_template(
         "7. Los valores de Categoría, Marca, Fabricante, Proveedor, Almacén y Ubicación deben coincidir con los nombres de la pestaña \"Maestros de referencia\".",
         "8. Las filas de ejemplo (860067 y 860068) son ilustrativas: elimínelas antes de importar.",
         "9. La importación es transaccional: si un producto presenta errores, no se importa nada.",
+        "10. Pestaña \"Productos equivalentes\": cada fila relaciona dos productos por su SKU (columnas \"SKU producto\" y \"SKU equivalente\"). Es opcional; si la pestaña no existe, no se crean equivalencias. Confirmada la vista previa, las relaciones se crean junto con los productos.",
     ];
     for (i, line) in lines.iter().enumerate() {
         if i == 0 {
@@ -2066,6 +2425,32 @@ mod tests {
         wb.save_to_buffer().expect("save buffer")
     }
 
+    fn write_xlsx_with_equiv(product_rows: &[Vec<Data>], equiv_rows: &[[String; 5]]) -> Vec<u8> {
+        let mut wb = rust_xlsxwriter::Workbook::new();
+        let ws = wb.add_worksheet().set_name("Productos").unwrap();
+        for (r, cells) in product_rows.iter().enumerate() {
+            for (c, cell) in cells.iter().enumerate() {
+                if let Data::String(s) = cell {
+                    ws.write_string(r as u32, c as u16, s).unwrap();
+                } else if let Data::Float(f) = cell {
+                    ws.write_number(r as u32, c as u16, *f).unwrap();
+                } else if let Data::Int(i) = cell {
+                    ws.write_number(r as u32, c as u16, *i as f64).unwrap();
+                }
+            }
+        }
+        let eq = wb.add_worksheet().set_name(SHEET_EQUIVALENTES).unwrap();
+        for (c, h) in EQUIV_HEADERS.iter().enumerate() {
+            eq.write_string(0, c as u16, *h).unwrap();
+        }
+        for (i, row) in equiv_rows.iter().enumerate() {
+            for (c, v) in row.iter().enumerate() {
+                eq.write_string((i + 1) as u32, c as u16, v).unwrap();
+            }
+        }
+        wb.save_to_buffer().expect("save buffer")
+    }
+
     fn demo_db() -> Connection {
         let db = test_db();
         db.execute_batch(
@@ -2154,7 +2539,9 @@ mod tests {
         let rows = parse_workbook(&path.to_string_lossy()).unwrap();
         assert_eq!(rows.len(), 19);
         assert!(rows.iter().all(|r| r.errors.is_empty()));
-        assert_eq!(rows[0].codigo.as_deref(), Some("860067"));
+        let codes: Vec<&str> = rows.iter().filter_map(|r| r.codigo.as_deref()).collect();
+        assert!(codes.contains(&"860067"));
+        assert!(codes.contains(&"850000"));
     }
 
     #[test]
@@ -2338,5 +2725,117 @@ mod tests {
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].1, "append");
         assert_eq!(rows[0].2, 1);
+    }
+
+    #[test]
+    fn test_export_writes_equivalents_sheet() {
+        let db = test_db();
+        db.execute_batch(
+            "INSERT INTO products (name, sku, cost_price, sale_price, is_active) VALUES
+                 ('Filtro A', 'EQ-A', 5.0, 10.0, 1),
+                 ('Filtro B', 'EQ-B', 5.0, 10.0, 1);
+             INSERT INTO product_equivalents (product_id, equivalent_product_id, note)
+             VALUES (1, 2, 'mismo filtro distinta marca');",
+        )
+        .unwrap();
+        let mut wb = build_export_workbook(&db, "active").unwrap();
+        let path = write_to_temp(&[], "export_equiv.xlsx");
+        wb.save(&path).unwrap();
+
+        let parsed = parse_equivalents_sheet(&path).unwrap();
+        assert_eq!(parsed.len(), 1);
+        assert_eq!(parsed[0].product_sku, "EQ-A");
+        assert_eq!(parsed[0].equivalent_sku, "EQ-B");
+        assert_eq!(parsed[0].note.as_deref(), Some("mismo filtro distinta marca"));
+    }
+
+    #[test]
+    fn test_import_creates_equivalences_referencing_new_products() {
+        let db = test_db();
+        db.execute_batch(
+            "INSERT INTO categories (name, is_active) VALUES ('Filtros', 1);
+             INSERT INTO warehouses (name, code, is_active) VALUES ('WH', 'WH-1', 1);",
+        )
+        .unwrap();
+
+        let data = vec![
+            header(),
+            row_data(&[Some("1"), None, None, Some("EQ-1"), Some("Filtro 1"), None, Some("Filtros"), None, None, None, None, Some("10")]),
+            row_data(&[Some("2"), None, None, Some("EQ-2"), Some("Filtro 2"), None, Some("Filtros"), None, None, None, None, Some("10")]),
+        ];
+        let equiv = vec![
+            [String::from("Producto"), String::from("SKU producto"), String::from("Producto equivalente"), String::from("SKU equivalente"), String::from("Nota")],
+            [String::from("Filtro 1"), String::from("EQ-1"), String::from("Filtro 2"), String::from("EQ-2"), String::from("alternativa")],
+        ];
+        let path = write_to_temp(&write_xlsx_with_equiv(&data, &equiv), "with_equiv.xlsx");
+
+        let raw_rows = parse_workbook(&path).unwrap();
+        let preview = preview_internal(&db, &path, "append", None, raw_rows).unwrap();
+        assert_eq!(preview.error_count, 0, "{:?}", preview.error_rows);
+        assert_eq!(preview.equivalent_count, 1);
+        assert_eq!(preview.insert_count, 2);
+
+        let result = execute_internal(&db, &path, "append", None, None).unwrap();
+        assert!(result.ok, "{:?}", result);
+        assert_eq!(result.equivalent_created, 1);
+
+        let n: i64 = db
+            .query_row("SELECT COUNT(*) FROM product_equivalents", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(n, 1);
+        let insert: i64 = db
+            .query_row(
+                "SELECT COUNT(*) FROM product_equivalents e JOIN products a ON a.id=e.product_id JOIN products b ON b.id=e.equivalent_product_id WHERE a.sku='EQ-1' AND b.sku='EQ-2'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(insert, 1);
+    }
+
+    #[test]
+    fn test_import_equiv_referencing_existing_products_skipped_when_pair_exists() {
+        let db = test_db();
+        db.execute_batch(
+            "INSERT INTO products (name, sku, cost_price, sale_price, is_active) VALUES
+                 ('Marco A', 'MK-A', 5.0, 10.0, 1),
+                 ('Marco B', 'MK-B', 5.0, 10.0, 1);
+             INSERT INTO product_equivalents (product_id, equivalent_product_id) VALUES (1, 2);",
+        )
+        .unwrap();
+        let equiv = vec![
+            [String::from("n"), String::from("SKU producto"), String::from("n2"), String::from("SKU equivalente"), String::from("Nota")],
+            [String::from("Marco A"), String::from("MK-A"), String::from("Marco B"), String::from("MK-B"), String::from("")],
+        ];
+        let path = write_to_temp(&write_xlsx_with_equiv(&[header()], &equiv), "dup_pair.xlsx");
+
+        let raw_rows = parse_workbook(&path).unwrap();
+        let preview = preview_internal(&db, &path, "append", None, raw_rows).unwrap();
+        assert_eq!(preview.error_count, 0, "{:?}", preview.error_rows);
+        assert_eq!(preview.equivalent_count, 0, "existing pair must be skipped");
+
+        let result = execute_internal(&db, &path, "append", None, None).unwrap();
+        assert!(result.ok);
+        assert_eq!(result.equivalent_created, 0);
+    }
+
+    #[test]
+    fn test_import_equiv_unknown_sku_blocks_import() {
+        let db = demo_db();
+        let equiv = vec![
+            [String::from("Producto"), String::from("SKU producto"), String::from("Producto equivalente"), String::from("SKU equivalente"), String::from("Nota")],
+            [String::from("MUÑON"), String::from("860067"), String::from("Inexistente"), String::from("NO-EXISTE-1"), String::from("")],
+        ];
+        let path = write_to_temp(&write_xlsx_with_equiv(&[header()], &equiv), "bad_equiv.xlsx");
+
+        let raw_rows = parse_workbook(&path).unwrap();
+        let preview = preview_internal(&db, &path, "append", None, raw_rows).unwrap();
+        assert_eq!(preview.error_count, 1);
+        assert_eq!(preview.equivalent_count, 0);
+        assert!(preview.error_rows[0].message.contains("NO-EXISTE-1"));
+
+        let result = execute_internal(&db, &path, "append", None, None).unwrap();
+        assert!(!result.ok);
+        assert!(result.error_rows.len() >= 1);
     }
 }

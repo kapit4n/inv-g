@@ -373,6 +373,11 @@ export function ImportExportPage() {
               <Badge variant="outline" className="text-xs">{t("inventory.stockIncrease")}: {preview.stockIncreaseCount}</Badge>
               <Badge variant="outline" className="text-xs">{t("inventory.stockDecrease")}: {preview.stockDecreaseCount}</Badge>
               <Badge variant="outline" className="text-xs">{t("inventory.stockUnchanged")}: {preview.stockUnchangedCount}</Badge>
+              {preview.equivalentCount > 0 && (
+                <Badge variant="secondary" className="text-xs">
+                  {t("inventory.equivalents.created")}: {preview.equivalentCount}
+                </Badge>
+              )}
               {preview.rowsTruncated ? <Badge variant="outline" className="text-xs">{t("inventory.rowsTruncated")}</Badge> : null}
             </CardDescription>
           </CardHeader>
@@ -426,6 +431,11 @@ export function ImportExportPage() {
                   </p>
                 ) : (
                   <p className="font-medium text-destructive">{result.message ?? t("inventory.importCancelledMessage")}</p>
+                )}
+                {result.ok && result.equivalentCreated > 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    {t("inventory.equivalents.created")}: {result.equivalentCreated}
+                  </p>
                 )}
               </div>
             ) : null}

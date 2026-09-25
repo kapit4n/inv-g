@@ -211,3 +211,4 @@ Import rules:
 - [Products](/inventory/products) — single-product management
 - [Stock & Movements](/inventory/stock-movements) — how stock is tracked
 - [Cross References](/inventory/cross-references) — OEM/cross-reference lookup
+- [Product Equivalents](/inventory/product-equivalents) — bulk-load interchangeable products
