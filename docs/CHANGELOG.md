@@ -8,7 +8,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [1.0.0] - Windows Installer & Release Packaging
 
-> Shipped in `MILESTONE_17` - see `docs/progress/MILESTONE_17.md`.
+> Shipped in `bf64f43` — see `docs/progress/MILESTONE_17.md`.
 
 ### Added
 

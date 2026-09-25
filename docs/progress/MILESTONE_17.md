@@ -1,7 +1,8 @@
 # Milestone 17 — Windows Installer & 1.0.0 Release Packaging
 
 **Date:** 2026-09-25
-**Status:** ✅ Complete
+**Status:** ✅ Complete (`bf64f43`)
+**Docs:** [`docs/windows-installer.md`](../windows-installer.md)
 **Scope:** Produce a reproducible, production-safe Windows installer for the
 first formal release, and fix the defects that only appear once the app is
 packaged rather than run from source.
