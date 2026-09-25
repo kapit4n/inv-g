@@ -68,8 +68,21 @@ jobs:
             }
           }
 
+      # `--ignore-scripts` is required, not an optimisation.
+      #
+      # `better-sqlite3` is a devDependency used only by the local seed tooling
+      # (`database/seed/`). Neither the Vite build nor the Rust backend needs it
+      # — the app's database is rusqlite, inside src-tauri. A plain `npm ci` tries
+      # to compile it with node-gyp, which fails on the runner: node-gyp cannot
+      # parse the installed Visual Studio 18 ("unknown version \"undefined\"
+      # found at C:\Program Files\Microsoft Visual Studio\18\Enterprise"), so
+      # `npm ci` dies before a single line of Rust is compiled.
+      #
+      # Verified locally: with --ignore-scripts the frontend build and all 461
+      # Vitest tests pass, and the Tauri CLI still resolves. No postinstall is
+      # needed for the packaging path.
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Verify version sync
         run: npm run version:check

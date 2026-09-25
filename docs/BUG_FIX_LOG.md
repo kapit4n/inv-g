@@ -6,6 +6,59 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-25 — Windows CI: `npm ci` failed on the runner, no installer built
+
+**Symptom:** the first run of the *Windows Installer* workflow failed at
+`npm ci`, before any Rust was compiled:
+
+```
+npm error command failed
+npm error command C:\Windows\system32\cmd.exe /d /s /c node-gyp rebuild
+gyp ERR! find VS could not use PowerShell to find Visual Studio 2017 or newer
+gyp ERR! find VS unknown version "undefined" found at
+         "C:\Program Files\Microsoft Visual Studio\18\Enterprise"
+npm error code 1
+```
+
+**Root cause:** two independent problems stacked.
+
+1. `better-sqlite3` was falling back from its prebuilt binary to a **source
+   build**. It is a `devDependency` used only by the local seed tooling
+   (`database/seed/*.ts`, `scripts/database/*.mjs`); neither the Vite build nor
+   the Rust backend needs it — the app's database is `rusqlite` inside
+   `src-tauri`. The workflow was compiling a native module it never uses.
+2. node-gyp then could not find a usable Visual Studio. The runner has VS 18
+   (VS 2026) installed, and node-gyp 11.5.0 cannot parse that version — it also
+   choked parsing PowerShell output
+   (`RangeError [ERR_CHILD_PROCESS_STDIO_MAXBUFFERS]`) and concluded
+   "unknown version". So even with a reason to compile native code, it could not
+   have done so on this image.
+
+The `npm warn cleanup ... EPERM` lines in the log are **not** the cause — that is
+npm's best-effort removal of a partially written `node_modules` after the real
+failure, and those same warnings are harmless on their own.
+
+**Investigation:** confirmed `better-sqlite3` appears only in `devDependencies`
+and is imported exclusively by `database/seed/` and `scripts/database/`. Grepped
+`src-tauri/src` for anything that shells out to `node`/`tsx`: the only hit is
+`commands/app.rs:56` (`run_seeds`), which is gated to debug builds and is not
+exercised by any test. Then verified the fix empirically on Linux rather than
+assuming it: `npm ci --ignore-scripts` followed by `npm run build` and the full
+Vitest suite (461 tests, 58 files) both pass, and `npx tauri --version` still
+resolves to `tauri-cli 2.11.4`.
+
+**Fix:** `npm ci --ignore-scripts` in the Windows installer workflow, with a
+comment recording why. No postinstall step is required on the packaging path —
+esbuild, rolldown and the Tauri CLI all resolve from their platform-specific
+optional dependencies.
+
+**Note:** local development is unaffected and still uses a plain `npm ci`, since
+the seed scripts genuinely do need the compiled `better-sqlite3`.
+
+**Files:** `.github/workflows/windows-installer.yml`
+
+---
+
 ### 2026-09-25 — Packaging for 1.0.0: five defects that only appear in a real install
 
 Preparing the first formal release surfaced five problems that testing in dev
