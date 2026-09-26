@@ -44,6 +44,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **GitHub Releases can no longer be created from a branch.** A manual run of the
+  *Windows Installer* workflow carried a `publish` input that defaulted to true, so
+  a run dispatched from `main` reached the release step with no tag and
+  `softprops/action-gh-release` fell back to `github.ref` — failing with
+  `400 {"message":"Missing tag_name parameter"}` and *"Unexpected error fetching
+  GitHub release for tag refs/heads/main"*. The workflow was never triggered by a
+  `main` push; the manual path was the culprit. The release step now requires
+  `github.ref_type == 'tag'`, passes `tag_name: ${{ github.ref_name }}` explicitly
+  and authenticates with `secrets.GITHUB_TOKEN`; the `publish` input is gone, so a
+  manual run builds the installer and stops. The pipeline also fails when the tag
+  and `package.json` disagree rather than publishing a mislabelled installer, and
+  now logs what the bundler produced. Documented in
+  `docs/release-management.md`.
 - **`run_seeds` shipped to production** - a Tauri command that shells out to
   `npx`, reachable from a top-bar menu item, could only ever fail on a user
   machine ("Is Node.js installed?"). It is now refused outside debug builds.
