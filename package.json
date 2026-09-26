@@ -52,6 +52,7 @@
     "icons:generate": "node scripts/icons/generate-icons.mjs",
     "version:check": "node scripts/version.mjs check",
     "version:sync": "node scripts/version.mjs sync",
+    "version:tag": "node scripts/version.mjs tag",
     "version:set": "node scripts/version.mjs set"
   },
   "dependencies": {

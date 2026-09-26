@@ -95,24 +95,20 @@ jobs:
       - name: Verify version sync
         run: npm run version:check
 
-      # `version:check` proves package.json and Cargo.toml agree, but not that
-      # they agree with the tag being released. Without this, `git tag v9.9.9` on a
-      # 1.0.0 tree publishes a release labelled 9.9.9 whose installer says 1.0.0.
-      # package.json stays the single source of truth: the tag is checked against
-      # it, never written to it.
+      # `version:check` proves every version file agrees with package.json, but
+      # not that they agree with the tag being released. Without this,
+      # `git tag v9.9.9` on a 1.0.0 tree publishes a release labelled 9.9.9 whose
+      # installer says 1.0.0.
+      #
+      # The comparison lives in scripts/version.mjs so the release gate and
+      # `npm run version:set` can never disagree about what a version is. It
+      # strips the leading `v`, so v1.0.0-alpha.2 and 1.0.0-alpha.2 match, and it
+      # accepts prereleases rather than only MAJOR.MINOR.PATCH. package.json
+      # stays the single source of truth: the tag is checked against it, never
+      # written to it.
       - name: Verify tag matches app version
         if: github.ref_type == 'tag'
-        shell: bash
-        run: |
-          set -euo pipefail
-          app_version="$(node -p "require('./package.json').version")"
-          tag_version="${GITHUB_REF_NAME#v}"
-          if [ "$tag_version" != "$app_version" ]; then
-            echo "::error::Tag ${GITHUB_REF_NAME} does not match the app version ${app_version}." >&2
-            echo "Run 'npm run version:set ${tag_version}' and commit before tagging." >&2
-            exit 1
-          fi
-          echo "Tag ${GITHUB_REF_NAME} matches app version ${app_version}"
+        run: npm run version:tag -- "${{ github.ref_name }}"
 
       - name: TypeScript check
         run: npm run typecheck

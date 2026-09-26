@@ -124,9 +124,13 @@ describe("windows installer release workflow", () => {
   it("refuses to release a tag that does not match the app version", () => {
     const guard = stepBody(source, "Verify tag matches app version")
     expect(guard).toMatch(/if:\s*github\.ref_type\s*==\s*'tag'/)
-    // Strips the `v`, so v1.2.3 is compared against package.json's `1.2.3`.
-    expect(guard).toMatch(/GITHUB_REF_NAME#v/)
-    expect(guard).toMatch(/exit 1/)
+    // The comparison lives in scripts/version.mjs so the release gate and
+    // `npm run version:set` cannot disagree about what a version is. It strips
+    // the leading `v` and accepts prereleases, so v1.2.3-rc.1 matches 1.2.3-rc.1.
+    expect(guard).toMatch(/version:tag/)
+    expect(guard).toContain("${{ github.ref_name }}")
+    // The tag is only ever compared, never written back into the project.
+    expect(guard).not.toMatch(/version:set/)
   })
 
   it("keeps the quality gate in front of the installer", () => {
@@ -148,7 +152,10 @@ describe("release version sources", () => {
   const tauriConf = JSON.parse(read("src-tauri/tauri.conf.json"))
 
   it("takes the version from package.json, which the installer name follows", () => {
-    expect(pkg.version).toMatch(/^\d+\.\d+\.\d+$/)
+    // Any SemVer, prereleases included: the project version may be 1.0.0-rc.1.
+    expect(pkg.version).toMatch(
+      /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/,
+    )
     // tauri.conf.json reads package.json rather than repeating the number.
     expect(tauriConf.version).toBe("../package.json")
     const cargoVersion = cargo.match(/^version\s*=\s*"([^"]+)"/m)?.[1]
