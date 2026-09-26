@@ -72,7 +72,7 @@ the list again, or if the list contains a key no query actually uses.
 `src/features/inventory/pages/transfers-page.tsx`,
 `src/features/inventory/pages/import-export-page.tsx`
 
-**Commit:** `PENDING`
+**Commit:** `b6000f8`
 
 ---
 
@@ -116,7 +116,7 @@ held disabled while the items are still loading.
 **Affected files:** `src/features/purchases/pages/purchase-returns-page.tsx`,
 `src/i18n/locales/{es,en}/purchases.json` (`orderHasNoItems`)
 
-**Commit:** `PENDING`
+**Commit:** `b6000f8`
 
 ---
 
