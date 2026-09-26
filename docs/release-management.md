@@ -63,8 +63,13 @@ used to sit on the manual trigger was removed — see the error below.
 | --- | --- |
 | `package.json` | **authoritative** |
 | `src-tauri/tauri.conf.json` | `"version": "../package.json"` — reads the above |
+| `package-lock.json` | must match (root and `packages[""]`); npm cannot read it from elsewhere |
 | `src-tauri/Cargo.toml` | must match; Cargo cannot read `package.json` |
+| `src-tauri/Cargo.lock` | must match, or the next `cargo` run rewrites it and dirties the tree |
 | Git tag | `v` + the `package.json` version, checked in CI |
+
+`npm run version:set` writes all four derived files, and `npm run version:check`
+(part of `npm run verify`) fails if any of them drifts.
 
 So a correct release is internally consistent by construction:
 
@@ -85,11 +90,41 @@ Run 'npm run version:set 9.9.9' and commit before tagging.
 
 ```bash
 npm run version:check     # fails on drift (also part of npm run verify)
-npm run version:sync      # rewrite Cargo.toml from package.json
-npm run version:set 1.2.0 # set package.json + Cargo.toml together
+npm run version:sync      # rewrite the derived files from package.json
+npm run version:set 1.2.0 # set every version location at once
+npm run version:tag v1.2.0 # exit 1 unless the tag matches package.json (used by CI)
 ```
 
 Bump the version **before** tagging. Nothing rewrites your files for you.
+
+### Prereleases
+
+Full Semantic Versioning 2.0.0 is accepted, so alpha, beta and release-candidate
+builds are first-class:
+
+```bash
+npm run version:set 1.0.0-alpha.1
+npm run version:set 1.0.0-alpha.2
+npm run version:set 1.0.0-beta.1
+npm run version:set 1.0.0-rc.1
+git tag v1.0.0-rc.1 && git push origin v1.0.0-rc.1
+```
+
+The tag is the version with a leading `v`, prerelease included, and `version:tag`
+strips that `v` before comparing — so `v1.0.0-rc.1` and `1.0.0-rc.1` are the
+same release. A tag is refused if it does not match `package.json`, which means
+`v1.0.0` cannot be cut from an `1.0.0-rc.1` tree.
+
+The installer is named from the same string, so a prerelease produces
+`InventoryGear-1.0.0-rc.1-setup.exe`.
+
+> **MSI and prereleases.** The release workflow builds NSIS only
+> (`--bundles nsis`), so prereleases publish normally. A *local* full build
+> (`npm run tauri:build:windows`) also targets MSI, and the Windows Installer
+> itself requires a purely numeric `ProductVersion`, so the MSI step is expected
+> to fail on a prerelease. This has not been exercised on a Windows machine from
+> this change — CI only builds NSIS — so treat it as a known constraint rather
+> than a verified result, and use `--bundles nsis` while on a prerelease.
 
 ## Windows installer locations
 
