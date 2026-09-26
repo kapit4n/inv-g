@@ -10,6 +10,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **A single-store instance no longer asks which warehouse to use.** When the
+  instance has exactly one warehouse there is nothing to choose, so it is now
+  preselected in the storage-location form, the receiving form, inventory
+  movements, new purchase orders and new products. A warehouse already stored on
+  the record always wins, a later manual choice is never overwritten, and an
+  instance with several warehouses is left alone so the choice stays visible.
+  Report filters are deliberately untouched: defaulting those would silently
+  narrow what a report covers.
+- **Settings are named instead of echoed.** The settings page labelled every row
+  with its raw key, so the global profit percentage read as "default margin
+  percent" and four categories appeared as bare English words. All 67 settings and
+  those categories now have real names and descriptions in Spanish and English.
 - **Purchase receipts can now be recorded.** A purchase order that is *Sent* or
   *Partially Received* gets a **Receive Order** page: it shows what is still
   outstanding on every line, pre-fills it, keeps *Received* and *Damaged* apart
@@ -19,6 +31,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Creating a purchase return saves.** *Crear Devolución* stored nothing: the
+  wrapper sent `{ userId, input }` while `create_purchase_return` takes flat
+  arguments, so Tauri rejected the call before it reached the database. Creating a
+  purchase request failed identically, and saving a product compatibility entry
+  invoked a command that does not exist. A new static test compares every `invoke()`
+  in the frontend against the `#[tauri::command]` signatures in the backend and
+  fails when a wrapper calls a command that is not registered or omits a required
+  argument, which is the check the mocked component tests could never provide.
+- **A return against an order with no supplier is explained.** The button is
+  disabled and says why, instead of failing on save.
 - **The receiving form loads.** *Recibir Orden* reported that the order could not be
   loaded and showed nothing. `get_purchase_order_items` joined the product table for
   its name and SKU but read the joined values at the wrong offsets, so it failed on

@@ -76,6 +76,10 @@ export function PurchaseReturnsPage() {
   }, [orders, poSearch])
 
   const selectedOrder = orders.find((o) => o.id === selectedPoId)
+  // A return is booked against the supplier that sold the goods, and the backend
+  // requires it. Without one there is nothing to send, so the form says so instead
+  // of failing on a foreign key.
+  const selectedOrderHasSupplier = !!selectedOrder?.supplierId
 
   const createMutation = useMutation({
     mutationFn: () =>
@@ -381,6 +385,12 @@ export function PurchaseReturnsPage() {
             )}
           </div>
 
+          {selectedPoId && !selectedOrderHasSupplier && (
+            <p className="text-sm text-destructive">
+              {t("purchases.returnNeedsSupplier")}
+            </p>
+          )}
+
           <DialogFooter>
             <Button
               variant="outline"
@@ -395,6 +405,7 @@ export function PurchaseReturnsPage() {
               onClick={() => createMutation.mutate()}
               disabled={
                 !selectedPoId ||
+                !selectedOrderHasSupplier ||
                 !returnReason ||
                 returnItems.every((i) => i.quantity === 0) ||
                 createMutation.isPending

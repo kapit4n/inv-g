@@ -91,6 +91,7 @@
   "returnReason": "Return Reason",
   "newReturn": "New Return",
   "createReturn": "Create Return",
+  "returnNeedsSupplier": "This order has no supplier, so there is nobody to return the goods to. Pick an order that has one.",
   "supplierProduct": "Supplier Product",
   "leadTime": "Lead Time (days)",
   "minOrderQty": "Min Order Qty",

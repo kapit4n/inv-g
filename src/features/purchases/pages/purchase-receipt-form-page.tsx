@@ -20,6 +20,7 @@ import { useAuthStore } from "@/stores"
 import type { PurchaseOrder, PurchaseOrderItem, ReceivePOInput } from "@/types"
 import type { Warehouse } from "@/types/inventory"
 import { purchaseOrderStatusLabel, purchaseOrderStatusVariant } from "../purchase-order-status"
+import { useSoleWarehouseDefault } from "@/hooks"
 
 /** What the user has typed on one line: how many arrived, and how many are broken. */
 interface ReceiveLine {
@@ -93,6 +94,10 @@ export function PurchaseReceiptFormPage() {
       })
       .finally(() => setLoading(false))
   }, [poId])
+
+  // A receipt must state where the stock landed, so the single warehouse of a
+  // single-store instance is preselected once the order has loaded.
+  useSoleWarehouseDefault(setWarehouseId, !loading)
 
   /** Ordered units not yet received nor written off. */
   function outstanding(item: PurchaseOrderItem): number {

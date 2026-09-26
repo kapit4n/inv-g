@@ -13,4 +13,11 @@ export { useSelection } from "./use-selection"
 export { usePrint } from "./use-print"
 export { usePrintConfig } from "./use-print-config"
 export { useProductSearch } from "./use-product-search"
-export { useBusinessCapabilities, useCurrentStoreId, useCurrentStore, useIsMultiStore } from "./use-business-capabilities"
+export {
+  useBusinessCapabilities,
+  useCurrentStoreId,
+  useCurrentStore,
+  useIsMultiStore,
+  useSoleWarehouseId,
+  useSoleWarehouseDefault,
+} from "./use-business-capabilities"

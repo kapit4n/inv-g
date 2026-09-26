@@ -91,6 +91,7 @@
   "returnReason": "Motivo de Devolución",
   "newReturn": "Nueva Devolución",
   "createReturn": "Crear Devolución",
+  "returnNeedsSupplier": "Esta orden no tiene proveedor, así que no hay a quién devolver la mercancía. Elige una orden que tenga proveedor.",
   "supplierProduct": "Producto de Proveedor",
   "leadTime": "Tiempo de Entrega (días)",
   "minOrderQty": "Cant. Mínima",

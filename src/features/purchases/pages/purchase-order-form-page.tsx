@@ -17,6 +17,7 @@ import {
   searchProductsForPos,
 } from "@/lib/tauri"
 import { useNotification } from "@/hooks/use-notification"
+import { useSoleWarehouseDefault } from "@/hooks"
 import type { ProductForPos } from "@/types"
 import type { InventorySupplier, Warehouse } from "@/types/inventory"
 
@@ -75,6 +76,10 @@ export function PurchaseOrderFormPage() {
       setLoading(false)
     })
   }, [id])
+
+  // Ordering to the only warehouse of a single-store instance saves a choice
+  // that has none; a stored warehouse on an existing order still wins.
+  useSoleWarehouseDefault(setWarehouseId, !loading)
 
   useEffect(() => {
     if (!searchQuery.trim()) { setSearchResults([]); return }

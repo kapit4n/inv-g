@@ -62,15 +62,20 @@ has been sent, and sending is only possible once it has been approved.
 ### How to Return
 
 1. Go to **Purchases → Returns**
-2. Select the receipt or PO
+2. Select the purchase order to return against
 3. Choose items and quantities to return
 4. Enter return reason
-5. Process the return
+5. Press **Create Return**
+
+The return is filed against the order's supplier, so an order that has no supplier
+cannot be returned: the button stays disabled and says why until you pick an order
+that has one.
 
 ### What Happens
 
 - Stock quantities are reduced
 - A return record is created
+- The supplier of the selected order is recorded on it
 - Supplier is notified (if configured)
 
 ## Considerations
@@ -82,6 +87,9 @@ has been sent, and sending is only possible once it has been approved.
   the last unit arrives
 - A line cannot claim more units than are outstanding
 - Returns require a reason for audit trail
+- The return always needs a supplier, which it takes from the selected order
+- With a single warehouse it is preselected on the receiving form; see
+  [Warehouses](/inventory/warehouses)
 - Cancelling an order does not undo stock already received
 
 ## Related

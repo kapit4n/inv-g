@@ -6,6 +6,119 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-25 — "Crear Devolución" (and three other wrappers) failed to save
+
+**Symptom:** open a purchase order, press **Crear Devolución**, fill the reason and
+the lines, press save, and nothing is stored. Creating a purchase request from the
+same module fails the same way, and saving a product compatibility entry fails too.
+
+**Root cause: the TypeScript wrappers had drifted from the Rust signatures.** Every
+command crosses the IPC boundary through a hand-written wrapper in
+`src/lib/tauri.ts`, and the payload shape is not checked by anything. Tauri
+deserialises the arguments into the command's own parameter list, so a payload
+nested one level deeper than the command expects is rejected before the command
+ever runs:
+
+```
+invalid args `supplierId` for command `create_purchase_return`
+```
+
+```ts
+// before
+export async function createPurchaseReturn(userId: number, input: {...}) {
+  return invoke("create_purchase_return", { userId, input })
+}
+// after
+export async function createPurchaseReturn(userId: number, input: {...}) {
+  return invoke("create_purchase_return", { userId, poId, supplierId, reason, items })
+}
+```
+
+`create_purchase_request` had the identical defect, and `deleteProductCompatibility`
+invoked `delete_product_compatibility`, a command that does not exist — the backend
+registers `delete_compatibility`.
+
+**Investigation.** The component tests could not have caught this: they mock
+`@/lib/tauri`, so the wrapper is stubbed out and only the page is under test. The
+mocks were written to agree with the wrapper, so a wrong payload passed as a
+correct one. The gap was found by reading the wrappers against the signatures after
+the receiving fix, and the first finding was that a compile-time check was needed.
+
+**Fix.** The three wrappers now send the flat, camelCase arguments their commands
+declare, matching the shape every other wrapper in the file already used.
+
+A **static contract test** now prevents the whole class of bug. It parses every
+`#[tauri::command]` signature out of the Rust sources, parses every `invoke()` call
+out of `src/lib/tauri.ts`, and fails when a wrapper invokes a command that does not
+exist or omits a required argument. It covers the ~215 calls whose payload is
+written inline. Three kinds of call cannot be checked that way and are pinned by
+name so that adding one is a deliberate act: payloads that spread another object,
+payloads forwarded as a bare expression (`invoke("create_category", data)`), and
+Rust parameters whose wire name is ambiguous because they are bound but never read
+(`_sale_price` in `create_product`/`update_product`, and the five `create_sale`
+parameters the backend recomputes). The audit found no further mismatches.
+
+**Also guarded: the return form.** A return against an order that has no supplier
+was offered as a valid action. The button is now disabled with an explanation, and
+`selectedOrderHasSupplier` decides it.
+
+**Still open, needs a product decision.** `createProductCompatibility` sends
+`vehicleBrand`/`vehicleModel`/`engine` as free text, but `create_compatibility`
+takes `brand_id`/`model_id`/`engine_id`. The command name is wrong *and* the data
+model does not match, so this needs a decision about whether the form should pick
+from the vehicle catalogue or the backend should resolve names. It is listed in the
+contract test's `KNOWN_BROKEN_COMMANDS` so it is not mistaken for a regression, and
+it is deliberately **not** counted as fixed here.
+
+---
+
+### 2026-09-25 — The global profit percentage could not be found in Settings
+
+**Symptom:** the app applies a default profit percentage to products that do not
+carry their own, but the setting cannot be located in **Configuración**, and there
+is no sign of it in Settings → Negocio.
+
+**Root cause: not a missing feature — a missing label.** The whole mechanism was
+already correct and remains untouched:
+
+- `seed.rs` creates the row: `default_margin_percent`, category `business`,
+  type `number`, validation `{"min":0,"max":90}`.
+- `pricing::get_default_margin` reads it, falling back to `30.0`.
+- `resolve_sale_price` uses a product's own margin when it has one, its manually
+  edited price when it has one, and the global default otherwise.
+- `persist_setting` re-prices every product that follows the default
+  (`reprice_following_global_default`) whenever the setting is saved, and the
+  settings page's **bulk** endpoint goes through that same helper, so saving from
+  the UI does apply it.
+
+What was missing was the name. `AdminSettingsPage` labelled each row with
+`setting.key.replace(/_/g, " ")` and the category with a CSS `capitalize`, so the
+page offered a tab reading **business** and a row reading **default margin
+percent**, with the seeded English description underneath. Both strings are
+developer-facing, which is why the setting looked absent rather than merely ugly.
+Four categories (`performance`, `company`, `tax`, `notifications`) had no
+translation at all and rendered as bare English words.
+
+**Fix.** The page now resolves `settings.keys.<key>` and
+`settings.keys.<key>.description` from the `admin` namespace, falling back to the
+readable key and the row's own description so a setting nobody has translated still
+renders. All **67** seeded settings and the four untranslated categories now have
+names and descriptions in Spanish and English. The product form's margin hint points
+at the place the value is changed.
+
+**Verification.** Confirmed against a copy of the real database that the setting
+exists (`default_margin_percent` = `30`, category `business`) and that the fallback
+is reachable: `pricing::get_default_margin`, `resolve_sale_price` and
+`reprice_following_global_default` all key off `profit_margin_pct IS NULL`, and the
+product form already submits `null` when the field is left empty.
+
+**Worth knowing.** In the real database **0 of the products have a NULL margin**:
+the schema migration at `schema.rs:42` backfilled
+`ROUND((sale_price / cost_price - 1) * 100, 1)` for every existing row, and every
+product keeps its historical margin. That is correct — existing prices should not
+move — but it means the global default only applies to products created from now on
+with the field left empty. Nothing was re-priced, by design.
+
 ### 2026-09-25 — "Recibir Orden" showed an error instead of the receiving form
 
 **Symptom:** send a purchase order to its supplier, press **Recibir Orden**, and the

@@ -223,7 +223,7 @@
     "marginOverCostNote": "Margin is computed and applied over the merchandise cost",
     "configuredMargin": "Configured margin",
     "gainPercent": "% gain",
-    "gainPercentHint": "Configured global gain: {{value}}%",
+    "gainPercentHint": "Global profit: {{value}}%. Leave it empty to use the global one, changed in Settings → Business.",
     "effectiveMargin": "Effective gain",
     "suggestedPrice": "Suggested price",
     "suggestedPriceHint": "suggested = cost × (1 + %/100)",
