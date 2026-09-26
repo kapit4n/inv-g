@@ -312,6 +312,32 @@ repeated path, and `tests/unit/utils/i18n-duplicates.test.ts` covers the
 detector itself. This class of bug is invisible to the type checker and to
 reading, so it needs a mechanical check.
 
+**The new guard was itself broken on the way in — a shebang in an imported
+module.** `check-i18n-duplicates.mjs` is both a CLI entry and an imported
+module, because two test files import `findDuplicateKeys` from it. It started
+with `#!/usr/bin/env node`, which is only legal on line 1. When the runner
+transforms the file through Vite/Rolldown's SSR path instead of loading it
+natively, it hoists the `node:` imports to the top of the emitted module and
+leaves the shebang stranded in the middle:
+
+```
+RolldownError: Parse failure: Invalid Character `!`
+1: const readdirSync = ...; const dirname = ...;#!/usr/bin/env node
+```
+
+Both suites that import it then failed to load at all, taking 30 tests with
+them. **This is worth remembering as a shape of bug, not just an incident:** the
+outcome depended on a loader decision, so the same commit passed here and
+failed on another machine, and clearing the Vite cache could flip it either
+way. A shebang in a file that anything might import is a latent parse error
+regardless of which runner you happen to use.
+
+The fix is to drop the shebang. `npm run i18n:check` invokes the file as
+`node scripts/check-i18n-duplicates.mjs`, which never needed one. The other ten
+shebangs under `scripts/` are untouched — none of them is imported anywhere, so
+for a script that is only ever executed directly the shebang is correct and
+harmless. The file now carries a comment saying why it must not grow one back.
+
 **On the tab name.** The report suggested renaming the section to "Clientes".
 That would have been wrong: the section also holds vehicles, compatibility,
 reminders, warranties, credit and notes, so "Clientes" would misdescribe it —

@@ -39,7 +39,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   overwriting the *section* name everywhere it was used. The same fault existed
   in `admin.json`, `inventory.json` and `customers.json`; the shadowed keys are
   now distinctly named and `npm run i18n:check` (wired into `npm run verify`)
-  fails the build on any repeated key.
+  fails the build on any repeated key. (The guard itself needed a fix on the way
+  in: as a module imported by tests it could not carry a shebang, which broke
+  both of its suites at load time on some runners.)
 - **A second "Proveedores" page in the sidebar showed invented data.** The
   top-level `/suppliers` page was a hardcoded array of five fake suppliers with
   three literal KPI numbers and no create, edit or delete — the same rows on

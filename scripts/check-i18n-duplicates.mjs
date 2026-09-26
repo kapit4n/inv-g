@@ -1,4 +1,20 @@
-#!/usr/bin/env node
+/**
+ * NOTE: no shebang, on purpose.
+ *
+ * This file is both a CLI entry (`node scripts/check-i18n-duplicates.mjs`, which
+ * needs no shebang) and an imported module (the tests import `checkLocale` and
+ * `main`). When the test runner decides to transform this file through
+ * Vite/Rolldown's SSR path instead of loading it natively, it hoists the `node:`
+ * imports to the top of the output and leaves the shebang behind mid-file, and
+ * the result no longer parses:
+ *
+ *   RolldownError: Parse failure: Invalid Character `!`
+ *   1: ... const dirname = ...;#!/usr/bin/env node
+ *
+ * Whether that path is taken is a loader detail, so the file is invalid for
+ * some runners and fine for others -- the worst kind of failure to chase. Keep
+ * the shebang out.
+ */
 /**
  * Fails when a translation file declares the same key twice.
  *
