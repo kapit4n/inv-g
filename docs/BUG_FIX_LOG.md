@@ -103,7 +103,7 @@ human, which is the behaviour `docs/windows-installer.md` already documented.
 (new), `docs/windows-installer.md`, `docs/CHANGELOG.md`, `docs/BUG_FIX_LOG.md`,
 `docs/progress/MILESTONE_17.md`, `docs/ROADMAP.md`
 
-**Commit:** `PENDING`
+**Commit:** `43f6f37`
 
 ---
 

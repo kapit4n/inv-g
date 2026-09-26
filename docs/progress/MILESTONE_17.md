@@ -1,7 +1,7 @@
 # Milestone 17 — Windows Installer & 1.0.0 Release Packaging
 
 **Date:** 2026-09-25
-**Status:** ✅ Complete (`bf64f43`; release-pipeline fix `PENDING`)
+**Status:** ✅ Complete (`bf64f43`; release-pipeline fix `43f6f37`)
 **Docs:** [`docs/windows-installer.md`](../windows-installer.md), [`docs/release-management.md`](../release-management.md)
 **Scope:** Produce a reproducible, production-safe Windows installer for the
 first formal release, and fix the defects that only appear once the app is
@@ -115,7 +115,7 @@ This milestone makes the app installable and install-safe.
 ## Known issues / follow-ups
 
 0. **The release pipeline could reach the release step without a tag**
-   (`PENDING`). `workflow_dispatch` carried a `publish` input defaulting to
+   (`43f6f37`). `workflow_dispatch` carried a `publish` input defaulting to
    `true`, so a manual run on `main` failed with
    `400 {"message":"Missing tag_name parameter"}` and no release was ever
    created. The release step now requires `github.ref_type == 'tag'`, passes
