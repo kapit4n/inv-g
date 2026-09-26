@@ -6,6 +6,7 @@ import { EntityFormPage } from "@/components/entity"
 import { TextField, TextareaField, SelectField } from "@/components/forms"
 import { EntityActionBar } from "@/components/entity"
 import { getWarehouses, getStorageLocations, createStorageLocation, updateStorageLocation } from "@/lib/tauri"
+import { useSoleWarehouseDefault } from "@/hooks"
 import { useNotification } from "@/hooks/use-notification"
 
 export function StorageLocationFormPage() {
@@ -49,6 +50,9 @@ export function StorageLocationFormPage() {
       }
     }
   }, [isEdit, allLocations, id])
+
+  // Declared after the loader above so a stored warehouse always wins.
+  useSoleWarehouseDefault(setWarehouseId, !isEdit || allLocations.length > 0)
 
   const createMutation = useMutation({
     mutationFn: createStorageLocation,

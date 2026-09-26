@@ -6,6 +6,7 @@ import { EntityFormPage } from "@/components/entity"
 import { NumberField, SelectField, TextareaField } from "@/components/forms"
 import { EntityActionBar } from "@/components/entity"
 import { getProducts, getWarehouses, createInventoryMovement } from "@/lib/tauri"
+import { useSoleWarehouseDefault } from "@/hooks"
 import { useNotification } from "@/hooks/use-notification"
 
 export function InventoryMovementFormPage() {
@@ -28,6 +29,9 @@ export function InventoryMovementFormPage() {
   const [type, setType] = useState<string>("in")
   const [quantity, setQuantity] = useState(0)
   const [notes, setNotes] = useState("")
+
+  // Where the stock moves has to be stated, so preselect the only warehouse.
+  useSoleWarehouseDefault(setWarehouseId)
 
   const createMutation = useMutation({
     mutationFn: createInventoryMovement,

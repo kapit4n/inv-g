@@ -608,7 +608,7 @@ export async function createProductCompatibility(data: {
 }
 
 export async function deleteProductCompatibility(id: number): Promise<void> {
-  return invoke<void>("delete_product_compatibility", { id })
+  return invoke<void>("delete_compatibility", { id })
 }
 
 // ── Purchase Orders ──
@@ -642,7 +642,14 @@ export async function getPurchaseRequest(id: number): Promise<PurchaseRequest> {
   return invoke<PurchaseRequest>("get_purchase_request", { id })
 }
 export async function createPurchaseRequest(userId: number, input: PurchaseRequestInput): Promise<PurchaseRequest> {
-  return invoke<PurchaseRequest>("create_purchase_request", { userId, input })
+  return invoke<PurchaseRequest>("create_purchase_request", {
+    userId,
+    warehouseId: input.warehouseId,
+    priority: input.priority,
+    reason: input.reason,
+    requiredDate: input.requiredDate ?? null,
+    items: input.items,
+  })
 }
 export async function updatePurchaseRequestStatus(id: number, status: string): Promise<PurchaseRequest> {
   return invoke<PurchaseRequest>("update_purchase_request_status", { id, status })
@@ -667,7 +674,13 @@ export async function getPurchaseReturn(id: number): Promise<PurchaseReturn> {
   return invoke<PurchaseReturn>("get_purchase_return", { id })
 }
 export async function createPurchaseReturn(userId: number, input: PurchaseReturnInput): Promise<PurchaseReturn> {
-  return invoke<PurchaseReturn>("create_purchase_return", { userId, input })
+  return invoke<PurchaseReturn>("create_purchase_return", {
+    userId,
+    poId: input.poId ?? null,
+    supplierId: input.supplierId,
+    reason: input.reason,
+    items: input.items,
+  })
 }
 
 // ── Supplier Catalog ──

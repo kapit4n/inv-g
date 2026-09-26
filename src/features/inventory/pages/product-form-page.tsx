@@ -6,6 +6,7 @@ import { EntityFormPage, EntityInfoCard } from "@/components/entity"
 import { TextField, TextareaField, NumberField, SelectField, CurrencyField } from "@/components/forms"
 import { EntityActionBar } from "@/components/entity"
 import { getProduct, getCategories, getBrands, getManufacturers, getSuppliers, getWarehouses, getStorageLocations, getProductImages, getProductCompatibility, createProduct, updateProduct, createProductImage, deleteProductImage, createProductCompatibility, deleteProductCompatibility } from "@/lib/tauri"
+import { useSoleWarehouseDefault } from "@/hooks"
 import { useNotification } from "@/hooks/use-notification"
 import { useAppSettingsStore, useAuthStore } from "@/stores"
 import { suggestedPrice, effectiveMargin, effectivePrice, isValidMargin } from "@/lib/pricing"
@@ -107,6 +108,10 @@ export function ProductFormPage() {
       setImageUrl(product.imageUrl || "")
     }
   }, [product])
+
+  // Products in a single-store instance live in the only warehouse, so there is
+  // nothing to pick; an existing product keeps whatever it already has.
+  useSoleWarehouseDefault(setWarehouseId, !isEdit || product != null)
 
   const addImageMutation = useMutation({
     mutationFn: createProductImage,

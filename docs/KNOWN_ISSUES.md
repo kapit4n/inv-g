@@ -1,6 +1,6 @@
 # Known Issues
 
-> **Last updated:** 2026-09-20
+> **Last updated:** 2026-09-25
 > **Source of truth:** Visual QA findings are tracked in detail in
 > [`quality/visual_analysis/BUG_LIST.md`](../quality/visual_analysis/BUG_LIST.md)
 > and the generated report at `quality/dashboard.md`. Bug fixes are logged in
@@ -44,6 +44,18 @@
     tools). `AppConfig::default()` reads the real data dir. Workaround:
     `IG_DATABASE_PROFILE=default cargo test` or a clean data dir; fixture
     rewrite is a future task. Not a code regression (see `docs/BUG_FIX_LOG.md`).
+13. **Saving a product compatibility entry does not work** (M-14) — the wrapper
+    `createProductCompatibility` invokes `create_product_compatibility`, which no
+    `#[tauri::command]` defines, and it sends `vehicleBrand`/`vehicleModel`/`engine`
+    as free text while the real command `create_compatibility` takes
+    `brand_id`/`model_id`/`engine_id`. So the name is wrong *and* the data model
+    does not line up. Fixing it needs a product decision: either the form picks from
+    the vehicle catalogue and sends IDs, or the backend resolves the typed names to
+    IDs. Deliberately left alone rather than half-fixed. Listed in
+    `KNOWN_BROKEN_COMMANDS` in
+    `tests/integration/tauri-command-argument-contract.test.ts` so the contract test
+    does not report it as a regression. Deleting an entry works
+    (`delete_compatibility`); only creating one is affected.
 
 ## Medium
 

@@ -10,28 +10,7 @@ import { Separator } from "@/components/ui/separator"
 import { getPurchaseOrder, deletePurchaseOrder, updatePurchaseOrderStatus } from "@/lib/tauri"
 import { useNotification } from "@/hooks/use-notification"
 import type { PurchaseOrder } from "@/types"
-
-type StatusVariant = "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info"
-
-const statusVariant: Record<string, StatusVariant> = {
-  draft: "secondary",
-  pending_approval: "warning",
-  approved: "info",
-  sent: "default",
-  partially_received: "warning",
-  received: "success",
-  cancelled: "destructive",
-}
-
-const statusLabel: Record<string, string> = {
-  draft: "Draft",
-  pending_approval: "Pending Approval",
-  approved: "Approved",
-  sent: "Sent",
-  partially_received: "Partial",
-  received: "Received",
-  cancelled: "Cancelled",
-}
+import { purchaseOrderStatusLabel, purchaseOrderStatusVariant } from "../purchase-order-status"
 
 export function PurchaseOrderDetailPage() {
   const { t } = useTranslation("purchases")
@@ -196,8 +175,8 @@ export function PurchaseOrderDetailPage() {
                 </div>
                 <div>
                   <p className="text-muted-foreground">{t("status")}</p>
-                  <Badge variant={statusVariant[order.status] || "outline"}>
-                    {statusLabel[order.status] || order.status}
+                  <Badge variant={purchaseOrderStatusVariant(order.status)}>
+                    {purchaseOrderStatusLabel(t, order.status)}
                   </Badge>
                 </div>
                 <div>

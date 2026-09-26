@@ -6,6 +6,488 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-25 — "Crear Devolución" (and three other wrappers) failed to save
+
+**Symptom:** open a purchase order, press **Crear Devolución**, fill the reason and
+the lines, press save, and nothing is stored. Creating a purchase request from the
+same module fails the same way, and saving a product compatibility entry fails too.
+
+**Root cause: the TypeScript wrappers had drifted from the Rust signatures.** Every
+command crosses the IPC boundary through a hand-written wrapper in
+`src/lib/tauri.ts`, and the payload shape is not checked by anything. Tauri
+deserialises the arguments into the command's own parameter list, so a payload
+nested one level deeper than the command expects is rejected before the command
+ever runs:
+
+```
+invalid args `supplierId` for command `create_purchase_return`
+```
+
+```ts
+// before
+export async function createPurchaseReturn(userId: number, input: {...}) {
+  return invoke("create_purchase_return", { userId, input })
+}
+// after
+export async function createPurchaseReturn(userId: number, input: {...}) {
+  return invoke("create_purchase_return", { userId, poId, supplierId, reason, items })
+}
+```
+
+`create_purchase_request` had the identical defect, and `deleteProductCompatibility`
+invoked `delete_product_compatibility`, a command that does not exist — the backend
+registers `delete_compatibility`.
+
+**Investigation.** The component tests could not have caught this: they mock
+`@/lib/tauri`, so the wrapper is stubbed out and only the page is under test. The
+mocks were written to agree with the wrapper, so a wrong payload passed as a
+correct one. The gap was found by reading the wrappers against the signatures after
+the receiving fix, and the first finding was that a compile-time check was needed.
+
+**Fix.** The three wrappers now send the flat, camelCase arguments their commands
+declare, matching the shape every other wrapper in the file already used.
+
+A **static contract test** now prevents the whole class of bug. It parses every
+`#[tauri::command]` signature out of the Rust sources, parses every `invoke()` call
+out of `src/lib/tauri.ts`, and fails when a wrapper invokes a command that does not
+exist or omits a required argument. It covers the ~215 calls whose payload is
+written inline. Three kinds of call cannot be checked that way and are pinned by
+name so that adding one is a deliberate act: payloads that spread another object,
+payloads forwarded as a bare expression (`invoke("create_category", data)`), and
+Rust parameters whose wire name is ambiguous because they are bound but never read
+(`_sale_price` in `create_product`/`update_product`, and the five `create_sale`
+parameters the backend recomputes). The audit found no further mismatches.
+
+**Also guarded: the return form.** A return against an order that has no supplier
+was offered as a valid action. The button is now disabled with an explanation, and
+`selectedOrderHasSupplier` decides it.
+
+**Still open, needs a product decision.** `createProductCompatibility` sends
+`vehicleBrand`/`vehicleModel`/`engine` as free text, but `create_compatibility`
+takes `brand_id`/`model_id`/`engine_id`. The command name is wrong *and* the data
+model does not match, so this needs a decision about whether the form should pick
+from the vehicle catalogue or the backend should resolve names. It is listed in the
+contract test's `KNOWN_BROKEN_COMMANDS` so it is not mistaken for a regression, and
+it is deliberately **not** counted as fixed here. Tracked as M-14 in
+`docs/KNOWN_ISSUES.md`.
+
+**Commit:** `40b2a75`
+
+---
+
+### 2026-09-25 — The global profit percentage could not be found in Settings
+
+**Symptom:** the app applies a default profit percentage to products that do not
+carry their own, but the setting cannot be located in **Configuración**, and there
+is no sign of it in Settings → Negocio.
+
+**Root cause: not a missing feature — a missing label.** The whole mechanism was
+already correct and remains untouched:
+
+- `seed.rs` creates the row: `default_margin_percent`, category `business`,
+  type `number`, validation `{"min":0,"max":90}`.
+- `pricing::get_default_margin` reads it, falling back to `30.0`.
+- `resolve_sale_price` uses a product's own margin when it has one, its manually
+  edited price when it has one, and the global default otherwise.
+- `persist_setting` re-prices every product that follows the default
+  (`reprice_following_global_default`) whenever the setting is saved, and the
+  settings page's **bulk** endpoint goes through that same helper, so saving from
+  the UI does apply it.
+
+What was missing was the name. `AdminSettingsPage` labelled each row with
+`setting.key.replace(/_/g, " ")` and the category with a CSS `capitalize`, so the
+page offered a tab reading **business** and a row reading **default margin
+percent**, with the seeded English description underneath. Both strings are
+developer-facing, which is why the setting looked absent rather than merely ugly.
+Four categories (`performance`, `company`, `tax`, `notifications`) had no
+translation at all and rendered as bare English words.
+
+**Fix.** The page now resolves `settings.keys.<key>` and
+`settings.keys.<key>.description` from the `admin` namespace, falling back to the
+readable key and the row's own description so a setting nobody has translated still
+renders. All **67** seeded settings and the four untranslated categories now have
+names and descriptions in Spanish and English. The product form's margin hint points
+at the place the value is changed.
+
+**Verification.** Confirmed against a copy of the real database that the setting
+exists (`default_margin_percent` = `30`, category `business`) and that the fallback
+is reachable: `pricing::get_default_margin`, `resolve_sale_price` and
+`reprice_following_global_default` all key off `profit_margin_pct IS NULL`, and the
+product form already submits `null` when the field is left empty.
+
+**Worth knowing.** In the real database **0 of the products have a NULL margin**:
+the schema migration at `schema.rs:42` backfilled
+`ROUND((sale_price / cost_price - 1) * 100, 1)` for every existing row, and every
+product keeps its historical margin. That is correct — existing prices should not
+move — but it means the global default only applies to products created from now on
+with the field left empty. Nothing was re-priced, by design.
+
+**Commit:** `40b2a75`
+
+### 2026-09-25 — "Recibir Orden" showed an error instead of the receiving form
+
+**Symptom:** send a purchase order to its supplier, press **Recibir Orden**, and the
+receiving form never appears. A toast reports that the order could not be loaded,
+and the page stays empty. The order is correctly `sent`, so the step before it
+worked.
+
+**Root cause: `get_purchase_order_items` read the wrong columns out of every
+row.** The query joined the product table for its name and SKU:
+
+```sql
+SELECT poi.*, p.name as product_name, p.sku as product_sku
+FROM purchase_order_items poi
+LEFT JOIN products p ON poi.product_id = p.id
+```
+
+`purchase_order_items` has **13** columns, so `poi.*` occupies indices 0-12 and the
+two joined values land at 13 and 14. The row mapper read `product_name` at index
+**3** and every later field from there on, as if the join had added its columns
+next to `product_id` rather than at the end. So each field was filled from the
+wrong column:
+
+| index | actual column | read as |
+|---|---|---|
+| 3 | `supplier_sku` | `product_name` |
+| 4 | `quantity` | `product_sku` |
+| 5 | `unit_cost` | `supplier_sku` |
+| 6 | `discount` | `quantity` |
+| 11 | `created_at` | `received_quantity` |
+| 13 | `product_name` | `created_at` |
+
+The command therefore failed on **every order that has any line at all**: the very
+first read, `product_name`, pointed at `supplier_sku`, which is `NULL` for orders
+created through the interface — `Invalid column type Null at index: 3, name:
+supplier_sku`. Even with a non-NULL `supplier_sku` it could not have produced
+usable data: `quantity` would have come from `discount` and `received_quantity`
+from the `created_at` text, which cannot convert to `i64`.
+
+The defect is old, but invisible: the only intended caller was never written. The
+order detail page still carries the comment *"A real implementation would call
+getPurchaseOrderItems and render them"*, so nothing had ever invoked the command.
+Shipping the receiving form made it the first real caller, which is why the bug
+surfaced at exactly this point in the workflow.
+
+**Investigation.** The two halves were separated first. The database was copied
+and `receive_purchase_order_inner` was run against the real rows for both `sent`
+orders: both succeeded, created `REC-000001`/`REC-000002` and moved the orders to
+`completed`, so the write path was sound. That left the read path. The page's
+first call on mount is `getPurchaseOrderItems`, and a probe replaying its exact
+`SELECT` alongside the mapper's exact `row.get(n)` calls printed the real column
+layout next to the reads and showed the shift.
+
+Note that the frontend could not have caught this: the test for the receiving form
+mocks `getPurchaseOrderItems`, and the mock was written from the same wrong
+assumption. The gap was only visible against the real command.
+
+**Fix.** The `SELECT` now lists its columns explicitly, and `map_po_item_row` reads
+every value **by column name** (`row.get("received_quantity")`), so the mapper can
+no longer drift from the query when either side changes. The command delegates to a
+new `get_po_items_inner`, which is directly testable.
+
+**The same defect was in five more queries.** Auditing every `SELECT <alias>.*` in
+the backend turned up six in this module, and all six were mis-mapped:
+
+| query | base columns | joined values actually at | mapper read them at | effect |
+|---|---|---|---|---|
+| `purchase_order_items` | 13 | 13, 14 | 3, 4 | error (reported above) |
+| `purchase_receipt_items` | 9 | 9, 10 | 4, 5 | error, on the page the form opens after a successful receipt |
+| `purchase_request_items` | 8 | 8, 9 | 3, 4 | error |
+| `purchase_return_items` | 7 | 7, 8 | 3, 4 | error |
+| `product_cost_history` | 9 | 9-13 | 2-6 | error (five joins) |
+| `supplier_products` | 12 | 12, 13, 14 | 10, 11, 12 | **no error, wrong data** |
+
+`supplier_products` is the one that would have been hardest to notice: every value
+from `product_name` onwards came from the wrong column but the *types* still lined
+up, so the page rendered a timestamp as the product name, the product SKU as
+`created_at`, and the brand name as `updated_at` — no error, just quietly wrong
+data. All six now select explicit columns and read by name.
+
+`sales.rs` has the same pattern in 16 further queries (sales, quotes, credit,
+daily closings, cash register history). Those were left alone: they are a separate
+module, and the sales and purchase mappers cannot be assumed consistent. For
+example `sales.rs:526` reads the joined product values at 9 and 10, which is correct
+for its 9 base columns, while `sales.rs:1613` reads `customer_name` at index 12
+where `sales` has 16 base columns.
+
+**Files:** `src-tauri/src/commands/purchases.rs`
+
+**Tests:** `po_items_report_real_columns_not_shifted_ones`,
+`receipt_items_report_real_columns_and_the_receipt_reads_back`, and
+`every_shifted_join_query_in_purchases_is_aligned` assert the real values, not just
+that the query runs. Reverting each mapper to its original positional form fails
+them — for example the supplier-product assertion reports
+`left: Some("2026-09-26 03:45:18"), right: Some("Widget")`.
+
+---
+
+### 2026-09-25 — "Enviar a Proveedor" did nothing, and a sent order could never be received
+
+**Symptom:** approve a purchase order, press **Enviar a Proveedor**, and nothing
+happens. The order stays *Aprobado* forever. Following the order from there was
+impossible: there was nowhere to record the delivery, so an order could never
+leave *Enviado*.
+
+**Root cause: three defects in a row, on one path.**
+
+**1. The transition the button performs was not allowed.** The order detail page
+offers *Enviar a Proveedor* exactly when the order is `approved`, and sends
+`update_purchase_order_status(id, "sent")`. The backend's transition table had no
+`approved` arm at all, so the command answered `Invalid status transition from
+'approved' to 'sent'`. The failure surfaced only as a toast, so from the user's
+side the button did nothing.
+
+The table had drifted from the interface: the page had grown an approval step
+(*Borrador → Pendiente de Aprobación → Aprobado → Enviado*) and the table was
+never extended to match. `approved` could also not be cancelled, and the only way
+out of `approved` was nothing.
+
+**2. The receive page did not exist.** *Recibir Orden* navigated to
+`/purchases/receipts/new?poId=`, which was not a route, so the catch-all
+redirected to `/dashboard`. The click looked like it did something — the app
+simply changed page. `receive_purchase_order` only accepts an order that is
+`sent` or `partially_received`, so with the order stuck in `approved` and no
+receipt page, the workflow had no exit at either end.
+
+**3. The pages and the backend disagreed on the name of the final status.** The
+backend writes `completed` when every ordered unit is accounted for
+(`receive_purchase_order` picks `completed` or `partially_received` itself), but
+both the detail page and the orders list carried hand-written English maps with
+`received` in that slot. So a finished order showed the raw string `completed` in
+an otherwise translated interface, and the status filter offered a value that no
+query ever returns instead of the one that does.
+
+**Investigation.** The reported button maps to exactly one call,
+`purchase-order-detail-page.tsx` → `update_purchase_order_status(..., "sent")`,
+so the first thing checked was the transition table, which is where the arm was
+missing. From there: the reachable routes were listed to find the second dead
+end, and the statuses written by every query compared against the ones the pages
+named. The documentation was checked too, and had drifted as well — it described
+a `Draft → Sent → Confirmed → Received → Closed` flow with no approval step and
+a `+ New Receipt` button on the receipts list that has never existed.
+
+**How the workflow is meant to run.** `approved` is the gate: an order is signed
+off, then sent, then received, and receiving is the only way to finish. The
+transition table now covers every step the interface offers, and the two terminal
+states — `completed`, `cancelled` — accept nothing further. `completed` and
+`partially_received` are chosen by the backend from the lines actually received,
+so they are not statuses a user picks.
+
+**Fix.**
+
+- `valid_status_transition` is now a named function with the lifecycle drawn
+  above it, and gains the two missing `approved` arms: `→ sent` and
+  `→ cancelled`. `update_purchase_order_status` is split into a thin command and
+  an `_inner` that takes a connection, matching the pattern the two earlier
+  purchase-order fixes in this file established.
+- New `src/features/purchases/pages/purchase-receipt-form-page.tsx`, routed at
+  `/purchases/receipts/new`. It loads the order and its lines, shows what is
+  still **outstanding** — ordered minus already received minus already damaged,
+  so a second delivery is counted against what is left and not against the
+  original quantity — and pre-fills each line with it, making a complete
+  delivery one click. Received and damaged are separate columns, and only
+  `received − damaged` reaches stock. It refuses a line that claims more than is
+  outstanding, refuses an empty receipt, requires a warehouse, and lands on the
+  receipt it created.
+- `src/features/purchases/purchase-order-status.ts` holds the canonical status
+  list, its translation keys and its badge variants. Both pages read from it, so
+  a status cannot be named one thing in a badge and another in a filter. The
+  hardcoded English maps are gone, which also means the status column follows the
+  interface language like the rest of the page.
+- Seven new keys per locale for the receive page, inserted next to their
+  neighbours rather than re-sorting the file.
+
+**Tests.** 5 Rust tests, 15 frontend.
+
+Rust, on a real database: an approved order reaches the supplier and stamps
+`sent_at` (the timeline and the supplier KPIs read that column); approving records
+the approver and the moment; an approved order cannot be received before it is
+sent; receiving everything closes the order and the same order cannot be received
+twice; and the transition table itself is asserted, every allowed step and ten
+refused ones. Dropping the `approved → sent` arm fails 3 of the 5.
+
+Frontend, in `tests/regression/bug-011-purchase-order-workflow.test.tsx`: the
+route the button links to exists; lines are pre-filled with what is outstanding
+and a partially received order is counted against the remainder; the submitted
+payload carries the order, the signed-in user, the warehouse and every line, with
+damaged units kept separate; over-receipt and empty receipts are refused; the
+approved order's *Send to Supplier* calls the status command with `sent`; and
+the status vocabulary is the one the backend writes, with every status translated.
+Removing the route fails 1, restoring `received` in place of `completed` fails 2.
+
+**Files.** `src-tauri/src/commands/purchases.rs`,
+`src/features/purchases/purchase-order-status.ts` (new),
+`src/features/purchases/pages/purchase-receipt-form-page.tsx` (new),
+`src/features/purchases/pages/purchase-orders-page.tsx`,
+`src/features/purchases/pages/purchase-order-detail-page.tsx`,
+`src/features/purchases/index.ts`, `src/routes/index.tsx`,
+`src/i18n/locales/{es,en}/purchases.json`,
+`tests/regression/bug-011-purchase-order-workflow.test.tsx` (new),
+`docs-site/purchases/receiving.md`, `docs-site/purchases/orders.md`.
+
+Frontend 488 → **503**, Rust 156 → **161**.
+
+---
+
+### 2026-09-25 — A page header was hidden under the top bar, and the page called itself "Panel de Control"
+
+**Symptom:** on *Inventario → Fabricantes* the page title was cut in half by the
+bottom edge of the top bar — only the last four rows of "Fabricantes" were
+visible, while the description, the *Agregar Fabricante* button and the table
+rendered normally below it. The top bar itself read "Panel de Control".
+
+**Root cause: two defects, one report.**
+
+**1. The scroll container could report scrollable overflow on a page that fits.**
+`main` is the scroll container of the content column, and its only child carried
+`h-full` — `height: 100%`. A percentage height resolves against the containing
+block, and the containing block's own height is a *flex item* height, resolved
+from the free space of the column. Those two resolutions are not guaranteed to
+agree, so the child can end up computed taller than the box `main` actually
+scrolls. `main` then has scrollable overflow out of nothing, even though the page
+content is only a few hundred pixels tall — and `overflow` clips at the padding
+edge, so a scrolled short page shows its first line box sliced by the top of
+`main`.
+
+The screenshot is that state precisely. Measured off the image: `main` 927px
+tall, its child 45px taller, `scrollTop` 45, `h1` line box at 35 relative to the
+viewport where a correct layout puts it at 80, and *every* following element —
+description, button, table borders, pagination — displaced upward by the same
+45px. Nothing else in the app could produce that: a uniform shift of all page
+content, with the clipping happening exactly at `main`'s top edge, is the
+signature of a scroll offset and nothing else.
+
+**2. The top bar's title came from a hand-written map of thirteen routes.**
+`routeNameKeys` in `top-bar.tsx` fell back to `dashboard.title` for any path it
+did not list. `/inventory/manufacturers` was not listed — nor were most of the
+eleven child pages under *Inventario* — so the page announced itself as "Panel de
+Control", the very label the user described the header as being hidden
+underneath. The map had also drifted from the sidebar: it carried
+`inventory.transfersTitle` where the sidebar says `inventory.storeTransfers`, and
+listed `/customers`, `/vehicles`, `/reports` and `/employees`, which the sidebar
+files under *CRM* and secondary navigation.
+
+**Investigation, including what was ruled out.** The screenshot is 1920×1080 with
+the window at (70, 69), so the webview is 1850×1011; the sidebar measures 256px
+(`w-64`) and the top bar 56px (`h-14`) in screenshot pixels, which pins device
+pixel ratio 1 and rules out a scaled or HiDPI capture. `dist/` was confirmed
+stale (built 15:41, predating the `min-w-0` fix at 15:47) but that build only
+explains *horizontal* clipping, and the app was running through Vite at
+`localhost:5173`, so `dist/` was not what the screenshot rendered. The live app
+was then measured in the same engine at the same size with a stubbed Tauri IPC,
+and it reported `h1.top = 80`, `scrollTop = 0`, `scrollHeight === clientHeight`
+— i.e. the faulty state did not reproduce on demand, which is expected of a
+height-resolution disagreement and is why the invariant was removed rather than
+the trigger chased.
+
+**Fix.**
+
+- `app-shell.tsx`: the child is now `min-h-full` instead of `h-full`, and `main`
+  gains `min-h-0` with `overflow-y-auto overflow-x-hidden`. `min-h-full` cannot
+  exceed its container, so a page shorter than `main` can no longer produce
+  scrollable overflow at all; `min-h-0` lets the flex item shrink below its
+  content so `main` is the only box that scrolls. Horizontal scrolling stays with
+  the tables that need it, which scroll in their own container.
+- `top-bar.tsx`: the hand-written map is gone. Titles are resolved from the
+  sidebar's own navigation config — the single source of truth, so a page cannot
+  drift from the menu again — matching the **longest** href prefix, so
+  `/inventory/manufacturers/7/edit` reports "Fabricantes" and not "Inventario". A
+  route with no nav entry falls back to its section's label rather than to the
+  dashboard.
+- `src/config/navigation.ts`: new module holding `navigation` /
+  `secondaryNavigation` (moved verbatim out of `sidebar.tsx`, which now imports
+  them) plus `resolveRouteNameKey`. Nothing about the menu itself changed.
+
+**Tests.** `tests/regression/bug-010-page-header-clipped.test.ts`, 9 tests. The
+layout half asserts the invariant against the source, since jsdom performs no
+layout; reverting `min-h-full`/`min-h-0` fails 2 of them. The title half drives
+the real resolver: nested paths, longest-prefix preference, the routes the old map
+covered, trailing slashes, and the case that motivated the prefix rule —
+`/inventory/manufacturers-archive` must *not* resolve through
+`/inventory/manufacturers`. Frontend: 479 → **488**.
+
+`bug-007-tab-bar-clipping.test.ts` asserted main's exact old className string.
+Its intent — main shrinks and main is what scrolls — is unchanged, so the
+assertion was widened to the invariant instead of the literal.
+
+**Files.** `src/layouts/app-shell.tsx`, `src/layouts/top-bar.tsx`,
+`src/layouts/sidebar.tsx`, `src/config/navigation.ts` (new),
+`tests/regression/bug-010-page-header-clipped.test.ts` (new),
+`tests/regression/bug-007-tab-bar-clipping.test.ts`.
+
+**Commit:** `cff7588`
+
+---
+
+### 2026-09-25 — Picking a date left the calendar open with no way to close it
+
+**Symptom:** in *Compras → Nueva orden de compra*, choosing a date in
+*Entrega Esperada* left the calendar sitting on screen. Neither clicking again
+nor pressing Enter dismissed it.
+
+**Root cause: the calendar was not ours to close.** `DateField` rendered a native
+`<input type="date">`. Its calendar is drawn by the webview, outside the DOM, and
+the platform exposes `showPicker()` to *open* it with no counterpart to close it.
+There was no code path that could have hidden it, so the field could only ever
+be dismissed by whatever the webview chose to do. jsdom cannot show the symptom,
+and no source-level assertion could catch it: the component was doing exactly
+what it was written to do.
+
+**Fix.** `DateField` now owns its calendar, built on the `Popover` primitive the
+app already uses in `customer-search-field.tsx` and
+`product-search-combobox.tsx`. Dismissal is now deterministic — the calendar
+closes on:
+
+- picking a day (the reported bug)
+- `Enter`
+- `Escape`
+- a click outside
+- clicking the field again
+
+A new `Calendar` component renders the month grid with `date-fns` (already a
+dependency; it was previously used only by the status bar). It follows the
+selection when the value changes from outside, and month and weekday names
+follow the active language.
+
+**The value contract is unchanged: still `yyyy-MM-dd`.** Callers, the API and
+the database see exactly what they saw before, and a hidden input keeps the
+value in the DOM under its own `name` so native form posts still work. Nothing
+downstream needed changing.
+
+**Tests.** 9 new tests, mutation-tested rather than merely written:
+
+- dropping the `setOpen(false)` from the select handler — the original bug —
+  fails 4 of them;
+- additionally dropping the `Enter` handler fails a 5th, which is the one that
+  pins `Enter` specifically.
+
+They drive the real component with the real i18next resources and assert the
+popover is **absent from the document**, not merely hidden. The target day is
+derived from the current month rather than hardcoded, so the suite does not start
+failing on the 1st of a new month. Frontend: 470 → **479**.
+
+**One test bug worth recording, because it would have shipped a false
+pass.** The suite first located day cells by role plus accessible name. Once a
+date is set, the *field itself* reads the same "15 de septiembre de 2026", so
+the query matched two elements and the test failed for the wrong reason. Day
+cells are now scoped with `within(getByRole("group"))`. Related: the tests
+needed `ResizeObserver` and pointer-capture polyfills, which no test in the repo
+had, because nothing had ever opened a Radix overlay under jsdom. They are in
+`tests/helpers/setup.ts` now, for the next overlay component.
+
+**Not changed:** five other forms still use a raw `<Input type="date">` and so
+still get the native calendar — `crm-reminders-page.tsx`,
+`crm-warranties-page.tsx`, `quote-form-page.tsx` and the two date-range inputs
+in `report-filters.tsx`. `DateField` is now a drop-in for all of them; migrating
+them was outside what was reported and is left as a deliberate follow-up.
+
+**Files:** `src/components/ui/calendar.tsx` (new),
+`src/components/forms/date-field.tsx`, `src/i18n/locales/{es,en}/common.json`,
+`tests/regression/bug-009-date-picker-dismiss.test.tsx` (new),
+`tests/helpers/render.tsx`, `tests/helpers/setup.ts`.
+
+---
+
 ### 2026-09-25 — Saving a purchase order never persisted anything
 
 **Symptom:** *Compras → Nueva orden de compra → Guardar* appeared to do nothing.

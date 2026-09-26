@@ -223,7 +223,7 @@
     "marginOverCostNote": "El margen se calcula y aplica sobre el costo de la mercadería",
     "configuredMargin": "Margen configurado",
     "gainPercent": "% de ganancia",
-    "gainPercentHint": "Ganancia global configurada: {{value}}%",
+    "gainPercentHint": "Ganancia global: {{value}}%. Déjala vacía para usar la global, que se cambia en Configuración → Negocio.",
     "effectiveMargin": "Ganancia efectiva",
     "suggestedPrice": "Precio sugerido",
     "suggestedPriceHint": "sugerido = costo × (1 + %/100)",

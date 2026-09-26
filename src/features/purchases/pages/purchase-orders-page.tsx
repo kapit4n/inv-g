@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
+import type { TFunction } from "i18next"
 import { useNavigate } from "react-router-dom"
 import { Plus, Search, Filter } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
@@ -10,33 +11,15 @@ import { Badge } from "@/components/ui/badge"
 import { SelectField } from "@/components/forms"
 import { getPurchaseOrders, getSuppliers } from "@/lib/tauri"
 import type { PurchaseOrder } from "@/types"
+import { PURCHASE_ORDER_STATUSES, purchaseOrderStatusLabel, purchaseOrderStatusVariant } from "../purchase-order-status"
 import type { InventorySupplier } from "@/types/inventory"
 
-type StatusVariant = "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info"
-
-const statusVariant: Record<string, StatusVariant> = {
-  draft: "secondary",
-  pending_approval: "warning",
-  approved: "info",
-  sent: "default",
-  partially_received: "warning",
-  received: "success",
-  cancelled: "destructive",
-}
-
-const statusLabel: Record<string, string> = {
-  draft: "Draft",
-  pending_approval: "Pending Approval",
-  approved: "Approved",
-  sent: "Sent",
-  partially_received: "Partial",
-  received: "Received",
-  cancelled: "Cancelled",
-}
-
-const statusOptions = [
-  { label: "All Statuses", value: "" },
-  ...Object.entries(statusLabel).map(([value, label]) => ({ label, value })),
+const statusOptions = (t: TFunction) => [
+  { label: t("allStatuses"), value: "" },
+  ...PURCHASE_ORDER_STATUSES.map((status) => ({
+    label: purchaseOrderStatusLabel(t, status),
+    value: status,
+  })),
 ]
 
 export function PurchaseOrdersPage() {
@@ -102,7 +85,7 @@ export function PurchaseOrdersPage() {
             </div>
             <div className="w-48">
               <SelectField
-                options={statusOptions}
+                options={statusOptions(t)}
                 value={statusFilter}
                 onChange={(v) => setStatusFilter(v)}
                 placeholder={t("allStatuses")}
@@ -157,8 +140,8 @@ export function PurchaseOrdersPage() {
                       <td className="p-4 text-right">{po.itemCount ?? "-"}</td>
                       <td className="p-4 text-right font-medium">${po.total.toFixed(2)}</td>
                       <td className="p-4">
-                        <Badge variant={statusVariant[po.status] || "outline"}>
-                          {statusLabel[po.status] || po.status}
+                        <Badge variant={purchaseOrderStatusVariant(po.status)}>
+                          {purchaseOrderStatusLabel(t, po.status)}
                         </Badge>
                       </td>
                       <td className="p-4 text-muted-foreground">
