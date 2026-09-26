@@ -68,7 +68,10 @@ takes `brand_id`/`model_id`/`engine_id`. The command name is wrong *and* the dat
 model does not match, so this needs a decision about whether the form should pick
 from the vehicle catalogue or the backend should resolve names. It is listed in the
 contract test's `KNOWN_BROKEN_COMMANDS` so it is not mistaken for a regression, and
-it is deliberately **not** counted as fixed here.
+it is deliberately **not** counted as fixed here. Tracked as M-14 in
+`docs/KNOWN_ISSUES.md`.
+
+**Commit:** `40b2a75`
 
 ---
 
@@ -118,6 +121,8 @@ the schema migration at `schema.rs:42` backfilled
 product keeps its historical margin. That is correct — existing prices should not
 move — but it means the global default only applies to products created from now on
 with the field left empty. Nothing was re-priced, by design.
+
+**Commit:** `40b2a75`
 
 ### 2026-09-25 — "Recibir Orden" showed an error instead of the receiving form
 
