@@ -221,7 +221,7 @@ export function ProductFormPage() {
           <SelectField label={t("inventory.manufacturer")} options={mfrOptions} value={manufacturerId} onChange={(v) => setManufacturerId(v ? Number(v) : undefined)} placeholder={t("common.select")} />
           <SelectField label={t("inventory.supplier")} options={supOptions} value={supplierId} onChange={(v) => setSupplierId(v ? Number(v) : undefined)} placeholder={t("common.select")} />
         </div>
-        <TextareaField label={t("inventory.description")} value={description} onChange={(e) => setDescription(e.target.value)} />
+        <TextareaField label={t("inventory.descriptionField")} value={description} onChange={(e) => setDescription(e.target.value)} />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <CurrencyField label={t("inventory.costPrice")} value={costPrice} onChange={(e) => setCostPrice(Number(e.target.value))} />
           <NumberField

@@ -44,7 +44,6 @@ const sectionNameKeys: Record<string, string> = {
   inventory: "inventory.title",
   purchases: "purchases.title",
   crm: "crm.title",
-  suppliers: "suppliers.title",
   "part-finder": "part-finder.title",
   warehouse: "warehouse.title",
   reports: "reports.title",

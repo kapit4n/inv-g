@@ -58,6 +58,35 @@ open it and clear its **Profit %** field — the product form shows the global v
 as a hint and tells you where to change it.
 :::
 
+## Active Modules
+
+**Business → Módulos activos** controls which parts of the application are
+available. Each switch is **independent** — turning one off leaves the others
+alone:
+
+| Setting | When off |
+| --- | --- |
+| Activar módulo de ventas | The POS, sales history, quotes, returns and cash register are hidden and their URLs redirect to the dashboard |
+| Activar módulo de compras | The purchasing section — orders, receiving, suppliers, reorder suggestions — is hidden and its URLs redirect to the dashboard |
+| Activar módulo de CRM | Customers, vehicles, compatibility, reminders, warranties, credit and notes are hidden and its URLs redirect to the dashboard |
+
+A disabled module disappears from **all three** entry points, not just the
+sidebar:
+
+- its section in the sidebar (both the main and the extended navigation)
+- its entries in the **command palette** (<kbd>Ctrl</kbd>+<kbd>K</kbd>)
+- the quick actions on the **dashboard**
+
+Going to a disabled module's address directly — a bookmark, a link in a report,
+a typo — lands on the dashboard rather than on an error or an empty page.
+
+::: warning
+This is a user-interface switch, not a permissions or data setting. It hides
+the module and blocks its pages; it does not delete anything, and no record is
+lost. Turning it back on restores full access. Sales is treated as the primary
+module of the app, so switching it off is a deliberate choice.
+:::
+
 ## How to Modify
 
 1. Go to **Admin → Settings**
@@ -73,6 +102,9 @@ as a hint and tells you where to change it.
 - Tax settings affect all price calculations.
 - The global profit percentage re-prices products, so check the affected products
   before saving a large change.
+- A module whose switch has never been touched stays **enabled**. Only an
+  explicit *off* hides a module, so an installation that predates these settings
+  keeps working with every section visible.
 
 ## Related
 

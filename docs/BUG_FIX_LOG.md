@@ -6,6 +6,384 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-26 — The Part Finder never returned a result, and nothing could ever make it
+
+**Symptom:** *Buscador de Partes* answered "No se encontraron partes compatibles"
+for every input. The brand/model/year/engine/transmission pickers were either
+empty or led nowhere, and the "Recomendadas para Este Vehículo" panel stayed
+blank even after filling in every dropdown. On a fresh database the whole
+feature was dead on arrival.
+
+This turned out to be four independent faults stacked on top of each other.
+Any one of them alone would have produced the same blank screen, which is why
+the page looked broken rather than half-built.
+
+**Root cause 1 — the table could never be written to.** `search_compatible_products`
+reads `product_vehicle_compatibility`, and *no code path could insert a row*.
+`create_compatibility` and `delete_compatibility` were registered in
+`src-tauri/src/lib.rs` and bound in `src/lib/tauri.ts`, but **no component ever
+called them**:
+
+```
+$ grep -rn "createCompatibility" src/ --include=*.tsx
+(no matches — only the wrapper in src/lib/tauri.ts)
+```
+
+`ProductCompatibilityTab` — the sole reader of the table — was read-only, showed
+`Sin datos`, and offered no way forward. `db/seed.rs` contains no
+`product_vehicle_compatibility` rows either, so a new database started with an
+empty table. The vehicle catalog (brands, models) *can* be filled in from
+CRM > Vehículos, which is what made this look like a search bug rather than a
+missing-feature bug: the dropdowns populated, and then the search returned
+nothing.
+
+**Root cause 2 — the search inner-joined the compatibility table.**
+
+```sql
+FROM product_vehicle_compatibility pvc JOIN products p ON p.id = pvc.product_id
+```
+
+With no vehicle filter this is a *catalog* lookup, but the join still required
+a fitment row, so any part nobody had mapped to a vehicle was invisible. The
+search box is labelled "Nombre o SKU de la parte" — a SKU search is a catalog
+question, and it needs the catalog.
+
+**Root cause 3 — the SKU was never searched.** The predicate was
+`AND p.name LIKE ?n`, so typing `BP-100` matched nothing even for a part that
+had a fitment row. The placeholder promised "Nombre o SKU" and the SQL only
+honoured the first half.
+
+**Root cause 4 — the recommendations panel could never return a row**, for two
+reasons at once:
+
+```sql
+WHERE ... AND (pvc.brand_id = ?1 OR pvc.brand_id IS NULL)
+      AND (pvc.model_id  = ?2 OR pvc.model_id  IS NULL)
+      AND (pvc.year_start IS NULL OR pvc.year_start <= ?3)
+      AND c.name IN ('Filters','Brakes','Electrical','Lubricants','Cooling','Engine','Exhaust','Transmission')
+```
+
+- `?1`/`?2`/`?3` were bound **unconditionally**, so selecting only a brand made
+  SQLite evaluate `pvc.model_id = NULL` — never true — and the entire predicate
+  collapsed. The panel stayed empty until all three dropdowns were filled.
+- The category allow-list was **hardcoded English**. Those eight strings appear
+  nowhere else in the Rust codebase, and the categories this app actually seeds
+  are Spanish — `SEED_CATEGORIES` in `src-tauri/src/db/seed.rs` is
+  `Dirección` and `Suspensión`, neither of which is in the list. On any
+  stock install `c.name IN (...)` therefore matched **nothing at all**, not
+  merely the wrong language. And because `NULL IN (...)` is `NULL` rather than
+  true, parts with no category were dropped as well — so a shop that had fixed
+  its catalog labels would still have seen an empty panel for its uncategorised
+  parts.
+
+**Fix:**
+
+- `ProductCompatibilityTab` is now a real CRUD surface: cascading
+  brand → model → generation, plus engine, transmission, a year range and notes,
+  writing through the `createCompatibility` command that already existed. Every
+  field has a `<label htmlFor>`, changing the brand invalidates the model and
+  generation (a model belongs to exactly one brand), and the save button is
+  disabled for a row that names no vehicle or has an inverted year range.
+- `search_compatible_products` now picks its join from the filters: `INNER` when
+  a vehicle dimension is selected (a fitment filter is a claim about a fitment
+  row), `LEFT` when it is not (so a plain name/SKU lookup reaches the whole
+  active catalog). The search term matches `p.name` **or** `p.sku`, and
+  whitespace-only input is treated as no input rather than as a `%` wildcard.
+- `get_recommendations_for_vehicle` was rebuilt the same way
+  `search_compatible_products` already was: absent filters are simply not
+  applied, placeholders are derived from the bound-parameter vector so they
+  cannot drift, and the English category allow-list is gone. Ordering is now
+  `compatibility_count DESC, p.name`.
+
+**Investigation notes.** The category allow-list was the reason the panel looked
+unrelated to the rest of the bug: the dropdowns and the search share the same
+data, so an empty `product_vehicle_compatibility` explains all of it *except*
+the panel, and the panel had its own two bugs. Fixing only the write path would
+have left the panel blank; fixing only the search would have left the feature
+empty on a real database. The `search_tests.rs` harness makes this class of
+fault cheap to prove — see the note below on why the assertions are written
+against the *real* schema.
+
+Covered by `src-tauri/src/commands/search_tests.rs` (`catalog_lookup_finds_parts_with_no_fitment_row`,
+`compatible_products_search_matches_sku_as_well_as_name`,
+`recommendations_survive_a_non_english_catalog`,
+`recommendations_appear_before_every_dropdown_is_filled` — all four fail against
+the old code) and `tests/unit/components/product-compatibility-tab.test.tsx`
+(10 tests, all of which fail against the old read-only tab).
+
+The test seed deliberately names its categories `Frenos` / `Filtros` and leaves
+one product uncategorised, so the language and `NULL IN (...)` faults cannot
+regress silently.
+
+**Affected files:** `src-tauri/src/commands/compatibility.rs`,
+`src-tauri/src/commands/search_tests.rs`,
+`src/features/inventory/components/product-compatibility-tab.tsx`,
+`src/i18n/locales/{es,en}/inventory.json`,
+`tests/unit/components/product-compatibility-tab.test.tsx`,
+`tests/unit/components/product-360-tabs.test.tsx`
+
+**Commit:** _(see ROADMAP.md)_
+
+---
+
+### 2026-09-26 — "Activar módulo de compras" in Settings did nothing
+
+**Symptom:** switching off *Activar módulo de compras* in Admin > Settings
+appeared to save, but the Purchases section stayed in the sidebar and every
+purchases URL still opened. Same for *Activar módulo de ventas* and *Activar
+módulo de CRM*.
+
+**Root cause: the three flags were write-only.** `enable_sales`,
+`enable_purchasing` and `enable_crm` are seeded into `application_settings`
+(`db/seed.rs`, all three under the `business` category as `boolean` rows), the
+admin page renders a `<Switch>` for any row whose `setting_type` is `boolean`
+and saves them through `update_app_settings_bulk` — and then **nothing ever read
+them back**. There was no route guard, no sidebar filter and no
+command-palette filter. The settings round-tripped correctly into SQLite; there
+was simply no consumer. The new module reader records the same finding: *"They
+used to be write-only: the admin page could render and save the toggles but
+nothing ever read them, so switching a module off appeared to do nothing."*
+
+**Fix:** `src/hooks/use-modules.ts` is now the single reader, and three
+consumers use it:
+
+- `ModuleRoute` in `src/components/auth-guards.tsx` wraps the authenticated
+  layout, so it covers every route without annotating each one. It keys off the
+  path prefix, which means a bookmarked or hand-typed `/purchases/...` URL is
+  blocked too — hiding a sidebar entry alone never would have.
+- `src/layouts/sidebar.tsx` filters whole module groups out of both navigations.
+- `src/components/command-palette.tsx` filters palette entries, so a disabled
+  module is not reachable from the palette either.
+- `dashboard-page.tsx` no longer advertises quick actions into a module that is
+  switched off.
+
+The reader **fails open**: a module is disabled only when its value is exactly
+`"false"` (case-insensitive). A database predating the seed has no row for the
+flag at all, and hiding a whole business module in that state would be far more
+damaging than briefly showing one that was meant to be off.
+
+**Investigation notes.** Two things made this look like a save failure rather
+than a missing feature. First, the admin page *does* update its zustand store
+after saving, so the switch visibly stays in the new position — the UI
+confirmed the write and nothing more. Second, the flags are read from the
+in-memory app-settings store that `App.tsx` hydrates at start-up, not from
+`localStorage` and not from Rust, so there was no second code path where the
+value might have been picked up and missed.
+
+Covered by `tests/unit/components/module-gating.test.tsx` (9 tests; 4 fail if
+the guard's condition is short-circuited). The tree it mounts matters: with
+`ModuleRoute` on its own, the guard's `<Navigate to="/dashboard">` simply
+re-renders its own children at the new path and appears to do nothing, so the
+tests reproduce the real layout-and-`Outlet` shape from `src/routes/index.tsx`
+and assert "the purchases page is replaced by the dashboard".
+
+**A fifth fault, found by writing the end-to-end test.** Wiring up the missing
+reader was not sufficient on its own. The admin page propagates its save to the
+in-memory store like this:
+
+```ts
+await updateAppSettingsBulk(bulk, user?.id)
+for (const setting of settings) {
+  appSettingsStore.setValue(setting.key, values[setting.key] ?? "")
+}
+```
+
+and `setValue` was a `map` over the store's rows — so it *patched in place* and
+never upserted. `hydrate()` runs fire-and-forget inside a `useEffect` in
+`App.tsx` while the router renders immediately, so there is a real window in
+which the store is still empty. An admin who reached Settings, flipped a switch
+and saved inside that window persisted the flag to SQLite and updated nothing in
+memory: `map` over `[]` changes nothing, and the switch still looked flipped
+because the control keeps its own local `values` state. The module then stayed
+visible with no indication that the write had been dropped — the same
+"it saved and nothing happened" report, one level down.
+
+`setValue` now appends when the key is absent, and the value is readable
+immediately whether or not hydration has finished. This is why the regression is
+an integration test rather than two unit tests: the store test proves the
+upsert, and the page test proves the page reaches the store, but only the
+combined assertion covers the seam that actually broke.
+
+**Affected files:** `src/hooks/use-modules.ts` (new), `src/hooks/index.ts`,
+`src/stores/app-settings.store.ts`,
+`src/components/auth-guards.tsx`, `src/layouts/sidebar.tsx`,
+`src/components/command-palette.tsx`, `src/lib/command-palette/commands.ts`,
+`src/lib/command-palette/types.ts`,
+`src/features/dashboard/pages/dashboard-page.tsx`,
+`tests/unit/components/module-gating.test.tsx`,
+`tests/unit/components/admin-settings-page.test.tsx`,
+`tests/unit/stores/app-settings-store.test.ts`
+
+**Commit:** _(see ROADMAP.md)_
+
+---
+
+### 2026-09-26 — "Crear Orden de Compra" from a suggestion opened an empty order
+
+**Symptom:** on *Sugerencias de Reorden*, clicking **Crear Orden de Compra**
+landed on an empty purchase order form reading "Sin artículos" with Save
+disabled. The product, quantity and preferred supplier all had to be re-typed
+by hand — which is the whole job the button was supposed to do.
+
+**Root cause: the payload was handed over in a channel the form never read.**
+The button navigated with React Router's `state`:
+
+```tsx
+navigate("/purchases/orders/new", {
+  state: { productId, productName, suggestedOrder, preferredSupplierId },
+})
+```
+
+but `PurchaseOrderFormPage` never called `useLocation().state` — it only read
+route params (`id` for the edit path) and its own `items` state, which starts as
+`[]`. The state object was constructed, serialised into the history entry, and
+dropped on the floor.
+
+**Fix:** the handoff now travels in the query string, which survives a reload
+and a bookmark, and is parsed by the form.
+`src/features/purchases/order-from-suggestion.ts` holds both halves of the
+contract — `createOrderFromSuggestionUrl()` for the producer and
+`parseOrderFromSuggestion()` for the consumer — so the two cannot drift. The
+parser rejects a URL with no `productId`, clamps a non-positive quantity to 1,
+and treats a missing cost as 0. Seeding is guarded by a ref so a re-render never
+discards lines the user added, and it is inert on `/purchases/orders/:id/edit`.
+
+Also fixed in passing: the form saved every new order as `createPurchaseOrder(1, ...)`,
+hardcoding user 1 as the author regardless of who was signed in. It now reads
+the id from the auth store.
+
+Covered by `tests/regression/bug-012-purchase-order-from-suggestion.test.tsx`.
+
+**Affected files:** `src/features/purchases/order-from-suggestion.ts` (new),
+`src/features/purchases/pages/reorder-suggestions-page.tsx`,
+`src/features/purchases/pages/purchase-order-form-page.tsx`,
+`tests/regression/bug-012-purchase-order-from-suggestion.test.tsx`
+
+**Commit:** _(see ROADMAP.md)_
+
+---
+
+### 2026-09-26 — The CRM section was labelled "Título", and duplicate i18n keys were shadowing labels across the app
+
+**Symptom:** the CRM section in the sidebar, the breadcrumb in the top bar and
+the command palette all read **"Título"** instead of a section name. Related
+labels were also wrong in places: Settings' category tabs read "Datos del
+negocio" where a section name was meant, and some Admin/Inventory labels showed
+the value of a shadowed key.
+
+**Root cause: duplicate keys inside a single JSON file, and `JSON.parse` keeps
+the last one.** `src/i18n/locales/es/crm.json` declared `title` twice — once at
+the top as the section name, and again ~120 lines down as the label for a
+note/reminder *field*:
+
+```json
+{
+  "title": "CRM",          // line 2  — silently discarded
+  ...
+  "title": "Título",       // line 119 — this one won
+}
+```
+
+Nothing warns about this. The file parses, the type is `string`, and
+`t("crm.title")` dutifully returns the field label everywhere the *section*
+name was meant. A JSON object cannot hold two `title` keys, and the second
+declaration is not an error — it is a silent overwrite.
+
+The same fault existed elsewhere: `admin.json` (duplicated
+`roles.description`, `roles.create`/`edit`/`delete`, four
+`settings.*`/`settings.*.description` pairs, `backups.restore`),
+`inventory.json` (`description` as both page subtitle and field label) and
+`customers.json` (`email`).
+
+**Fix:** the field labels were renamed to names that say what they are, and
+the section names were allowed to keep theirs:
+
+| File | Shadowed key | Renamed to |
+| --- | --- | --- |
+| `crm.json` | `title` | `recordTitle` |
+| `crm.json` | `notes` | `notesPage` (CRM sub-nav label) |
+| `inventory.json` | `description` | `descriptionField` |
+| `admin.json` | `roles.description` | `roles.fieldDescription` |
+
+Callers were updated to the new keys. A guard now runs in CI:
+`scripts/check-i18n-duplicates.mjs` (exposed as `npm run i18n:check`, wired into
+`npm run verify`) parses each locale file with a reviver that records every
+repeated path, and `tests/unit/utils/i18n-duplicates.test.ts` covers the
+detector itself. This class of bug is invisible to the type checker and to
+reading, so it needs a mechanical check.
+
+**On the tab name.** The report suggested renaming the section to "Clientes".
+That would have been wrong: the section also holds vehicles, compatibility,
+reminders, warranties, credit and notes, so "Clientes" would misdescribe it —
+the reporter's own instinct ("*o tal vez no porque tiene otra información*") was
+right. The section name `crm.title` = "CRM" is restored and now actually
+renders.
+
+**Affected files:** `scripts/check-i18n-duplicates.mjs` (new),
+`package.json`, `src/i18n/locales/{es,en}/{crm,admin,inventory,customers}.json`,
+`src/features/crm/pages/crm-{reminders,notes,customer-detail}-page.tsx`,
+`src/features/admin/pages/admin-role{,-form}-page.tsx`,
+`src/features/inventory/pages/product-form-page.tsx`,
+`src/features/inventory/components/product-overview-tab.tsx`,
+`src/config/navigation.ts`,
+`tests/unit/utils/i18n-duplicates.test.ts`,
+`tests/regression/bug-013-014-015-i18n-and-suppliers.test.ts`
+
+**Commit:** _(see ROADMAP.md)_
+
+---
+
+### 2026-09-26 — A second "Proveedores" page in the sidebar showed invented data
+
+**Symptom:** the sidebar carried a top-level **Proveedores** entry, apparently
+duplicating the supplier list already under Compras.
+
+**Root cause: it was a static mock-up that was never wired to anything.**
+`src/features/suppliers/pages/suppliers-page.tsx` hardcoded five suppliers in a
+module-level array and rendered them, with three fabricated KPI tiles
+(`Total de Proveedores 24`, `Activos 21`, `Productos Origen 1,230`) that were
+literal numbers, not aggregates:
+
+```tsx
+const suppliers = [
+  { name: "AutoParts Co.", contact: "David Lee", phone: "(555) 111-2222", ... },
+  { name: "OEM Direct",     contact: "Karen White", ... },
+  ...
+]
+```
+
+It never called a Tauri command, so it showed the same five rows on every
+install regardless of the database. The `SearchBar` filtered nothing, and it had
+no create, edit or delete action. The page was registered in the sidebar
+(`/suppliers`), the router, the top-bar breadcrumb map, the permission service
+and the i18n namespace list, so it looked like a real feature from every angle
+except the only one that mattered: it could not disagree with the database.
+
+**Fix:** removed. The genuine supplier master data lives in **Inventario >
+Proveedores** (`/inventory/suppliers`, `inventory.suppliers`), which is backed
+by `getSuppliers()` and the `suppliers` table. The *relationship* data — which
+supplier offers which product, at what cost, lead time and MOQ — is a different
+grain and legitimately stays in **Compras > Catálogo de Proveedores**
+(`/purchases/supplier-products`, `supplier_products` table), which does have
+full CRUD. The removed top-level page was neither of those: it was a third,
+fictional grain.
+
+**Investigation notes.** Worth keeping in mind: this is why the removal needed a
+dangling-reference sweep rather than a file delete. Five other files referenced
+`suppliers.title` or the `SuppliersPage` export (router, navigation, top bar,
+permission service, i18n config), and a leftover entry in any one of them would
+have rendered a sidebar item pointing at a dead route.
+
+**Affected files:** `src/features/suppliers/` (deleted),
+`src/i18n/locales/{es,en}/suppliers.json` (deleted),
+`src/routes/index.tsx`, `src/config/navigation.ts`, `src/layouts/top-bar.tsx`,
+`src/services/permission.service.ts`, `src/i18n/config.ts`,
+`tests/regression/bug-013-014-015-i18n-and-suppliers.test.ts`
+
+**Commit:** _(see ROADMAP.md)_
+
+---
+
 ### 2026-09-26 — "Sin Stock" never updated after selling a product out
 
 **Symptom:** sell the last unit of a product, go back to the dashboard, and

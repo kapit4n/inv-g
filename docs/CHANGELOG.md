@@ -10,6 +10,43 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Part Finder never returned a result, and nothing could ever make it.** Four
+  faults stacked up: the `product_vehicle_compatibility` table could not be
+  written to from anywhere in the UI, the search inner-joined that table (so a
+  part with no fitment row was invisible even in a plain catalog lookup), the
+  search matched the product name but not the SKU the placeholder promised, and
+  the recommendations panel bound `NULL` parameters unconditionally while
+  filtering on a hardcoded list of eight *English* category names. The product's
+  **Compatibilidad** tab is now a real editor — brand, model, generation, engine,
+  transmission, year range and notes — so fitments can actually be recorded. A
+  search with no vehicle filter now searches the catalog, and a search *with* one
+  still requires a fitment. See the new "Before you start" and "Troubleshooting"
+  sections in the Part Finder page.
+- **"Activar módulo de compras" in Settings did nothing.** The three module
+  flags (`enable_sales`, `enable_purchasing`, `enable_crm`) were write-only: the
+  admin page saved them to SQLite and nothing read them back, so the section
+  stayed in the sidebar and every purchases URL still opened. All three entry
+  points are now gated — sidebar, command palette, and the routes themselves, so
+  a bookmarked or hand-typed URL is blocked too. The reader fails open: only an
+  explicit *off* hides a module.
+- **"Crear Orden de Compra" from a reorder suggestion opened an empty order.**
+  The suggestion handed the product, quantity and supplier over in React Router's
+  `state`, which the order form never read. The handoff now travels in the query
+  string, so it survives a reload, and the form is seeded with the line item. The
+  form also no longer hardcodes user 1 as the author of every order it saves.
+- **The CRM section was labelled "Título".** `crm.json` declared `title` twice,
+  and `JSON.parse` silently keeps the last one — the label of a note *field* was
+  overwriting the *section* name everywhere it was used. The same fault existed
+  in `admin.json`, `inventory.json` and `customers.json`; the shadowed keys are
+  now distinctly named and `npm run i18n:check` (wired into `npm run verify`)
+  fails the build on any repeated key.
+- **A second "Proveedores" page in the sidebar showed invented data.** The
+  top-level `/suppliers` page was a hardcoded array of five fake suppliers with
+  three literal KPI numbers and no create, edit or delete — the same rows on
+  every install. It has been removed; supplier master data lives in
+  **Inventario → Proveedores** and product↔supplier associations in
+  **Compras → Catálogo de Proveedores**.
+
 - **"Sin Stock" now updates after selling a product out.** The dashboard's
   *Necesita Atención* list is built from the `inventory-stats` query, and the
   checkout did not invalidate it, so selling the last unit of a product left the

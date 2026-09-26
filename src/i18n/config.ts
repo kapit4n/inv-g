@@ -8,7 +8,6 @@ import esInventory from "./locales/es/inventory.json"
 import esSales from "./locales/es/sales.json"
 import esPurchases from "./locales/es/purchases.json"
 import esCustomers from "./locales/es/customers.json"
-import esSuppliers from "./locales/es/suppliers.json"
 import esVehicles from "./locales/es/vehicles.json"
 import esWarehouse from "./locales/es/warehouse.json"
 import esReports from "./locales/es/reports.json"
@@ -30,7 +29,6 @@ import enInventory from "./locales/en/inventory.json"
 import enSales from "./locales/en/sales.json"
 import enPurchases from "./locales/en/purchases.json"
 import enCustomers from "./locales/en/customers.json"
-import enSuppliers from "./locales/en/suppliers.json"
 import enVehicles from "./locales/en/vehicles.json"
 import enWarehouse from "./locales/en/warehouse.json"
 import enReports from "./locales/en/reports.json"
@@ -54,7 +52,6 @@ const resources = {
     sales: esSales,
     purchases: esPurchases,
     customers: esCustomers,
-    suppliers: esSuppliers,
     vehicles: esVehicles,
     warehouse: esWarehouse,
     reports: esReports,
@@ -77,7 +74,6 @@ const resources = {
     sales: enSales,
     purchases: enPurchases,
     customers: enCustomers,
-    suppliers: enSuppliers,
     vehicles: enVehicles,
     warehouse: enWarehouse,
     reports: enReports,
@@ -104,7 +100,7 @@ export function setupI18n(language?: string) {
       defaultNS: "common",
       ns: [
         "common", "dashboard", "inventory", "sales", "purchases",
-        "customers", "suppliers", "vehicles", "warehouse", "reports",
+        "customers", "vehicles", "warehouse", "reports",
         "settings", "auth", "employees", "validation", "errors", "help", "crm", "admin", "print", "part-finder",
       ],
       nsSeparator: ".",

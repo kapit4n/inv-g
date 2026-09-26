@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
-import { useNavigate, useParams } from "react-router-dom"
+import { useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { Plus, Trash2, Search, X } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
@@ -18,6 +18,8 @@ import {
 } from "@/lib/tauri"
 import { useNotification } from "@/hooks/use-notification"
 import { useSoleWarehouseDefault } from "@/hooks"
+import { useAuthStore } from "@/stores"
+import { parseOrderFromSuggestion } from "@/features/purchases/order-from-suggestion"
 import type { ProductForPos } from "@/types"
 import type { InventorySupplier, Warehouse } from "@/types/inventory"
 
@@ -36,7 +38,9 @@ export function PurchaseOrderFormPage() {
   const { t } = useTranslation("purchases")
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
+  const [searchParams] = useSearchParams()
   const notification = useNotification()
+  const userId = useAuthStore((s) => s.user?.id ?? 0)
   const isEdit = !!id
 
   const [suppliers, setSuppliers] = useState<InventorySupplier[]>([])
@@ -61,6 +65,32 @@ export function PurchaseOrderFormPage() {
     getSuppliers().then(setSuppliers)
     getWarehouses().then(setWarehouses)
   }, [])
+
+  // A suggestion hands the product over in the query string. Without this the
+  // form opened empty, so the order had to be rebuilt by hand every time.
+  const seededSuggestion = useRef<string | null>(null)
+  useEffect(() => {
+    if (id) return
+    const draft = parseOrderFromSuggestion(searchParams)
+    if (!draft) return
+    // Seed once per product, so a re-render never discards lines the user added.
+    if (seededSuggestion.current === String(draft.productId)) return
+    seededSuggestion.current = String(draft.productId)
+
+    setItems([
+      {
+        productId: draft.productId,
+        name: draft.name,
+        sku: draft.sku,
+        quantity: draft.quantity,
+        unitCost: draft.unitCost,
+        discount: 0,
+        tax: 0,
+        total: draft.quantity * draft.unitCost,
+      },
+    ])
+    if (draft.supplierId) setSupplierId(draft.supplierId)
+  }, [id, searchParams])
 
   useEffect(() => {
     if (!id) return
@@ -162,7 +192,7 @@ export function PurchaseOrderFormPage() {
         await updatePurchaseOrder(Number(id), input)
         notification.success(t("common.success"), t("poUpdated"))
       } else {
-        await createPurchaseOrder(1, input)
+        await createPurchaseOrder(userId, input)
         notification.success(t("common.success"), t("poCreated"))
       }
       navigate("/purchases/orders")

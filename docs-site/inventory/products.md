@@ -106,7 +106,7 @@ Click any product to see the full detail view with 7 tabs:
 | Inventory | Stock levels, movements history |
 | Pricing | Realized margin over cost, configured margin, suggested/edited/effective price |
 | Suppliers | Supplier associations, lead times |
-| Compatibility | Vehicle compatibility matrix |
+| Compatibility | Vehicle fitment records — add and remove the vehicles a part fits |
 | Identifiers | Cross-reference numbers (OEM, aftermarket, etc.) |
 | Activity | Timeline of changes |
 
@@ -119,6 +119,36 @@ The products list shows several pricing-related columns out of the box:
 - **Precio sugerido** — the calculated suggested price for the configured margin
 - **% de ganancia** — the configured margin: the product's own value, or the
   global default when the product follows it
+
+## Recording Vehicle Fitment
+
+The **Compatibilidad** tab lists which vehicles a part fits, and it is where
+those records are created. A part with no fitment record will not turn up in
+[Part Finder](/manual/part-finder) when you search by vehicle.
+
+Click **Agregar compatibilidad** and fill in as much or as little of the
+vehicle as you know — every field is optional, and an empty field means
+"any":
+
+| Field | Example | Leave empty for |
+| --- | --- | --- |
+| Marca | Toyota | any brand |
+| Modelo | Corolla | any model |
+| Generación | E210 | any generation |
+| Motor | 1.8 VVT-i | any engine |
+| Transmisión | CVT | any transmission |
+| Año desde / hasta | 2015 – 2024 | any year (a single year means exactly that year) |
+| Notas | "Uses a different pad shape on the rear axle" | — |
+
+Brand, model and generation cascade: picking a brand limits the model list, and
+picking a model limits the generation list. Changing the brand clears the model
+and generation, because a model belongs to exactly one brand. A row is saved
+only once it names at least one vehicle, and the year range must not end before
+it starts.
+
+To stop a part from being returned for a vehicle, remove its record with the
+trash icon. Removing a fitment does not delete the product, its stock or its
+supplier associations.
 
 ## How to Edit a Product
 

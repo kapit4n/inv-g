@@ -1,6 +1,6 @@
 import { createBrowserRouter, Navigate } from "react-router-dom"
 import { AppShell } from "@/layouts/app-shell"
-import { AuthenticatedRoute, GuestRoute } from "@/components/auth-guards"
+import { AuthenticatedRoute, GuestRoute, ModuleRoute } from "@/components/auth-guards"
 import { DashboardPage } from "@/features/dashboard"
 import {
   InventoryDashboardPage,
@@ -33,7 +33,6 @@ import {
 } from "@/features/purchases"
 import { CrmDashboardPage, CrmCustomersPage, CrmCustomerDetailPage, CrmVehiclesPage, CrmCompatibilityPage, CrmRemindersPage, CrmWarrantiesPage, CrmCreditPage, CrmNotesPage } from "@/features/crm"
 import { CustomersPage, CustomerDetailPage } from "@/features/customers"
-import { SuppliersPage } from "@/features/suppliers"
 import { WarehousePage } from "@/features/warehouse"
 import {
   ReportsPage, ReportsSalesPage, ReportsInventoryPage, ReportsPurchasingPage,
@@ -74,7 +73,9 @@ export const router = createBrowserRouter([
     path: "/",
     element: (
       <AuthenticatedRoute>
-        <AppShell />
+        <ModuleRoute>
+          <AppShell />
+        </ModuleRoute>
       </AuthenticatedRoute>
     ),
     children: [
@@ -143,7 +144,6 @@ export const router = createBrowserRouter([
       { path: "purchases/reorder-suggestions", element: <ReorderSuggestionsPage /> },
       { path: "customers", element: <CustomersPage /> },
       { path: "customers/:id", element: <CustomerDetailPage /> },
-      { path: "suppliers", element: <SuppliersPage /> },
       { path: "vehicles", element: <CrmVehiclesPage /> },
       { path: "part-finder", element: <PartFinderPage /> },
       { path: "warehouse", element: <WarehousePage /> },

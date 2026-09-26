@@ -696,7 +696,7 @@ export function CrmCustomerDetailPage() {
                     </select>
                   </div>
                   <div className="grid gap-2">
-                    <Label>{t("title")} *</Label>
+                    <Label>{t("recordTitle")} *</Label>
                     <Input value={nFormTitle} onChange={(e) => setNFormTitle(e.target.value)} />
                   </div>
                   <div className="grid gap-2">

@@ -75,10 +75,9 @@ export const navigation: NavItemConfig[] = [
       { nameKey: "crm.reminders", href: "/crm/reminders", icon: BellRing },
       { nameKey: "crm.warranties", href: "/crm/warranties", icon: ShieldCheck },
       { nameKey: "crm.credit", href: "/crm/credit", icon: CreditCard },
-      { nameKey: "crm.notes", href: "/crm/notes", icon: StickyNote },
+      { nameKey: "crm.notesPage", href: "/crm/notes", icon: StickyNote },
     ],
   },
-  { nameKey: "suppliers.title", href: "/suppliers", icon: Truck },
   { nameKey: "part-finder.title", href: "/part-finder", icon: ScanLine },
   { nameKey: "warehouse.title", href: "/warehouse", icon: Warehouse },
 ]

@@ -5,6 +5,7 @@ import { Search } from "lucide-react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { useSettingsStore } from "@/stores"
+import { useModules, moduleForPath } from "@/hooks"
 import { cn } from "@/lib/utils"
 import { buildCommands, commandCategories } from "@/lib/command-palette/commands"
 import type { Command, CommandCategory } from "@/lib/command-palette/types"
@@ -30,9 +31,18 @@ export function CommandPalette() {
     else if (next === "light") root.classList.remove("dark")
   }, [])
 
+  const { isEnabled } = useModules()
+  const isModuleEnabled = useCallback(
+    (path: string) => {
+      const module = moduleForPath(path)
+      return !module || isEnabled(module)
+    },
+    [isEnabled]
+  )
+
   const commands = useMemo(
-    () => buildCommands({ navigate, cycleTheme, sidebarCollapsed, toggleSidebar, t }),
-    [navigate, cycleTheme, sidebarCollapsed, toggleSidebar, t]
+    () => buildCommands({ navigate, cycleTheme, sidebarCollapsed, toggleSidebar, t, isModuleEnabled }),
+    [navigate, cycleTheme, sidebarCollapsed, toggleSidebar, t, isModuleEnabled]
   )
 
   const filtered = useMemo(() => {

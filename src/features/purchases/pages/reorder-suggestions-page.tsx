@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/loading-skeleton"
 import { getReorderSuggestions } from "@/lib/tauri"
+import { createOrderFromSuggestionUrl } from "@/features/purchases/order-from-suggestion"
 
 export function ReorderSuggestionsPage() {
   const { t } = useTranslation()
@@ -236,16 +237,7 @@ export function ReorderSuggestionsPage() {
                   <div className="mt-4 flex justify-end">
                     <Button
                       size="sm"
-                      onClick={() =>
-                        navigate("/purchases/orders/new", {
-                          state: {
-                            productId: item.productId,
-                            productName: item.productName,
-                            suggestedOrder: item.suggestedOrder,
-                            preferredSupplierId: item.preferredSupplierId,
-                          },
-                        })
-                      }
+                      onClick={() => navigate(createOrderFromSuggestionUrl(item))}
                     >
                       <ShoppingCart className="h-4 w-4 mr-1" />
                       {t("purchases.createPO")}

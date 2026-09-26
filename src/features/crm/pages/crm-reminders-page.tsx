@@ -136,7 +136,7 @@ export function CrmRemindersPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b bg-muted/50">
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("title")}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("recordTitle")}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("customer")}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("vehicle")}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("reminderType")}</th>
@@ -232,7 +232,7 @@ export function CrmRemindersPage() {
               </div>
             </div>
             <div className="grid gap-2">
-              <Label>{t("title")} *</Label>
+              <Label>{t("recordTitle")} *</Label>
               <Input value={formTitle} onChange={(e) => setFormTitle(e.target.value)} />
             </div>
             <div className="grid gap-2">

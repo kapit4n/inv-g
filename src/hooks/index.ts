@@ -22,3 +22,5 @@ export {
   useSoleWarehouseId,
   useSoleWarehouseDefault,
 } from "./use-business-capabilities"
+export { useModules, useCurrentModule, moduleForPath, MODULE_SETTING_KEYS, MODULE_PATH_PREFIXES } from "./use-modules"
+export type { ModuleKey } from "./use-modules"

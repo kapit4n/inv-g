@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useSettingsStore } from "@/stores"
-import { useBusinessCapabilities } from "@/hooks"
+import { useBusinessCapabilities, useModules, moduleForPath } from "@/hooks"
 import { cn } from "@/lib/utils"
 import { navigation, secondaryNavigation } from "@/config/navigation"
 import type { NavItemConfig } from "@/config/navigation"
@@ -21,9 +21,16 @@ function isActivePath(location: ReturnType<typeof useLocation>, href: string): b
 export function Sidebar() {
   const { sidebarCollapsed, toggleSidebar } = useSettingsStore()
   const capabilities = useBusinessCapabilities()
+  const { isEnabled } = useModules()
   const location = useLocation()
   const { t } = useTranslation()
   const [expanded, setExpanded] = useState<string[]>(["/inventory", "/sales", "/purchases"])
+
+  // Sections for modules an administrator switched off in Admin > Settings.
+  const isVisible = (item: NavItemConfig) => {
+    const module = moduleForPath(item.href)
+    return !module || isEnabled(module)
+  }
 
   // Single-store hides store-management features; transfers appear only when
   // the profile supports them (derived from the number of stores).
@@ -47,6 +54,7 @@ export function Sidebar() {
       return item
     })
     .filter((item): item is NavItemConfig => item !== null)
+    .filter(isVisible)
 
   const gatedSecondaryNavigation: NavItemConfig[] = secondaryNavigation
     .map((item) => {
@@ -60,6 +68,7 @@ export function Sidebar() {
       return item
     })
     .filter((item): item is NavItemConfig => item !== null)
+    .filter(isVisible)
 
   const toggleExpand = (href: string) => {
     setExpanded((prev) =>
