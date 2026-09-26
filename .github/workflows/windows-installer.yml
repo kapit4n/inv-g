@@ -7,17 +7,20 @@ name: Windows Installer
 # does not mean a working installer exists. See docs/windows-installer.md.
 #
 # Manual run:  Actions → Windows Installer → Run workflow
-# Release:     push a `v*` tag (e.g. v1.0.0) to publish a GitHub Release.
+#               → builds the installer and uploads it to the run's Artifacts.
+#               → does NOT create a release; only a tag can do that.
+# Release:     git push origin v1.0.0
+#
+# A GitHub Release is only ever created for a tag. A manual run on a branch used
+# to reach the release step, where `softprops/action-gh-release` fell back to
+# `github.ref` = `refs/heads/main` and failed with
+# `400 {"message":"Missing tag_name parameter"}`. The release step is now gated on
+# `github.ref_type == 'tag'` and passes `tag_name` explicitly, so that path is gone.
 
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
-    inputs:
-      publish:
-        description: "Create/update a GitHub Release for this build"
-        type: boolean
-        default: true
 
 permissions:
   contents: write
@@ -92,6 +95,25 @@ jobs:
       - name: Verify version sync
         run: npm run version:check
 
+      # `version:check` proves package.json and Cargo.toml agree, but not that
+      # they agree with the tag being released. Without this, `git tag v9.9.9` on a
+      # 1.0.0 tree publishes a release labelled 9.9.9 whose installer says 1.0.0.
+      # package.json stays the single source of truth: the tag is checked against
+      # it, never written to it.
+      - name: Verify tag matches app version
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_version="$(node -p "require('./package.json').version")"
+          tag_version="${GITHUB_REF_NAME#v}"
+          if [ "$tag_version" != "$app_version" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match the app version ${app_version}." >&2
+            echo "Run 'npm run version:set ${tag_version}' and commit before tagging." >&2
+            exit 1
+          fi
+          echo "Tag ${GITHUB_REF_NAME} matches app version ${app_version}"
+
       - name: TypeScript check
         run: npm run typecheck
 
@@ -134,25 +156,51 @@ jobs:
           $target = "src-tauri\target\release\bundle\nsis\InventoryGear-$version-setup.exe"
           Move-Item -Path $installer.FullName -Destination $target -Force
           Write-Host "Installer: $target"
-          "INSTALLER_PATH=$target" | Out-File -FilePath $env:GITHUB_ENV -Append
           "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+          # Forward slashes on purpose: this is consumed as a glob by
+          # upload-artifact and action-gh-release, and PowerShell's `\` separators
+          # do not match reliably. Defined once so the artifact upload and the
+          # release cannot drift onto different paths.
+          "INSTALLER_ASSET=src-tauri/target/release/bundle/nsis/InventoryGear-$version-setup.exe" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      # Prints exactly what the bundler produced, so a missing or renamed
+      # installer is visible in the log instead of only as a later upload error.
+      - name: List generated installers
+        shell: bash
+        run: |
+          echo "Bundle contents:"
+          find src-tauri/target/release/bundle -type f || true
+          echo
+          echo "Normalized installer:"
+          ls -l "${INSTALLER_ASSET}"
 
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: InventoryGear-${{ env.VERSION }}-windows-installer
-          path: src-tauri/target/release/bundle/nsis/InventoryGear-${{ env.VERSION }}-setup.exe
+          path: ${{ env.INSTALLER_ASSET }}
           if-no-files-found: error
           retention-days: 30
 
       # Signing is Windows-only and requires a certificate. Until a code-signing
       # certificate is configured, release builds are unsigned and SmartScreen
       # will warn on first run. See docs/windows-installer.md#code-signing.
+      #
+      # `ref_type == 'tag'` is the guard that matters: a manual run on a branch has
+      # no tag, and without this the action defaults `tag_name` to `github.ref`
+      # (`refs/heads/main`) and fails with `400 Missing tag_name parameter`.
+      # Re-running a failed tag run is safe — the action updates the release that
+      # already exists for the tag rather than creating a second one.
       - name: Release
-        if: startsWith(github.ref, 'refs/tags/v') || inputs.publish
+        if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: src-tauri/target/release/bundle/nsis/InventoryGear-${{ env.VERSION }}-setup.exe
+          tag_name: ${{ github.ref_name }}
+          files: ${{ env.INSTALLER_ASSET }}
+          # Left as a draft on purpose: the release is reviewed and published by
+          # hand, per the checklist in docs/windows-installer.md.
           draft: true
           generate_release_notes: true
           fail_on_unmatched_files: true

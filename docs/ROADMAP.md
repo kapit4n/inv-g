@@ -27,7 +27,7 @@
 | 13 | Enterprise Quality Assurance & Testing | ✅ | `f2d9495` |
 | 15 | Per-Product Pricing & Gains | ✅ | `40a77d0` |
 | 16 | Product Equivalents | ✅ | `616a168` |
-| 17 | Windows Installer & 1.0.0 Release Packaging | ✅ | `bf64f43` |
+| 17 | Windows Installer & 1.0.0 Release Packaging | ✅ | `bf64f43`, `43f6f37` |
 | 14 | Database Profiles (single/multi-store) | ✅ | (feature-gated; see `docs/progress/MILESTONE_14.md`) |
 
 **Milestone 17** — instalador NSIS, conjunto de iconos, arranque y logging de
