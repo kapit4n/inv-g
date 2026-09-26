@@ -13,6 +13,7 @@ export { useSelection } from "./use-selection"
 export { usePrint } from "./use-print"
 export { usePrintConfig } from "./use-print-config"
 export { useProductSearch } from "./use-product-search"
+export { useInvalidateStock, STOCK_QUERY_KEYS } from "./use-stock-invalidation"
 export {
   useBusinessCapabilities,
   useCurrentStoreId,

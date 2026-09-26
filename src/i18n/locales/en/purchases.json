@@ -209,6 +209,7 @@
   "remaining": "Remaining",
   "reorderSuggestionsDescription": "Products whose stock is below their reorder point",
   "returnQty": "Return Qty",
+  "orderHasNoItems": "This purchase order has no items to return.",
   "returnReasonPlaceholder": "e.g. Damaged or wrong product",
   "searchPO": "Search by PO number...",
   "searchProduct": "Search product...",

@@ -12,7 +12,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { getSale, getSaleItems, getSalePayments, getReceiptsForSale, refundSale, markReceiptPrinted } from "@/lib/tauri"
 import type { SaleItem, SalePayment, Receipt as ReceiptType } from "@/types"
 import { useNotification } from "@/hooks/use-notification"
-import { usePrint, usePrintConfig } from "@/hooks"
+import { useInvalidateStock, usePrint, usePrintConfig } from "@/hooks"
 import { buildSaleReceiptModel, type ReceiptLabels } from "@/lib/print"
 
 export function SaleDetailPage() {
@@ -20,6 +20,7 @@ export function SaleDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const invalidateStock = useInvalidateStock()
   const notification = useNotification()
 
   const [refundMode, setRefundMode] = useState(false)
@@ -61,6 +62,8 @@ export function SaleDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["daily-closeout"] })
       queryClient.invalidateQueries({ queryKey: ["sales-summary"] })
       queryClient.invalidateQueries({ queryKey: ["dashboard-widgets"] })
+      // A refund puts the units back on hand.
+      invalidateStock()
       notification.success(t("common.success"), t("sales.refundProcessed"))
       setRefundMode(false)
     },

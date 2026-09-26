@@ -1,18 +1,18 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useQuery, useMutation } from "@tanstack/react-query"
 import { EntityFormPage } from "@/components/entity"
 import { NumberField, SelectField, TextareaField } from "@/components/forms"
 import { EntityActionBar } from "@/components/entity"
 import { getProducts, getWarehouses, createInventoryMovement } from "@/lib/tauri"
-import { useSoleWarehouseDefault } from "@/hooks"
+import { useInvalidateStock, useSoleWarehouseDefault } from "@/hooks"
 import { useNotification } from "@/hooks/use-notification"
 
 export function InventoryMovementFormPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
+  const invalidateStock = useInvalidateStock()
   const notification = useNotification()
 
   const { data: products } = useQuery({
@@ -36,8 +36,8 @@ export function InventoryMovementFormPage() {
   const createMutation = useMutation({
     mutationFn: createInventoryMovement,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventory-movements"] })
-      queryClient.invalidateQueries({ queryKey: ["inventory-products"] })
+      // A manual adjustment changes stock, so every stock view is stale.
+      invalidateStock()
       notification.success(t("common.success"), t("inventory.movementCreated"))
       navigate("/inventory/movements")
     },

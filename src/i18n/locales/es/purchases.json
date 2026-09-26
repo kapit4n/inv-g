@@ -209,6 +209,7 @@
   "remaining": "Restante",
   "reorderSuggestionsDescription": "Productos cuyo stock está por debajo del punto de reorden",
   "returnQty": "Cant. Devuelta",
+  "orderHasNoItems": "Esta orden de compra no tiene productos que devolver.",
   "returnReasonPlaceholder": "p. ej. Producto dañado o equivocado",
   "searchPO": "Buscar por N° de OC...",
   "searchProduct": "Buscar producto...",

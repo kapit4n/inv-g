@@ -12,6 +12,7 @@ import { StatCard } from "@/components/stat-card"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { TextareaField } from "@/components/forms"
 import { searchSales, refundSale, getDailyCloseout } from "@/lib/tauri"
+import { useInvalidateStock } from "@/hooks"
 import { useNotification } from "@/hooks/use-notification"
 import type { TableColumn } from "@/types/crud"
 import type { Sale } from "@/types"
@@ -20,6 +21,7 @@ export function ReturnsPage() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const notification = useNotification()
+  const invalidateStock = useInvalidateStock()
 
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedSaleId, setSelectedSaleId] = useState<number | null>(null)
@@ -43,6 +45,8 @@ export function ReturnsPage() {
       queryClient.invalidateQueries({ queryKey: ["daily-closeout"] })
       queryClient.invalidateQueries({ queryKey: ["sales-summary"] })
       queryClient.invalidateQueries({ queryKey: ["dashboard-widgets"] })
+      // A refund returns the units to stock.
+      invalidateStock()
       notification.success(t("common.success"), t("sales.refundProcessed"))
       setSelectedSaleId(null)
       setRefundReason("")

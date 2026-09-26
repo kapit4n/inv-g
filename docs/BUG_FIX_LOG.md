@@ -6,6 +6,120 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-26 — "Sin Stock" never updated after selling a product out
+
+**Symptom:** sell the last unit of a product, go back to the dashboard, and
+*Necesita Atención → Sin Stock* still reads `0` (or the old number). The product
+is genuinely out of stock; the tile only corrects itself after a full page
+reload. Manual stock adjustments, receiving a purchase order, refunds, supplier
+returns, inter-store transfers and data imports all showed the same staleness.
+
+**Root cause: the invalidation list was written out by hand and never included
+the stock counters.** The backend is correct — `commands/sales.rs` decrements
+`products.stock_quantity` inside the checkout transaction and restores it on
+refund — so the number in the database was right and the number on screen was
+cached. The dashboard builds its attention list from the `inventory-stats` query:
+
+```ts
+const { data: inventoryStats } = useQuery({
+  queryKey: ["inventory-stats"],
+  queryFn: getDashboardStats,
+})
+```
+
+and after a sale the POS invalidated `sales`, `pos-search`,
+`global-product-search`, `daily-closeout`, `sales-summary` and
+`dashboard-widgets` — everything except `inventory-stats`. Production runs a
+5-minute `staleTime`, so the stale value was served without a refetch.
+
+The same omission existed in the other five stock-moving flows, each with its
+own hand-written subset:
+
+| Flow | Invalidated | Missing |
+| --- | --- | --- |
+| Checkout (POS) | `sales`, `pos-search`, `global-product-search`, closeout, summary, widgets | `inventory-stats`, product rows |
+| Refund (returns page, sale detail) | `sales`, closeout, summary, widgets | all stock views |
+| Receive purchase order | *(no query client at all)* | all stock views |
+| Supplier return | `purchase-returns` | all stock views |
+| Stock adjustment, transfer | `inventory-movements`, `inventory-products` | every count |
+| Import | `inventory-products`, `inventory-movements`, `inventory-dashboard` | every count |
+
+Two dead keys were being invalidated along the way, so those calls did nothing:
+`pos-search` has never been a query key (the product search uses
+`global-product-search`), and `inventory-dashboard` is not one either — the real
+key is `inventory-dashboard-stats`, so the import page never refreshed the
+inventory KPIs despite appearing to.
+
+**Fix:** the list now lives in one place, `src/hooks/use-stock-invalidation.ts`.
+`useInvalidateStock()` invalidates every key that displays a stock level, and
+all six flows call it on success. The keys are treated as *prefixes*, so
+`["inventory-products"]` also covers the paginated `["inventory-products", page,
+pageSize, search]` variants without listing them.
+
+Covered by `tests/unit/components/stock-out-of-stock-refresh.test.tsx` (drives a
+real checkout through the POS with a 5-minute `staleTime` and asserts the tile
+appears) and `tests/integration/stock-invalidation-contract.test.ts`, which
+fails if a stock-moving flow loses its invalidation, if `inventory-stats` leaves
+the list again, or if the list contains a key no query actually uses.
+
+**Affected files:** `src/hooks/use-stock-invalidation.ts` (new),
+`src/hooks/index.ts`, `src/features/sales/pages/pos-page.tsx`,
+`src/features/sales/pages/returns-page.tsx`,
+`src/features/sales/pages/sale-detail-page.tsx`,
+`src/features/purchases/pages/purchase-receipt-form-page.tsx`,
+`src/features/purchases/pages/purchase-returns-page.tsx`,
+`src/features/inventory/pages/inventory-movement-form-page.tsx`,
+`src/features/inventory/pages/transfers-page.tsx`,
+`src/features/inventory/pages/import-export-page.tsx`
+
+**Commit:** `PENDING`
+
+---
+
+### 2026-09-26 — "Nueva Devolución" listed no products and could not be saved
+
+**Symptom:** *Compras → Devoluciones → Nueva Devolución*, pick a purchase order,
+and the items table stays empty. Because there is nothing to fill in, **Crear
+devolución** never enables, so the return cannot be recorded at all.
+
+**Root cause: the line items were seeded from a query result that had not loaded
+yet.** `handleSelectPo` built the rows from `poItems`, the react-query result of
+`getPurchaseOrderItems(selectedPoId)`:
+
+```tsx
+function handleSelectPo(po: PurchaseOrder) {
+  setSelectedPoId(po.id)          // state has not updated yet
+  setReturnItems(
+    poItems.map((item) => ({ ... quantity: 0 ... })),   // poItems is still []
+  )
+}
+```
+
+At that moment `selectedPoId` is still `null`, so the query is `disabled` and
+`poItems` is the `[]` default. The seed therefore produced an empty list. Nothing
+re-derived it when the query later resolved, because the rows were state rather
+than a projection of the query. Both reported symptoms are the same line:
+
+- no products listed, because `returnItems` was `[]`;
+- the button disabled, because `[].every((i) => i.quantity === 0)` is `true` for
+  an empty array — the guard was working correctly on an empty list.
+
+**Fix:** the rows are now derived from the query and only the user's input is
+held in state, which is the pattern already used by the receiving form
+(`purchase-receipt-form-page.tsx`). `itemLines` is a `Record<productId, {quantity,
+reason}>` of edits, and `returnItems` is a `useMemo` projection over `poItems`,
+so the table appears whenever the items arrive and a refetch cannot discard
+typed-in quantities. `handleSelectPo` only records the selection. An order with
+no lines now says so instead of showing a blank table, and the button is also
+held disabled while the items are still loading.
+
+**Affected files:** `src/features/purchases/pages/purchase-returns-page.tsx`,
+`src/i18n/locales/{es,en}/purchases.json` (`orderHasNoItems`)
+
+**Commit:** `PENDING`
+
+---
+
 ### 2026-09-25 — "Crear Devolución" (and three other wrappers) failed to save
 
 **Symptom:** open a purchase order, press **Crear Devolución**, fill the reason and

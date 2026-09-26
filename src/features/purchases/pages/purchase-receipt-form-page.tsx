@@ -20,7 +20,7 @@ import { useAuthStore } from "@/stores"
 import type { PurchaseOrder, PurchaseOrderItem, ReceivePOInput } from "@/types"
 import type { Warehouse } from "@/types/inventory"
 import { purchaseOrderStatusLabel, purchaseOrderStatusVariant } from "../purchase-order-status"
-import { useSoleWarehouseDefault } from "@/hooks"
+import { useInvalidateStock, useSoleWarehouseDefault } from "@/hooks"
 
 /** What the user has typed on one line: how many arrived, and how many are broken. */
 interface ReceiveLine {
@@ -47,6 +47,7 @@ export function PurchaseReceiptFormPage() {
   const { t } = useTranslation("purchases")
   const navigate = useNavigate()
   const notification = useNotification()
+  const invalidateStock = useInvalidateStock()
   const userId = useAuthStore((s) => s.user?.id ?? 0)
   const [searchParams] = useSearchParams()
   const poId = Number(searchParams.get("poId"))
@@ -171,6 +172,8 @@ export function PurchaseReceiptFormPage() {
         notes.trim() || undefined,
         payload
       )
+      // Receiving raises stock on hand; every stock view is stale afterwards.
+      invalidateStock()
       notification.success(t("common.success"), t("receivedSuccess"))
       navigate(`/purchases/receipts/${receipt.id}`)
     } catch (err) {

@@ -26,6 +26,7 @@ import {
   createPurchaseReturn,
 } from "@/lib/tauri"
 import type { PurchaseReturn, PurchaseOrder } from "@/types"
+import { useInvalidateStock } from "@/hooks"
 import { useNotification } from "@/hooks/use-notification"
 
 const STATUS_VARIANTS: Record<string, "success" | "warning" | "info" | "secondary" | "destructive"> = {
@@ -40,14 +41,18 @@ export function PurchaseReturnsPage() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const notification = useNotification()
+  const invalidateStock = useInvalidateStock()
 
   const [showNewDialog, setShowNewDialog] = useState(false)
   const [selectedPoId, setSelectedPoId] = useState<number | null>(null)
   const [poSearch, setPoSearch] = useState("")
   const [returnReason, setReturnReason] = useState("")
-  const [returnItems, setReturnItems] = useState<
-    { productId: number; productName: string; quantity: number; unitCost: number; reason: string }[]
-  >([])
+  // Only the values the user edits are held here. The rows themselves are derived
+  // from `poItems`, which arrives asynchronously: seeding the rows on selection
+  // read the not-yet-fetched items, so the table came up empty.
+  const [itemLines, setItemLines] = useState<
+    Record<number, { quantity: number; reason: string }>
+  >({})
 
   const { data: returns = [], isLoading } = useQuery({
     queryKey: ["purchase-returns"],
@@ -59,11 +64,23 @@ export function PurchaseReturnsPage() {
     queryFn: () => getPurchaseOrders(),
   })
 
-  const { data: poItems = [] } = useQuery({
+  const { data: poItems = [], isFetching: poItemsLoading } = useQuery({
     queryKey: ["purchase-order-items", selectedPoId],
     queryFn: () => getPurchaseOrderItems(selectedPoId!),
     enabled: !!selectedPoId,
   })
+
+  const returnItems = useMemo(
+    () =>
+      poItems.map((item) => ({
+        productId: item.productId,
+        productName: item.productName || `#${item.productId}`,
+        quantity: itemLines[item.productId]?.quantity ?? 0,
+        unitCost: item.unitCost,
+        reason: itemLines[item.productId]?.reason ?? "",
+      })),
+    [poItems, itemLines],
+  )
 
   const filteredOrders = useMemo(() => {
     if (!poSearch) return orders
@@ -96,6 +113,8 @@ export function PurchaseReturnsPage() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["purchase-returns"] })
+      // Returning goods to the supplier takes them out of stock.
+      invalidateStock()
       notification.success(t("common.success"), t("purchases.returnCreated"))
       setShowNewDialog(false)
       resetForm()
@@ -109,21 +128,27 @@ export function PurchaseReturnsPage() {
     setSelectedPoId(null)
     setPoSearch("")
     setReturnReason("")
-    setReturnItems([])
+    setItemLines({})
   }
 
   function handleSelectPo(po: PurchaseOrder) {
     setSelectedPoId(po.id)
     setPoSearch("")
-    setReturnItems(
-      poItems.map((item) => ({
-        productId: item.productId,
-        productName: item.productName || `#${item.productId}`,
-        quantity: 0,
-        unitCost: item.unitCost,
-        reason: "",
-      })),
-    )
+    setItemLines({})
+  }
+
+  function setItemLine(
+    productId: number,
+    patch: Partial<{ quantity: number; reason: string }>,
+  ) {
+    setItemLines((lines) => ({
+      ...lines,
+      [productId]: {
+        quantity: lines[productId]?.quantity ?? 0,
+        reason: lines[productId]?.reason ?? "",
+        ...patch,
+      },
+    }))
   }
 
   const columns: TableColumn<PurchaseReturn>[] = [
@@ -292,7 +317,7 @@ export function PurchaseReturnsPage() {
                     size="sm"
                     onClick={() => {
                       setSelectedPoId(null)
-                      setReturnItems([])
+                      setItemLines({})
                     }}
                   >
                     <X className="h-4 w-4 mr-1" />
@@ -330,7 +355,7 @@ export function PurchaseReturnsPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {returnItems.map((item, idx) => (
+                        {returnItems.map((item) => (
                           <tr key={item.productId} className="border-b last:border-0">
                             <td className="px-3 py-2">{item.productName}</td>
                             <td className="px-3 py-2 text-center">
@@ -345,38 +370,36 @@ export function PurchaseReturnsPage() {
                                 min={0}
                                 className="h-8 text-center"
                                 value={item.quantity}
-                                onChange={(e) => {
-                                  const newItems = [...returnItems]
-                                  newItems[idx] = {
-                                    productId: item.productId,
-                                    productName: item.productName,
-                                    quantity: Number(e.target.value),
-                                    unitCost: item.unitCost,
-                                    reason: item.reason,
-                                  }
-                                  setReturnItems(newItems)
-                                }}
+                                onChange={(e) =>
+                                  setItemLine(item.productId, {
+                                    quantity: Math.max(0, Number(e.target.value)),
+                                  })
+                                }
                               />
                             </td>
                             <td className="px-3 py-2">
                               <Input
                                 className="h-8"
                                 value={item.reason}
-                                onChange={(e) => {
-                                  const newItems = [...returnItems]
-                                  newItems[idx] = {
-                                    productId: item.productId,
-                                    productName: item.productName,
-                                    quantity: item.quantity,
-                                    unitCost: item.unitCost,
+                                onChange={(e) =>
+                                  setItemLine(item.productId, {
                                     reason: e.target.value,
-                                  }
-                                  setReturnItems(newItems)
-                                }}
+                                  })
+                                }
                               />
                             </td>
                           </tr>
                         ))}
+                        {returnItems.length === 0 && !poItemsLoading && (
+                          <tr>
+                            <td
+                              colSpan={4}
+                              className="px-3 py-4 text-center text-sm text-muted-foreground"
+                            >
+                              {t("purchases.orderHasNoItems")}
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -407,6 +430,7 @@ export function PurchaseReturnsPage() {
                 !selectedPoId ||
                 !selectedOrderHasSupplier ||
                 !returnReason ||
+                poItemsLoading ||
                 returnItems.every((i) => i.quantity === 0) ||
                 createMutation.isPending
               }

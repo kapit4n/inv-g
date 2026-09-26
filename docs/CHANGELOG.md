@@ -8,6 +8,26 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **"Sin Stock" now updates after selling a product out.** The dashboard's
+  *Necesita Atención* list is built from the `inventory-stats` query, and the
+  checkout did not invalidate it, so selling the last unit of a product left the
+  tile showing the pre-sale number until the page was reloaded. The backend was
+  always correct; only the cached count was stale. Every flow that moves stock —
+  checkout, refund, receiving, supplier return, manual adjustment, transfer and
+  import — now invalidates the stock views through one shared helper instead of
+  each keeping its own partial list. Two keys that were being invalidated but
+  match no query (`pos-search`, `inventory-dashboard`) were removed; the import
+  page now refreshes the inventory KPIs it was silently missing.
+- **"Nueva Devolución" lists the order's products and can be saved.** Picking a
+  purchase order seeded the line items from the order-items query *before* that
+  query had run, so the table stayed empty — and since `[].every(quantity === 0)`
+  is true, **Crear devolución** never enabled. The rows are now derived from the
+  query and only the entered quantities and reasons are stored, matching the
+  receiving form. An order with no items now says so rather than showing a blank
+  table.
+
 ### Added
 
 - **A single-store instance no longer asks which warehouse to use.** When the
