@@ -122,7 +122,7 @@ regress silently.
 `tests/unit/components/product-compatibility-tab.test.tsx`,
 `tests/unit/components/product-360-tabs.test.tsx`
 
-**Commit:** _(see ROADMAP.md)_
+**Commit:** `1434149`
 
 ---
 
@@ -214,7 +214,7 @@ combined assertion covers the seam that actually broke.
 `tests/unit/components/admin-settings-page.test.tsx`,
 `tests/unit/stores/app-settings-store.test.ts`
 
-**Commit:** _(see ROADMAP.md)_
+**Commit:** `1434149`
 
 ---
 
@@ -259,7 +259,7 @@ Covered by `tests/regression/bug-012-purchase-order-from-suggestion.test.tsx`.
 `src/features/purchases/pages/purchase-order-form-page.tsx`,
 `tests/regression/bug-012-purchase-order-from-suggestion.test.tsx`
 
-**Commit:** _(see ROADMAP.md)_
+**Commit:** `1434149`
 
 ---
 
@@ -329,7 +329,7 @@ renders.
 `tests/unit/utils/i18n-duplicates.test.ts`,
 `tests/regression/bug-013-014-015-i18n-and-suppliers.test.ts`
 
-**Commit:** _(see ROADMAP.md)_
+**Commit:** `1434149`
 
 ---
 
@@ -380,7 +380,7 @@ have rendered a sidebar item pointing at a dead route.
 `src/services/permission.service.ts`, `src/i18n/config.ts`,
 `tests/regression/bug-013-014-015-i18n-and-suppliers.test.ts`
 
-**Commit:** _(see ROADMAP.md)_
+**Commit:** `1434149`
 
 ---
 
