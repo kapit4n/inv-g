@@ -19,6 +19,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **The receiving form loads.** *Recibir Orden* reported that the order could not be
+  loaded and showed nothing. `get_purchase_order_items` joined the product table for
+  its name and SKU but read the joined values at the wrong offsets, so it failed on
+  every order that had a line — including all orders created through the interface,
+  where `supplier_sku` is empty. Five more queries in the same module had the same
+  fault, among them the receipt page the form opens after a successful delivery and
+  the supplier-product list, which returned a timestamp in place of the product name
+  without reporting any error. All six now name their columns and are read by name,
+  so the query and the mapper cannot drift apart again.
 - **An approved purchase order can be sent to the supplier.** *Enviar a Proveedor*
   did nothing: the backend's status transition table had no `approved` arm, so the
   command refused the step and the order stayed *Aprobado* forever. The full

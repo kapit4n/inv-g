@@ -6,6 +6,103 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-25 — "Recibir Orden" showed an error instead of the receiving form
+
+**Symptom:** send a purchase order to its supplier, press **Recibir Orden**, and the
+receiving form never appears. A toast reports that the order could not be loaded,
+and the page stays empty. The order is correctly `sent`, so the step before it
+worked.
+
+**Root cause: `get_purchase_order_items` read the wrong columns out of every
+row.** The query joined the product table for its name and SKU:
+
+```sql
+SELECT poi.*, p.name as product_name, p.sku as product_sku
+FROM purchase_order_items poi
+LEFT JOIN products p ON poi.product_id = p.id
+```
+
+`purchase_order_items` has **13** columns, so `poi.*` occupies indices 0-12 and the
+two joined values land at 13 and 14. The row mapper read `product_name` at index
+**3** and every later field from there on, as if the join had added its columns
+next to `product_id` rather than at the end. So each field was filled from the
+wrong column:
+
+| index | actual column | read as |
+|---|---|---|
+| 3 | `supplier_sku` | `product_name` |
+| 4 | `quantity` | `product_sku` |
+| 5 | `unit_cost` | `supplier_sku` |
+| 6 | `discount` | `quantity` |
+| 11 | `created_at` | `received_quantity` |
+| 13 | `product_name` | `created_at` |
+
+The command therefore failed on **every order that has any line at all**: the very
+first read, `product_name`, pointed at `supplier_sku`, which is `NULL` for orders
+created through the interface — `Invalid column type Null at index: 3, name:
+supplier_sku`. Even with a non-NULL `supplier_sku` it could not have produced
+usable data: `quantity` would have come from `discount` and `received_quantity`
+from the `created_at` text, which cannot convert to `i64`.
+
+The defect is old, but invisible: the only intended caller was never written. The
+order detail page still carries the comment *"A real implementation would call
+getPurchaseOrderItems and render them"*, so nothing had ever invoked the command.
+Shipping the receiving form made it the first real caller, which is why the bug
+surfaced at exactly this point in the workflow.
+
+**Investigation.** The two halves were separated first. The database was copied
+and `receive_purchase_order_inner` was run against the real rows for both `sent`
+orders: both succeeded, created `REC-000001`/`REC-000002` and moved the orders to
+`completed`, so the write path was sound. That left the read path. The page's
+first call on mount is `getPurchaseOrderItems`, and a probe replaying its exact
+`SELECT` alongside the mapper's exact `row.get(n)` calls printed the real column
+layout next to the reads and showed the shift.
+
+Note that the frontend could not have caught this: the test for the receiving form
+mocks `getPurchaseOrderItems`, and the mock was written from the same wrong
+assumption. The gap was only visible against the real command.
+
+**Fix.** The `SELECT` now lists its columns explicitly, and `map_po_item_row` reads
+every value **by column name** (`row.get("received_quantity")`), so the mapper can
+no longer drift from the query when either side changes. The command delegates to a
+new `get_po_items_inner`, which is directly testable.
+
+**The same defect was in five more queries.** Auditing every `SELECT <alias>.*` in
+the backend turned up six in this module, and all six were mis-mapped:
+
+| query | base columns | joined values actually at | mapper read them at | effect |
+|---|---|---|---|---|
+| `purchase_order_items` | 13 | 13, 14 | 3, 4 | error (reported above) |
+| `purchase_receipt_items` | 9 | 9, 10 | 4, 5 | error, on the page the form opens after a successful receipt |
+| `purchase_request_items` | 8 | 8, 9 | 3, 4 | error |
+| `purchase_return_items` | 7 | 7, 8 | 3, 4 | error |
+| `product_cost_history` | 9 | 9-13 | 2-6 | error (five joins) |
+| `supplier_products` | 12 | 12, 13, 14 | 10, 11, 12 | **no error, wrong data** |
+
+`supplier_products` is the one that would have been hardest to notice: every value
+from `product_name` onwards came from the wrong column but the *types* still lined
+up, so the page rendered a timestamp as the product name, the product SKU as
+`created_at`, and the brand name as `updated_at` — no error, just quietly wrong
+data. All six now select explicit columns and read by name.
+
+`sales.rs` has the same pattern in 16 further queries (sales, quotes, credit,
+daily closings, cash register history). Those were left alone: they are a separate
+module, and the sales and purchase mappers cannot be assumed consistent. For
+example `sales.rs:526` reads the joined product values at 9 and 10, which is correct
+for its 9 base columns, while `sales.rs:1613` reads `customer_name` at index 12
+where `sales` has 16 base columns.
+
+**Files:** `src-tauri/src/commands/purchases.rs`
+
+**Tests:** `po_items_report_real_columns_not_shifted_ones`,
+`receipt_items_report_real_columns_and_the_receipt_reads_back`, and
+`every_shifted_join_query_in_purchases_is_aligned` assert the real values, not just
+that the query runs. Reverting each mapper to its original positional form fails
+them — for example the supplier-product assertion reports
+`left: Some("2026-09-26 03:45:18"), right: Some("Widget")`.
+
+---
+
 ### 2026-09-25 — "Enviar a Proveedor" did nothing, and a sent order could never be received
 
 **Symptom:** approve a purchase order, press **Enviar a Proveedor**, and nothing

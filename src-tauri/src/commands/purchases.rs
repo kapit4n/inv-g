@@ -473,38 +473,52 @@ pub fn get_purchase_order(state: State<DbState>, id: i64) -> Result<PurchaseOrde
     stmt.query_row(params![id], map_po_row).map_err(|e| e.to_string())
 }
 
-#[tauri::command]
-pub fn get_purchase_order_items(state: State<DbState>, purchase_order_id: i64) -> Result<Vec<PurchaseOrderItemResponse>, String> {
-    let conn = get_conn(&state)?;
+/// Columns are selected explicitly and read by name: `purchase_order_items` has 13
+/// columns, so a `poi.*` + join expansion shifts every joined value and silently
+/// pairs the wrong types (e.g. `created_at` read as `received_quantity: i64`).
+fn map_po_item_row(row: &rusqlite::Row) -> rusqlite::Result<PurchaseOrderItemResponse> {
+    Ok(PurchaseOrderItemResponse {
+        id: row.get("id")?,
+        purchase_order_id: row.get("purchase_order_id")?,
+        product_id: row.get("product_id")?,
+        product_name: row.get("product_name")?,
+        product_sku: row.get("product_sku")?,
+        supplier_sku: row.get("supplier_sku")?,
+        quantity: row.get("quantity")?,
+        unit_cost: row.get("unit_cost")?,
+        discount: row.get("discount")?,
+        tax: row.get("tax")?,
+        total: row.get("total")?,
+        received_quantity: row.get("received_quantity")?,
+        damaged_quantity: row.get("damaged_quantity")?,
+        created_at: row.get("created_at")?,
+        updated_at: row.get("updated_at")?,
+    })
+}
+
+fn get_po_items_inner(conn: &rusqlite::Connection, purchase_order_id: i64) -> Result<Vec<PurchaseOrderItemResponse>, String> {
     let mut stmt = conn.prepare(
-        "SELECT poi.*, p.name as product_name, p.sku as product_sku
+        "SELECT poi.id, poi.purchase_order_id, poi.product_id,
+                p.name as product_name, p.sku as product_sku,
+                poi.supplier_sku, poi.quantity, poi.unit_cost,
+                poi.discount, poi.tax, poi.total,
+                poi.received_quantity, poi.damaged_quantity,
+                poi.created_at, poi.updated_at
          FROM purchase_order_items poi
          LEFT JOIN products p ON poi.product_id = p.id
          WHERE poi.purchase_order_id = ?1
          ORDER BY poi.id"
     ).map_err(|e| e.to_string())?;
-    let rows = stmt.query_map(params![purchase_order_id], |row| {
-        Ok(PurchaseOrderItemResponse {
-            id: row.get(0)?,
-            purchase_order_id: row.get(1)?,
-            product_id: row.get(2)?,
-            product_name: row.get(3)?,
-            product_sku: row.get(4)?,
-            supplier_sku: row.get(5)?,
-            quantity: row.get(6)?,
-            unit_cost: row.get(7)?,
-            discount: row.get(8)?,
-            tax: row.get(9)?,
-            total: row.get(10)?,
-            received_quantity: row.get(11)?,
-            damaged_quantity: row.get(12)?,
-            created_at: row.get(13)?,
-            updated_at: row.get(14)?,
-        })
-    }).map_err(|e| e.to_string())?;
+    let rows = stmt.query_map(params![purchase_order_id], map_po_item_row).map_err(|e| e.to_string())?;
     let mut result = Vec::new();
     for row in rows { result.push(row.map_err(|e| e.to_string())?); }
     Ok(result)
+}
+
+#[tauri::command]
+pub fn get_purchase_order_items(state: State<DbState>, purchase_order_id: i64) -> Result<Vec<PurchaseOrderItemResponse>, String> {
+    let conn = get_conn(&state)?;
+    get_po_items_inner(&conn, purchase_order_id)
 }
 
 fn get_po_by_id_inner(conn: &rusqlite::Connection, id: i64) -> Result<PurchaseOrderResponse, String> {
@@ -736,33 +750,44 @@ pub fn get_purchase_request(state: State<DbState>, id: i64) -> Result<PurchaseRe
     stmt.query_row(params![id], map_pr_row).map_err(|e| e.to_string())
 }
 
-#[tauri::command]
-pub fn get_purchase_request_items(state: State<DbState>, request_id: i64) -> Result<Vec<PurchaseRequestItemResponse>, String> {
-    let conn = get_conn(&state)?;
+/// Explicit columns, read by name — see `map_po_item_row`.
+fn map_request_item_row(row: &rusqlite::Row) -> rusqlite::Result<PurchaseRequestItemResponse> {
+    Ok(PurchaseRequestItemResponse {
+        id: row.get("id")?,
+        request_id: row.get("request_id")?,
+        product_id: row.get("product_id")?,
+        product_name: row.get("product_name")?,
+        product_sku: row.get("product_sku")?,
+        requested_quantity: row.get("requested_quantity")?,
+        current_stock: row.get("current_stock")?,
+        min_stock_level: row.get("min_stock_level")?,
+        supplier_suggestion: row.get("supplier_suggestion")?,
+        created_at: row.get("created_at")?,
+    })
+}
+
+fn get_request_items_inner(conn: &rusqlite::Connection, request_id: i64) -> Result<Vec<PurchaseRequestItemResponse>, String> {
     let mut stmt = conn.prepare(
-        "SELECT pri.*, p.name as product_name, p.sku as product_sku
+        "SELECT pri.id, pri.request_id, pri.product_id,
+                p.name as product_name, p.sku as product_sku,
+                pri.requested_quantity, pri.current_stock,
+                pri.min_stock_level, pri.supplier_suggestion,
+                pri.created_at
          FROM purchase_request_items pri
          LEFT JOIN products p ON pri.product_id = p.id
          WHERE pri.request_id = ?1
          ORDER BY pri.id"
     ).map_err(|e| e.to_string())?;
-    let rows = stmt.query_map(params![request_id], |row| {
-        Ok(PurchaseRequestItemResponse {
-            id: row.get(0)?,
-            request_id: row.get(1)?,
-            product_id: row.get(2)?,
-            product_name: row.get(3)?,
-            product_sku: row.get(4)?,
-            requested_quantity: row.get(5)?,
-            current_stock: row.get(6)?,
-            min_stock_level: row.get(7)?,
-            supplier_suggestion: row.get(8)?,
-            created_at: row.get(9)?,
-        })
-    }).map_err(|e| e.to_string())?;
+    let rows = stmt.query_map(params![request_id], map_request_item_row).map_err(|e| e.to_string())?;
     let mut result = Vec::new();
     for row in rows { result.push(row.map_err(|e| e.to_string())?); }
     Ok(result)
+}
+
+#[tauri::command]
+pub fn get_purchase_request_items(state: State<DbState>, request_id: i64) -> Result<Vec<PurchaseRequestItemResponse>, String> {
+    let conn = get_conn(&state)?;
+    get_request_items_inner(&conn, request_id)
 }
 
 fn get_pr_status_inner(conn: &rusqlite::Connection, id: i64) -> Result<String, String> {
@@ -898,34 +923,45 @@ pub fn get_purchase_receipt(state: State<DbState>, id: i64) -> Result<PurchaseRe
     stmt.query_row(params![id], map_receipt_row).map_err(|e| e.to_string())
 }
 
-#[tauri::command]
-pub fn get_purchase_receipt_items(state: State<DbState>, receipt_id: i64) -> Result<Vec<PurchaseReceiptItemResponse>, String> {
-    let conn = get_conn(&state)?;
+/// Same reasoning as `map_po_item_row`: explicit columns, read by name.
+fn map_receipt_item_row(row: &rusqlite::Row) -> rusqlite::Result<PurchaseReceiptItemResponse> {
+    Ok(PurchaseReceiptItemResponse {
+        id: row.get("id")?,
+        receipt_id: row.get("receipt_id")?,
+        po_item_id: row.get("po_item_id")?,
+        product_id: row.get("product_id")?,
+        product_name: row.get("product_name")?,
+        product_sku: row.get("product_sku")?,
+        expected_quantity: row.get("expected_quantity")?,
+        received_quantity: row.get("received_quantity")?,
+        damaged_quantity: row.get("damaged_quantity")?,
+        accepted_quantity: row.get("accepted_quantity")?,
+        created_at: row.get("created_at")?,
+    })
+}
+
+fn get_receipt_items_inner(conn: &rusqlite::Connection, receipt_id: i64) -> Result<Vec<PurchaseReceiptItemResponse>, String> {
     let mut stmt = conn.prepare(
-        "SELECT pri.*, p.name as product_name, p.sku as product_sku
+        "SELECT pri.id, pri.receipt_id, pri.po_item_id, pri.product_id,
+                p.name as product_name, p.sku as product_sku,
+                pri.expected_quantity, pri.received_quantity,
+                pri.damaged_quantity, pri.accepted_quantity,
+                pri.created_at
          FROM purchase_receipt_items pri
          LEFT JOIN products p ON pri.product_id = p.id
          WHERE pri.receipt_id = ?1
          ORDER BY pri.id"
     ).map_err(|e| e.to_string())?;
-    let rows = stmt.query_map(params![receipt_id], |row| {
-        Ok(PurchaseReceiptItemResponse {
-            id: row.get(0)?,
-            receipt_id: row.get(1)?,
-            po_item_id: row.get(2)?,
-            product_id: row.get(3)?,
-            product_name: row.get(4)?,
-            product_sku: row.get(5)?,
-            expected_quantity: row.get(6)?,
-            received_quantity: row.get(7)?,
-            damaged_quantity: row.get(8)?,
-            accepted_quantity: row.get(9)?,
-            created_at: row.get(10)?,
-        })
-    }).map_err(|e| e.to_string())?;
+    let rows = stmt.query_map(params![receipt_id], map_receipt_item_row).map_err(|e| e.to_string())?;
     let mut result = Vec::new();
     for row in rows { result.push(row.map_err(|e| e.to_string())?); }
     Ok(result)
+}
+
+#[tauri::command]
+pub fn get_purchase_receipt_items(state: State<DbState>, receipt_id: i64) -> Result<Vec<PurchaseReceiptItemResponse>, String> {
+    let conn = get_conn(&state)?;
+    get_receipt_items_inner(&conn, receipt_id)
 }
 
 fn get_receipt_by_id_inner(conn: &rusqlite::Connection, id: i64) -> Result<PurchaseReceiptResponse, String> {
@@ -1127,26 +1163,35 @@ pub fn get_purchase_return(state: State<DbState>, id: i64) -> Result<PurchaseRet
 #[tauri::command]
 pub fn get_purchase_return_items(state: State<DbState>, return_id: i64) -> Result<Vec<PurchaseReturnItemResponse>, String> {
     let conn = get_conn(&state)?;
+    get_return_items_inner(&conn, return_id)
+}
+
+/// Explicit columns, read by name — see `map_po_item_row`.
+fn map_return_item_row(row: &rusqlite::Row) -> rusqlite::Result<PurchaseReturnItemResponse> {
+    Ok(PurchaseReturnItemResponse {
+        id: row.get("id")?,
+        return_id: row.get("return_id")?,
+        product_id: row.get("product_id")?,
+        product_name: row.get("product_name")?,
+        product_sku: row.get("product_sku")?,
+        quantity: row.get("quantity")?,
+        unit_cost: row.get("unit_cost")?,
+        reason: row.get("reason")?,
+        created_at: row.get("created_at")?,
+    })
+}
+
+fn get_return_items_inner(conn: &rusqlite::Connection, return_id: i64) -> Result<Vec<PurchaseReturnItemResponse>, String> {
     let mut stmt = conn.prepare(
-        "SELECT pri.*, p.name as product_name, p.sku as product_sku
+        "SELECT pri.id, pri.return_id, pri.product_id,
+                p.name as product_name, p.sku as product_sku,
+                pri.quantity, pri.unit_cost, pri.reason, pri.created_at
          FROM purchase_return_items pri
          LEFT JOIN products p ON pri.product_id = p.id
          WHERE pri.return_id = ?1
          ORDER BY pri.id"
     ).map_err(|e| e.to_string())?;
-    let rows = stmt.query_map(params![return_id], |row| {
-        Ok(PurchaseReturnItemResponse {
-            id: row.get(0)?,
-            return_id: row.get(1)?,
-            product_id: row.get(2)?,
-            product_name: row.get(3)?,
-            product_sku: row.get(4)?,
-            quantity: row.get(5)?,
-            unit_cost: row.get(6)?,
-            reason: row.get(7)?,
-            created_at: row.get(8)?,
-        })
-    }).map_err(|e| e.to_string())?;
+    let rows = stmt.query_map(params![return_id], map_return_item_row).map_err(|e| e.to_string())?;
     let mut result = Vec::new();
     for row in rows { result.push(row.map_err(|e| e.to_string())?); }
     Ok(result)
@@ -1199,29 +1244,50 @@ pub fn create_purchase_return(
 
 // ── Supplier Catalog ──
 
+/// Explicit columns, read by name — see `map_po_item_row`. This one previously
+/// mis-mapped silently: every value from `product_name` onwards was taken from the
+/// wrong column while the types still lined up, so supplier product pages showed a
+/// timestamp as the product name and a SKU as `created_at`.
 fn map_sp_row(row: &rusqlite::Row) -> rusqlite::Result<SupplierProductResponse> {
     Ok(SupplierProductResponse {
-        id: row.get(0)?,
-        supplier_id: row.get(1)?,
-        product_id: row.get(2)?,
-        supplier_sku: row.get(3)?,
-        is_preferred: row.get::<_, i64>(4)? != 0,
-        minimum_order_quantity: row.get(5)?,
-        lead_time_days: row.get(6)?,
-        default_cost: row.get(7)?,
-        currency: row.get(8)?,
-        status: row.get(9)?,
-        product_name: row.get(10)?,
-        product_sku: row.get(11)?,
-        brand_name: row.get(12)?,
-        created_at: row.get(13)?,
-        updated_at: row.get(14)?,
+        id: row.get("id")?,
+        supplier_id: row.get("supplier_id")?,
+        product_id: row.get("product_id")?,
+        supplier_sku: row.get("supplier_sku")?,
+        is_preferred: row.get::<_, i64>("is_preferred")? != 0,
+        minimum_order_quantity: row.get("minimum_order_quantity")?,
+        lead_time_days: row.get("lead_time_days")?,
+        default_cost: row.get("default_cost")?,
+        currency: row.get("currency")?,
+        status: row.get("status")?,
+        product_name: row.get("product_name")?,
+        product_sku: row.get("product_sku")?,
+        brand_name: row.get("brand_name")?,
+        created_at: row.get("created_at")?,
+        updated_at: row.get("updated_at")?,
     })
 }
+
+const SP_SELECT_SQL: &str = "SELECT sp.id, sp.supplier_id, sp.product_id, sp.supplier_sku,
+            sp.is_preferred, sp.minimum_order_quantity, sp.lead_time_days,
+            sp.default_cost, sp.currency, sp.status,
+            p.name as product_name, p.sku as product_sku, b.name as brand_name,
+            sp.created_at, sp.updated_at
+     FROM supplier_products sp
+     LEFT JOIN products p ON sp.product_id = p.id
+     LEFT JOIN brands b ON p.brand_id = b.id";
 
 #[tauri::command]
 pub fn get_supplier_products(state: State<DbState>, supplier_id: Option<i64>, product_id: Option<i64>) -> Result<Vec<SupplierProductResponse>, String> {
     let conn = get_conn(&state)?;
+    get_supplier_products_inner(&conn, supplier_id, product_id)
+}
+
+fn get_supplier_products_inner(
+    conn: &rusqlite::Connection,
+    supplier_id: Option<i64>,
+    product_id: Option<i64>,
+) -> Result<Vec<SupplierProductResponse>, String> {
     let mut conditions = Vec::new();
     let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
 
@@ -1240,14 +1306,7 @@ pub fn get_supplier_products(state: State<DbState>, supplier_id: Option<i64>, pr
         format!("WHERE {}", conditions.join(" AND "))
     };
 
-    let sql = format!(
-        "SELECT sp.*, p.name as product_name, p.sku as product_sku, b.name as brand_name
-         FROM supplier_products sp
-         LEFT JOIN products p ON sp.product_id = p.id
-         LEFT JOIN brands b ON p.brand_id = b.id
-         {} ORDER BY sp.supplier_id, sp.product_id",
-        where_clause
-    );
+    let sql = format!("{} {} ORDER BY sp.supplier_id, sp.product_id", SP_SELECT_SQL, where_clause);
 
     let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
     let param_refs: Vec<&dyn rusqlite::types::ToSql> = param_values.iter().map(|p| p.as_ref()).collect();
@@ -1258,13 +1317,7 @@ pub fn get_supplier_products(state: State<DbState>, supplier_id: Option<i64>, pr
 }
 
 fn get_sp_by_id(conn: &rusqlite::Connection, id: i64) -> Result<SupplierProductResponse, String> {
-    let mut stmt = conn.prepare(
-        "SELECT sp.*, p.name as product_name, p.sku as product_sku, b.name as brand_name
-         FROM supplier_products sp
-         LEFT JOIN products p ON sp.product_id = p.id
-         LEFT JOIN brands b ON p.brand_id = b.id
-         WHERE sp.id = ?1"
-    ).map_err(|e| e.to_string())?;
+    let mut stmt = conn.prepare(&format!("{} WHERE sp.id = ?1", SP_SELECT_SQL)).map_err(|e| e.to_string())?;
     stmt.query_row(params![id], map_sp_row).map_err(|e| e.to_string())
 }
 
@@ -1304,9 +1357,51 @@ pub fn delete_supplier_product(state: State<DbState>, id: i64) -> Result<(), Str
 
 // ── Cost History ──
 
+/// Explicit columns, read by name — see `map_po_item_row`. Five joins here, so the
+/// positional version was reading `supplier_id` as the product name and failed.
+const COST_HISTORY_SELECT_SQL: &str = "SELECT ch.id, ch.product_id,
+            p.name as product_name, p.sku as product_sku,
+            ch.supplier_id, s.company_name as supplier_name,
+            ch.purchase_order_id, po.po_number,
+            ch.old_cost, ch.new_cost, ch.quantity,
+            ch.created_by, u.full_name as created_by_name,
+            ch.created_at
+     FROM product_cost_history ch
+     LEFT JOIN products p ON ch.product_id = p.id
+     LEFT JOIN suppliers s ON ch.supplier_id = s.id
+     LEFT JOIN purchase_orders po ON ch.purchase_order_id = po.id
+     LEFT JOIN users u ON ch.created_by = u.id";
+
+fn map_cost_history_row(row: &rusqlite::Row) -> rusqlite::Result<CostHistoryResponse> {
+    Ok(CostHistoryResponse {
+        id: row.get("id")?,
+        product_id: row.get("product_id")?,
+        product_name: row.get("product_name")?,
+        product_sku: row.get("product_sku")?,
+        supplier_id: row.get("supplier_id")?,
+        supplier_name: row.get("supplier_name")?,
+        purchase_order_id: row.get("purchase_order_id")?,
+        po_number: row.get("po_number")?,
+        old_cost: row.get("old_cost")?,
+        new_cost: row.get("new_cost")?,
+        quantity: row.get("quantity")?,
+        created_by: row.get("created_by")?,
+        created_by_name: row.get("created_by_name")?,
+        created_at: row.get("created_at")?,
+    })
+}
+
 #[tauri::command]
 pub fn get_cost_history(state: State<DbState>, product_id: Option<i64>, supplier_id: Option<i64>) -> Result<Vec<CostHistoryResponse>, String> {
     let conn = get_conn(&state)?;
+    get_cost_history_inner(&conn, product_id, supplier_id)
+}
+
+fn get_cost_history_inner(
+    conn: &rusqlite::Connection,
+    product_id: Option<i64>,
+    supplier_id: Option<i64>,
+) -> Result<Vec<CostHistoryResponse>, String> {
     let mut conditions = Vec::new();
     let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
 
@@ -1325,39 +1420,11 @@ pub fn get_cost_history(state: State<DbState>, product_id: Option<i64>, supplier
         format!("WHERE {}", conditions.join(" AND "))
     };
 
-    let sql = format!(
-        "SELECT ch.*, p.name as product_name, p.sku as product_sku,
-                s.company_name as supplier_name, po.po_number,
-                u.full_name as created_by_name
-         FROM product_cost_history ch
-         LEFT JOIN products p ON ch.product_id = p.id
-         LEFT JOIN suppliers s ON ch.supplier_id = s.id
-         LEFT JOIN purchase_orders po ON ch.purchase_order_id = po.id
-         LEFT JOIN users u ON ch.created_by = u.id
-         {} ORDER BY ch.created_at DESC",
-        where_clause
-    );
+    let sql = format!("{} {} ORDER BY ch.created_at DESC", COST_HISTORY_SELECT_SQL, where_clause);
 
     let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
     let param_refs: Vec<&dyn rusqlite::types::ToSql> = param_values.iter().map(|p| p.as_ref()).collect();
-    let rows = stmt.query_map(param_refs.as_slice(), |row| {
-        Ok(CostHistoryResponse {
-            id: row.get(0)?,
-            product_id: row.get(1)?,
-            product_name: row.get(2)?,
-            product_sku: row.get(3)?,
-            supplier_id: row.get(4)?,
-            supplier_name: row.get(5)?,
-            purchase_order_id: row.get(6)?,
-            po_number: row.get(7)?,
-            old_cost: row.get(8)?,
-            new_cost: row.get(9)?,
-            quantity: row.get(10)?,
-            created_by: row.get(11)?,
-            created_by_name: row.get(12)?,
-            created_at: row.get(13)?,
-        })
-    }).map_err(|e| e.to_string())?;
+    let rows = stmt.query_map(param_refs.as_slice(), map_cost_history_row).map_err(|e| e.to_string())?;
     let mut result = Vec::new();
     for row in rows { result.push(row.map_err(|e| e.to_string())?); }
     Ok(result)
@@ -1835,6 +1902,202 @@ mod tests {
         ] {
             assert!(!valid_status_transition(from, to), "{from} -> {to} must be refused");
         }
+    }
+
+    /// Line items must report the values the receiving form relies on. A `poi.*`
+    /// expansion plus the product join shifted every field, which failed outright
+    /// whenever `supplier_sku` was NULL - i.e. on every order created in the UI.
+    #[test]
+    fn po_items_report_real_columns_not_shifted_ones() {
+        let conn = test_db();
+        let (user_id, product_id) = seed(&conn);
+        let po_id = conn
+            .query_row(
+                "INSERT INTO purchase_orders (po_number, user_id, status, subtotal, total, order_date) VALUES ('PO-ITEMS',?1,'sent',25,25,'2026-01-01') returning id",
+                params![user_id],
+                |row| row.get(0),
+            )
+            .expect("insert order");
+        conn.execute(
+            "INSERT INTO purchase_order_items (purchase_order_id, product_id, quantity, unit_cost, total, received_quantity, damaged_quantity) VALUES (?1,?2,10,2.5,25,3,1)",
+            params![po_id, product_id],
+        )
+        .expect("insert item");
+
+        let items = get_po_items_inner(&conn, po_id).expect("items load");
+        assert_eq!(items.len(), 1, "the order has one line");
+        let item = &items[0];
+        assert_eq!(item.id, conn.last_insert_rowid(), "id");
+        assert_eq!(item.purchase_order_id, po_id, "purchase_order_id");
+        assert_eq!(item.product_id, product_id, "product_id");
+        assert_eq!(item.product_name.as_deref(), Some("Widget"), "product_name comes from the join");
+        assert_eq!(item.product_sku.as_deref(), Some("PO-TEST-1"), "product_sku comes from the join");
+        assert_eq!(item.supplier_sku, None, "supplier_sku is NULL and must not break the query");
+        assert_eq!(item.quantity, 10, "quantity, not discount");
+        assert_eq!(item.unit_cost, 2.5, "unit_cost, not tax");
+        assert_eq!(item.discount, 0.0, "discount, not total");
+        assert_eq!(item.tax, 0.0, "tax, not received_quantity");
+        assert_eq!(item.total, 25.0, "total, not damaged_quantity");
+        assert_eq!(item.received_quantity, 3, "received_quantity, not created_at");
+        assert_eq!(item.damaged_quantity, 1, "damaged_quantity, not updated_at");
+        assert!(item.created_at.starts_with("20"), "created_at is a date, got {:?}", item.created_at);
+        assert!(item.updated_at.starts_with("20"), "updated_at is a date, got {:?}", item.updated_at);
+    }
+
+    /// The receipt page the receiving form navigates to must load its lines. Same
+    /// shifted-join hazard: `pri.*` has 9 columns, so the joined product values sit
+    /// at 9 and 10, not at 4 and 5.
+    #[test]
+    fn receipt_items_report_real_columns_and_the_receipt_reads_back() {
+        let conn = test_db();
+        let (user_id, product_id) = seed(&conn);
+        let warehouse_id = seed_warehouse(&conn);
+        let po_id = conn
+            .query_row(
+                "INSERT INTO purchase_orders (po_number, user_id, warehouse_id, status, subtotal, total, order_date) VALUES ('PO-RCV',?1,?2,'sent',50,50,'2026-01-01') returning id",
+                params![user_id, warehouse_id],
+                |row| row.get(0),
+            )
+            .expect("insert order");
+        let item_id = conn
+            .query_row(
+                "INSERT INTO purchase_order_items (purchase_order_id, product_id, quantity, unit_cost, total) VALUES (?1,?2,10,5,50) returning id",
+                params![po_id, product_id],
+                |row| row.get(0),
+            )
+            .expect("insert order item");
+        let receipt = receive_purchase_order_inner(
+            &conn,
+            po_id,
+            user_id,
+            warehouse_id,
+            None,
+            vec![ReceiveItemInput { po_item_id: item_id, product_id, received_quantity: 10, damaged_quantity: 0 }],
+        )
+        .expect("receive");
+
+        let items = get_receipt_items_inner(&conn, receipt.id).expect("receipt lines load");
+        assert_eq!(items.len(), 1, "the receipt has one line");
+        let line = &items[0];
+        assert_eq!(line.receipt_id, receipt.id, "receipt_id");
+        assert_eq!(line.po_item_id, item_id, "po_item_id");
+        assert_eq!(line.product_name.as_deref(), Some("Widget"), "product_name comes from the join");
+        assert_eq!(line.product_sku.as_deref(), Some("PO-TEST-1"), "product_sku comes from the join");
+        assert_eq!(line.expected_quantity, 10, "expected_quantity, not damaged_quantity");
+        assert_eq!(line.received_quantity, 10, "received_quantity, not accepted_quantity");
+        assert_eq!(line.damaged_quantity, 0, "damaged_quantity, not created_at");
+        assert_eq!(line.accepted_quantity, 10, "accepted_quantity, not product_name");
+        assert!(line.created_at.starts_with("20"), "created_at is a date, got {:?}", line.created_at);
+
+        let header = get_receipt_by_id_inner(&conn, receipt.id).expect("receipt header loads");
+        assert_eq!(header.receipt_number, receipt.receipt_number, "receipt number round-trips");
+        assert_eq!(header.item_count, Some(1), "item_count counts the lines");
+        assert_eq!(header.warehouse_id, Some(warehouse_id), "warehouse_id");
+    }
+
+    /// The other four `alias.*` + join queries in this module had the same shifted
+    /// mapper. Together with the two above they covered purchase requests, returns,
+    /// supplier products and cost history — all user-visible pages. `supplier_products`
+    /// was the dangerous one: its types happened to line up, so it returned wrong data
+    /// (a timestamp as the product name, a SKU as `created_at`) instead of failing.
+    #[test]
+    fn every_shifted_join_query_in_purchases_is_aligned() {
+        let conn = test_db();
+        let (user_id, product_id) = seed(&conn);
+        let supplier_id: i64 = conn
+            .query_row(
+                "INSERT INTO suppliers (company_name) VALUES ('Acme') returning id",
+                [],
+                |row| row.get(0),
+            )
+            .expect("insert supplier");
+        let brand_id: i64 = conn
+            .query_row("INSERT INTO brands (name) VALUES ('AcmeBrand') returning id", [], |row| row.get(0))
+            .expect("insert brand");
+        conn.execute("UPDATE products SET brand_id=?1 WHERE id=?2", params![brand_id, product_id])
+            .expect("brand the product");
+
+        // purchase requests
+        let request_id: i64 = conn
+            .query_row(
+                "INSERT INTO purchase_requests (request_number, requested_by, priority, status) VALUES ('PR-1',?1,'normal','pending') returning id",
+                params![user_id],
+                |row| row.get(0),
+            )
+            .expect("insert request");
+        conn.execute(
+            "INSERT INTO purchase_request_items (request_id, product_id, requested_quantity, current_stock, min_stock_level) VALUES (?1,?2,7,2,3)",
+            params![request_id, product_id],
+        )
+        .expect("insert request item");
+        let req_items = get_request_items_inner(&conn, request_id).expect("request lines load");
+        assert_eq!(req_items.len(), 1);
+        assert_eq!(req_items[0].product_name.as_deref(), Some("Widget"), "request product_name");
+        assert_eq!(req_items[0].product_sku.as_deref(), Some("PO-TEST-1"), "request product_sku");
+        assert_eq!(req_items[0].requested_quantity, 7, "request requested_quantity, not supplier_suggestion");
+        assert_eq!(req_items[0].current_stock, 2, "request current_stock, not created_at");
+        assert!(req_items[0].created_at.starts_with("20"), "request created_at, got {:?}", req_items[0].created_at);
+
+        // purchase returns
+        let return_id: i64 = conn
+            .query_row(
+                "INSERT INTO purchase_returns (return_number, supplier_id, status, created_by) VALUES ('PRT-1',?1,'draft',?2) returning id",
+                params![supplier_id, user_id],
+                |row| row.get(0),
+            )
+            .expect("insert return");
+        conn.execute(
+            "INSERT INTO purchase_return_items (return_id, product_id, quantity, unit_cost, reason) VALUES (?1,?2,4,1.5,'damaged')",
+            params![return_id, product_id],
+        )
+        .expect("insert return item");
+        let ret_items = get_return_items_inner(&conn, return_id).expect("return lines load");
+        assert_eq!(ret_items.len(), 1);
+        assert_eq!(ret_items[0].product_name.as_deref(), Some("Widget"), "return product_name");
+        assert_eq!(ret_items[0].product_sku.as_deref(), Some("PO-TEST-1"), "return product_sku");
+        assert_eq!(ret_items[0].quantity, 4, "return quantity, not unit_cost");
+        assert_eq!(ret_items[0].unit_cost, 1.5, "return unit_cost, not reason");
+        assert_eq!(ret_items[0].reason.as_deref(), Some("damaged"), "return reason, not created_at");
+        assert!(ret_items[0].created_at.starts_with("20"), "return created_at, got {:?}", ret_items[0].created_at);
+
+        // supplier products
+        conn.execute(
+            "INSERT INTO supplier_products (supplier_id, product_id, supplier_sku, is_preferred, minimum_order_quantity, lead_time_days, default_cost, currency, status) VALUES (?1,?2,'SUP-SKU',1,12,7,9.5,'BOB','active')",
+            params![supplier_id, product_id],
+        )
+        .expect("insert supplier product");
+        let sp_id = conn.last_insert_rowid();
+        let listed = get_supplier_products_inner(&conn, Some(supplier_id), None).expect("supplier products load");
+        assert_eq!(listed.len(), 1);
+        let sp = &listed[0];
+        assert_eq!(sp.id, sp_id);
+        assert_eq!(sp.product_name.as_deref(), Some("Widget"), "supplier product name is not a timestamp");
+        assert_eq!(sp.product_sku.as_deref(), Some("PO-TEST-1"), "supplier product sku");
+        assert_eq!(sp.brand_name.as_deref(), Some("AcmeBrand"), "supplier product brand, not created_at");
+        assert_eq!(sp.supplier_sku.as_deref(), Some("SUP-SKU"), "supplier_sku");
+        assert_eq!(sp.default_cost, 9.5, "default_cost, not currency");
+        assert!(sp.created_at.starts_with("20"), "supplier product created_at is not a SKU: {:?}", sp.created_at);
+        assert!(sp.updated_at.starts_with("20"), "supplier product updated_at is not a brand: {:?}", sp.updated_at);
+        let by_id = get_sp_by_id(&conn, sp_id).expect("supplier product by id");
+        assert_eq!(by_id.product_name.as_deref(), Some("Widget"), "by id product_name");
+        assert!(by_id.created_at.starts_with("20"), "by id created_at is not a SKU: {:?}", by_id.created_at);
+
+        // cost history
+        conn.execute(
+            "INSERT INTO product_cost_history (product_id, supplier_id, old_cost, new_cost, quantity, created_by) VALUES (?1,?2,2.5,9.5,12,?3)",
+            params![product_id, supplier_id, user_id],
+        )
+        .expect("insert cost history");
+        let history = get_cost_history_inner(&conn, Some(product_id), None).expect("cost history loads");
+        assert_eq!(history.len(), 1);
+        assert_eq!(history[0].product_name.as_deref(), Some("Widget"), "cost history product_name, not supplier_id");
+        assert_eq!(history[0].product_sku.as_deref(), Some("PO-TEST-1"), "cost history product_sku");
+        assert_eq!(history[0].supplier_name.as_deref(), Some("Acme"), "cost history supplier_name");
+        assert_eq!(history[0].old_cost, 2.5, "old_cost, not new_cost");
+        assert_eq!(history[0].new_cost, 9.5, "new_cost, not quantity");
+        assert_eq!(history[0].quantity, 12, "quantity, not created_by");
+        assert_eq!(history[0].created_by_name.as_deref(), Some("Buyer"), "created_by_name");
+        assert!(history[0].created_at.starts_with("20"), "cost history created_at, got {:?}", history[0].created_at);
     }
 
     /// Receiving everything closes the order, and only then. A partial receipt
