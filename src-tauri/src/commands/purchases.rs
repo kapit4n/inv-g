@@ -596,26 +596,52 @@ fn update_purchase_order_inner(conn: &rusqlite::Connection, id: i64, input: Purc
     get_po_by_id_inner(conn, id)
 }
 
+/// The purchase order lifecycle, and the only transitions the app may perform.
+///
+/// ```text
+/// draft ──submit──▶ pending_approval ──approve──▶ approved ──send──▶ sent
+///   │                     │  │                        │                │
+///   │                     │  └──reject──▶ draft        │                ├─receive all──▶ completed
+///   │                     └──cancel──▶ cancelled      └──cancel──▶ cancelled   └─receive some──▶ partially_received
+///   └──cancel──▶ cancelled                                                              │              │
+///                                                                              receive all ──┘
+/// ```
+///
+/// `pending_approval -> sent` is a deliberate fast track for an order that needs
+/// no sign-off; the detail page does not expose it.
+///
+/// `completed` and `cancelled` are terminal. `receive_purchase_order` sets
+/// `partially_received` or `completed` itself, having first checked that the
+/// order is `sent` or `partially_received`, so that step never goes through here.
+fn valid_status_transition(from: &str, to: &str) -> bool {
+    matches!(
+        (from, to),
+        ("draft", "pending_approval")
+            | ("draft", "cancelled")
+            | ("pending_approval", "approved")
+            | ("pending_approval", "draft")
+            | ("pending_approval", "sent")
+            | ("pending_approval", "cancelled")
+            | ("approved", "sent")
+            | ("approved", "cancelled")
+            | ("sent", "partially_received")
+            | ("sent", "completed")
+            | ("sent", "cancelled")
+            | ("partially_received", "completed")
+            | ("partially_received", "cancelled")
+    )
+}
+
 #[tauri::command]
 pub fn update_purchase_order_status(state: State<DbState>, id: i64, status: String, user_id: i64) -> Result<PurchaseOrderResponse, String> {
     let conn = get_conn(&state)?;
-    let current_status = get_po_status_inner(&conn, id)?;
+    update_purchase_order_status_inner(&conn, id, &status, user_id)
+}
 
-    let valid_transition = match (current_status.as_str(), status.as_str()) {
-        ("draft", "pending_approval") => true,
-        ("pending_approval", "approved") => true,
-        ("pending_approval", "sent") => true,
-        ("pending_approval", "cancelled") => true,
-        ("sent", "partially_received") => true,
-        ("sent", "completed") => true,
-        ("sent", "cancelled") => true,
-        ("partially_received", "completed") => true,
-        ("partially_received", "cancelled") => true,
-        ("draft", "cancelled") => true,
-        _ => false,
-    };
+fn update_purchase_order_status_inner(conn: &rusqlite::Connection, id: i64, status: &str, user_id: i64) -> Result<PurchaseOrderResponse, String> {
+    let current_status = get_po_status_inner(conn, id)?;
 
-    if !valid_transition {
+    if !valid_status_transition(&current_status, status) {
         return Err(format!("Invalid status transition from '{}' to '{}'", current_status, status));
     }
 
@@ -636,7 +662,7 @@ pub fn update_purchase_order_status(state: State<DbState>, id: i64, status: Stri
         ).map_err(|e| e.to_string())?;
     }
 
-    get_po_by_id_inner(&conn, id)
+    get_po_by_id_inner(conn, id)
 }
 
 #[tauri::command]
@@ -918,7 +944,17 @@ pub fn receive_purchase_order(
     items: Vec<ReceiveItemInput>,
 ) -> Result<PurchaseReceiptResponse, String> {
     let conn = get_conn(&state)?;
+    receive_purchase_order_inner(&conn, po_id, user_id, warehouse_id, notes, items)
+}
 
+fn receive_purchase_order_inner(
+    conn: &rusqlite::Connection,
+    po_id: i64,
+    user_id: i64,
+    warehouse_id: i64,
+    notes: Option<String>,
+    items: Vec<ReceiveItemInput>,
+) -> Result<PurchaseReceiptResponse, String> {
     let po_status: String = conn.query_row(
         "SELECT status FROM purchase_orders WHERE id = ?1",
         params![po_id],
@@ -945,7 +981,7 @@ pub fn receive_purchase_order(
         }
     }
 
-    let receipt_number = generate_number(&conn, "REC", "purchase_receipts", "receipt_number")?;
+    let receipt_number = generate_number(conn, "REC", "purchase_receipts", "receipt_number")?;
 
     conn.execute(
         "INSERT INTO purchase_receipts (receipt_number, purchase_order_id, received_by, warehouse_id, notes, status) VALUES (?1, ?2, ?3, ?4, ?5, 'completed')",
@@ -1552,6 +1588,16 @@ mod tests {
         (user_id, conn.last_insert_rowid())
     }
 
+    /// Receipts land stock in a warehouse, so the receive path needs one.
+    fn seed_warehouse(conn: &rusqlite::Connection) -> i64 {
+        conn.execute(
+            "INSERT INTO warehouses (name, code) VALUES ('Main', 'MAIN')",
+            [],
+        )
+        .expect("insert warehouse");
+        conn.last_insert_rowid()
+    }
+
     fn order_input(product_id: i64) -> PurchaseOrderInput {
         PurchaseOrderInput {
             supplier_id: None,
@@ -1675,5 +1721,174 @@ mod tests {
         let err = update_purchase_order_inner(&db, created.id, order_input(product_id))
             .expect_err("an approved order must not be editable");
         assert!(err.contains("draft"), "unexpected error: {err}");
+    }
+
+    /// Drives an order from creation to "sent" the way the detail page does.
+    fn advance_to(db: &rusqlite::Connection, id: i64, user_id: i64, steps: &[&str]) -> PurchaseOrderResponse {
+        let mut order = get_po_by_id_inner(db, id).expect("read order");
+        for step in steps {
+            order = update_purchase_order_status_inner(db, id, step, user_id)
+                .unwrap_or_else(|e| panic!("{} -> {step} must be allowed: {e}", order.status));
+        }
+        order
+    }
+
+    /// BUG-011: "Enviar a Proveedor" did nothing on an approved order.
+    ///
+    /// The button on the order detail page sets the status to `sent` once the
+    /// order is `approved`, but the transition table had no `approved` arm, so
+    /// the command answered "Invalid status transition from 'approved' to
+    /// 'sent'" and the order never left the approved state. The whole workflow
+    /// stalled there: `receive_purchase_order` only accepts `sent` or
+    /// `partially_received`, so an approved order could not be received either.
+    #[test]
+    fn an_approved_order_can_be_sent_to_the_supplier() {
+        let db = test_db();
+        let (user_id, product_id) = seed(&db);
+        let created = create_purchase_order_inner(&db, user_id, order_input(product_id)).unwrap();
+
+        advance_to(&db, created.id, user_id, &["pending_approval", "approved", "sent"]);
+
+        let sent = get_po_by_id_inner(&db, created.id).unwrap();
+        assert_eq!(sent.status, "sent", "the order must reach the supplier");
+        assert!(
+            sent.sent_at.is_some(),
+            "sending must stamp sent_at, the timeline and the supplier KPIs read it"
+        );
+    }
+
+    /// The whole point of `approved` is to gate sending, so the receive command
+    /// must still refuse an order that has not been sent.
+    #[test]
+    fn an_approved_order_cannot_be_received_before_it_is_sent() {
+        let db = test_db();
+        let (user_id, product_id) = seed(&db);
+        let created = create_purchase_order_inner(&db, user_id, order_input(product_id)).unwrap();
+        advance_to(&db, created.id, user_id, &["pending_approval", "approved"]);
+
+        let warehouse_id = seed_warehouse(&db);
+        let err = receive_purchase_order_inner(
+            &db,
+            created.id,
+            user_id,
+            warehouse_id,
+            None,
+            vec![ReceiveItemInput {
+                po_item_id: 0,
+                product_id,
+                received_quantity: 1,
+                damaged_quantity: 0,
+            }],
+        )
+        .expect_err("an approved order must not be receivable");
+        assert!(err.contains("approved"), "unexpected error: {err}");
+    }
+
+    /// Approving records who approved and when, which the detail timeline shows.
+    #[test]
+    fn approving_records_the_approver_and_the_moment() {
+        let db = test_db();
+        let (user_id, product_id) = seed(&db);
+        let created = create_purchase_order_inner(&db, user_id, order_input(product_id)).unwrap();
+
+        advance_to(&db, created.id, user_id, &["pending_approval", "approved"]);
+
+        let approved = get_po_by_id_inner(&db, created.id).unwrap();
+        assert_eq!(approved.status, "approved");
+        assert_eq!(approved.approved_by, Some(user_id));
+        assert!(approved.approved_at.is_some());
+        assert!(approved.sent_at.is_none(), "sending is a later step");
+    }
+
+    /// The transition table is the guard on the workflow, so it is asserted
+    /// directly: every step the UI offers, and the ones it must not.
+    #[test]
+    fn the_status_transition_table_matches_the_documented_lifecycle() {
+        for (from, to) in [
+            ("draft", "pending_approval"),
+            ("draft", "cancelled"),
+            ("pending_approval", "approved"),
+            ("pending_approval", "draft"),
+            ("pending_approval", "cancelled"),
+            ("approved", "sent"),
+            ("approved", "cancelled"),
+            ("sent", "partially_received"),
+            ("sent", "completed"),
+            ("sent", "cancelled"),
+            ("partially_received", "completed"),
+            ("partially_received", "cancelled"),
+        ] {
+            assert!(valid_status_transition(from, to), "{from} -> {to} must be allowed");
+        }
+
+        for (from, to) in [
+            ("draft", "sent"),
+            ("draft", "approved"),
+            ("approved", "completed"),
+            ("approved", "partially_received"),
+            ("completed", "sent"),
+            ("completed", "cancelled"),
+            ("cancelled", "draft"),
+            ("cancelled", "sent"),
+            ("sent", "approved"),
+            ("partially_received", "sent"),
+        ] {
+            assert!(!valid_status_transition(from, to), "{from} -> {to} must be refused");
+        }
+    }
+
+    /// Receiving everything closes the order, and only then. A partial receipt
+    /// leaves it open for the rest.
+    #[test]
+    fn receiving_everything_closes_the_order() {
+        let db = test_db();
+        let (user_id, product_id) = seed(&db);
+        let created = create_purchase_order_inner(&db, user_id, order_input(product_id)).unwrap();
+        let order = advance_to(&db, created.id, user_id, &["pending_approval", "approved", "sent"]);
+
+        let warehouse_id = seed_warehouse(&db);
+        let items: Vec<(i64, i64)> = {
+            let mut stmt = db
+                .prepare("SELECT id, quantity FROM purchase_order_items WHERE purchase_order_id = ?1")
+                .unwrap();
+            let rows = stmt
+                .query_map(params![order.id], |row| Ok((row.get(0)?, row.get(1)?)))
+                .unwrap();
+            rows.map(|r| r.unwrap()).collect()
+        };
+        assert_eq!(items.len(), 2, "the fixture order has two lines");
+
+        let full: Vec<ReceiveItemInput> = items
+            .iter()
+            .map(|(item_id, qty)| ReceiveItemInput {
+                po_item_id: *item_id,
+                product_id,
+                received_quantity: *qty,
+                damaged_quantity: 0,
+            })
+            .collect();
+        receive_purchase_order_inner(&db, order.id, user_id, warehouse_id, Some("first delivery".to_string()), full).unwrap();
+        assert_eq!(
+            get_po_by_id_inner(&db, order.id).unwrap().status,
+            "completed",
+            "a fully received order is completed"
+        );
+
+        // And the same order cannot be received twice.
+        let again = receive_purchase_order_inner(
+            &db,
+            order.id,
+            user_id,
+            warehouse_id,
+            Some("second delivery".to_string()),
+            vec![ReceiveItemInput {
+                po_item_id: items[0].0,
+                product_id,
+                received_quantity: 1,
+                damaged_quantity: 0,
+            }],
+        )
+        .expect_err("a completed order must not be received again");
+        assert!(again.contains("completed"), "unexpected error: {again}");
     }
 }

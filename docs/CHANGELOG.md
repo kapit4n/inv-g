@@ -8,8 +8,26 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+
+- **Purchase receipts can now be recorded.** A purchase order that is *Sent* or
+  *Partially Received* gets a **Receive Order** page: it shows what is still
+  outstanding on every line, pre-fills it, keeps *Received* and *Damaged* apart
+  so only accepted units reach stock, and closes the order when the last unit
+  arrives. Previously the button navigated to a URL that was not a route and the
+  app silently redirected to the dashboard, so an order could never be finished.
+
 ### Fixed
 
+- **An approved purchase order can be sent to the supplier.** *Enviar a Proveedor*
+  did nothing: the backend's status transition table had no `approved` arm, so the
+  command refused the step and the order stayed *Aprobado* forever. The full
+  lifecycle is now enforced in one place and drawn on the status map.
+- **Purchase order statuses are named consistently.** The pages labelled the
+  final status `received` while the backend writes `completed`, so a finished
+  order showed a raw English word in a translated interface and the status filter
+  offered a value that never occurred. Statuses, their translations and their
+  badge colours now come from one shared list.
 - **Page headers are no longer hidden under the top bar.** On *Inventario →
   Fabricantes* the title was sliced by the bottom edge of the top bar while the
   rest of the page rendered normally. The scroll container's only child used

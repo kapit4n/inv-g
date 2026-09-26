@@ -6,6 +6,114 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-25 — "Enviar a Proveedor" did nothing, and a sent order could never be received
+
+**Symptom:** approve a purchase order, press **Enviar a Proveedor**, and nothing
+happens. The order stays *Aprobado* forever. Following the order from there was
+impossible: there was nowhere to record the delivery, so an order could never
+leave *Enviado*.
+
+**Root cause: three defects in a row, on one path.**
+
+**1. The transition the button performs was not allowed.** The order detail page
+offers *Enviar a Proveedor* exactly when the order is `approved`, and sends
+`update_purchase_order_status(id, "sent")`. The backend's transition table had no
+`approved` arm at all, so the command answered `Invalid status transition from
+'approved' to 'sent'`. The failure surfaced only as a toast, so from the user's
+side the button did nothing.
+
+The table had drifted from the interface: the page had grown an approval step
+(*Borrador → Pendiente de Aprobación → Aprobado → Enviado*) and the table was
+never extended to match. `approved` could also not be cancelled, and the only way
+out of `approved` was nothing.
+
+**2. The receive page did not exist.** *Recibir Orden* navigated to
+`/purchases/receipts/new?poId=`, which was not a route, so the catch-all
+redirected to `/dashboard`. The click looked like it did something — the app
+simply changed page. `receive_purchase_order` only accepts an order that is
+`sent` or `partially_received`, so with the order stuck in `approved` and no
+receipt page, the workflow had no exit at either end.
+
+**3. The pages and the backend disagreed on the name of the final status.** The
+backend writes `completed` when every ordered unit is accounted for
+(`receive_purchase_order` picks `completed` or `partially_received` itself), but
+both the detail page and the orders list carried hand-written English maps with
+`received` in that slot. So a finished order showed the raw string `completed` in
+an otherwise translated interface, and the status filter offered a value that no
+query ever returns instead of the one that does.
+
+**Investigation.** The reported button maps to exactly one call,
+`purchase-order-detail-page.tsx` → `update_purchase_order_status(..., "sent")`,
+so the first thing checked was the transition table, which is where the arm was
+missing. From there: the reachable routes were listed to find the second dead
+end, and the statuses written by every query compared against the ones the pages
+named. The documentation was checked too, and had drifted as well — it described
+a `Draft → Sent → Confirmed → Received → Closed` flow with no approval step and
+a `+ New Receipt` button on the receipts list that has never existed.
+
+**How the workflow is meant to run.** `approved` is the gate: an order is signed
+off, then sent, then received, and receiving is the only way to finish. The
+transition table now covers every step the interface offers, and the two terminal
+states — `completed`, `cancelled` — accept nothing further. `completed` and
+`partially_received` are chosen by the backend from the lines actually received,
+so they are not statuses a user picks.
+
+**Fix.**
+
+- `valid_status_transition` is now a named function with the lifecycle drawn
+  above it, and gains the two missing `approved` arms: `→ sent` and
+  `→ cancelled`. `update_purchase_order_status` is split into a thin command and
+  an `_inner` that takes a connection, matching the pattern the two earlier
+  purchase-order fixes in this file established.
+- New `src/features/purchases/pages/purchase-receipt-form-page.tsx`, routed at
+  `/purchases/receipts/new`. It loads the order and its lines, shows what is
+  still **outstanding** — ordered minus already received minus already damaged,
+  so a second delivery is counted against what is left and not against the
+  original quantity — and pre-fills each line with it, making a complete
+  delivery one click. Received and damaged are separate columns, and only
+  `received − damaged` reaches stock. It refuses a line that claims more than is
+  outstanding, refuses an empty receipt, requires a warehouse, and lands on the
+  receipt it created.
+- `src/features/purchases/purchase-order-status.ts` holds the canonical status
+  list, its translation keys and its badge variants. Both pages read from it, so
+  a status cannot be named one thing in a badge and another in a filter. The
+  hardcoded English maps are gone, which also means the status column follows the
+  interface language like the rest of the page.
+- Seven new keys per locale for the receive page, inserted next to their
+  neighbours rather than re-sorting the file.
+
+**Tests.** 5 Rust tests, 15 frontend.
+
+Rust, on a real database: an approved order reaches the supplier and stamps
+`sent_at` (the timeline and the supplier KPIs read that column); approving records
+the approver and the moment; an approved order cannot be received before it is
+sent; receiving everything closes the order and the same order cannot be received
+twice; and the transition table itself is asserted, every allowed step and ten
+refused ones. Dropping the `approved → sent` arm fails 3 of the 5.
+
+Frontend, in `tests/regression/bug-011-purchase-order-workflow.test.tsx`: the
+route the button links to exists; lines are pre-filled with what is outstanding
+and a partially received order is counted against the remainder; the submitted
+payload carries the order, the signed-in user, the warehouse and every line, with
+damaged units kept separate; over-receipt and empty receipts are refused; the
+approved order's *Send to Supplier* calls the status command with `sent`; and
+the status vocabulary is the one the backend writes, with every status translated.
+Removing the route fails 1, restoring `received` in place of `completed` fails 2.
+
+**Files.** `src-tauri/src/commands/purchases.rs`,
+`src/features/purchases/purchase-order-status.ts` (new),
+`src/features/purchases/pages/purchase-receipt-form-page.tsx` (new),
+`src/features/purchases/pages/purchase-orders-page.tsx`,
+`src/features/purchases/pages/purchase-order-detail-page.tsx`,
+`src/features/purchases/index.ts`, `src/routes/index.tsx`,
+`src/i18n/locales/{es,en}/purchases.json`,
+`tests/regression/bug-011-purchase-order-workflow.test.tsx` (new),
+`docs-site/purchases/receiving.md`, `docs-site/purchases/orders.md`.
+
+Frontend 488 → **503**, Rust 156 → **161**.
+
+---
+
 ### 2026-09-25 — A page header was hidden under the top bar, and the page called itself "Panel de Control"
 
 **Symptom:** on *Inventario → Fabricantes* the page title was cut in half by the

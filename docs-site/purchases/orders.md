@@ -37,29 +37,38 @@ its own as soon as you pick one, and you can also dismiss it with **Enter**,
 **Escape**, or a click outside. To unset a date, reopen it and choose **Clear
 date**.
 
-### Step 5: Save & Send
+### Step 5: Save
 
 Click **Save** to create the PO. Status: **Draft**.
 
-Change status to **Sent** when sent to the supplier.
+The order is not sent to the supplier by saving. Walk it through the statuses
+below to send it.
 
 ## PO Status Flow
 
 ```
-Draft → Sent → Confirmed → Partially Received → Received → Closed
-                    ↓
-                Cancelled
+Draft ──Submit for approval──▶ Pending Approval ──Approve──▶ Approved ──Send to supplier──▶ Sent
+  │                                 │  │                        │                            │
+  │                                 │  └──Reject──▶ Draft       │                            ├─Receive all──▶ Completed
+  │                                 └──Cancel──▶ Cancelled     └──Cancel──▶ Cancelled       │
+  └──Cancel──▶ Cancelled                                                                  └─Receive some──▶ Partially Received
+                                                                                                  │                      │
+                                                                                        Receive all ─┘──────────────────────┘
 ```
 
-| Status | Meaning |
-|--------|---------|
-| Draft | Being prepared |
-| Sent | Sent to supplier |
-| Confirmed | Supplier confirmed |
-| Partially Received | Some items received |
-| Fully Received | All items received |
-| Closed | PO completed |
-| Cancelled | PO cancelled |
+| Status | Meaning | Available actions |
+|--------|---------|-------------------|
+| Draft | Being prepared | Edit, Submit for approval, Delete |
+| Pending Approval | Waiting for sign-off | Approve, Reject (back to Draft), Cancel |
+| Approved | Signed off, not yet with the supplier | Send to supplier, Cancel |
+| Sent | With the supplier | Receive order, Cancel |
+| Partially Received | Some units still outstanding | Receive the rest |
+| Completed | Every ordered unit accounted for | — |
+| Cancelled | The order will not go ahead | — |
+
+**Completed** and **Cancelled** are final. Steps that are not allowed are refused
+by the backend, not just hidden in the interface, so the order's history stays
+consistent no matter how it is reached.
 
 ## Receiving a PO
 
