@@ -1,4 +1,4 @@
-import { forwardRef } from "react"
+import { forwardRef, useId } from "react"
 import { FormFieldWrapper } from "./form-field"
 import { cn } from "@/lib/utils"
 import * as SelectPrimitive from "@radix-ui/react-select"
@@ -19,17 +19,24 @@ interface SelectFieldProps {
   value?: string | number
   onChange?: (value: string) => void
   name?: string
+  id?: string
   disabled?: boolean
   className?: string
 }
 
 export const SelectField = forwardRef<HTMLButtonElement, SelectFieldProps>(
-  ({ label, error, description, required, placeholder, options, value, onChange, name, disabled, className }, ref) => {
+  ({ label, error, description, required, placeholder, options, value, onChange, name, id, disabled, className }, ref) => {
+    // A stable id is required for the label to be associated with the
+    // control; most call sites pass neither `id` nor `name`.
+    const generatedId = useId()
+    const fieldId = id || name || generatedId
     return (
-      <FormFieldWrapper label={label} error={error} description={description} required={required}>
+      <FormFieldWrapper label={label} error={error} description={description} required={required} htmlFor={fieldId}>
         <SelectPrimitive.Root value={String(value)} onValueChange={onChange} name={name} disabled={disabled}>
           <SelectPrimitive.Trigger
             ref={ref}
+            id={fieldId}
+            aria-describedby={error ? `${fieldId}-error` : undefined}
             className={cn(
               "flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors",
               "placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring",

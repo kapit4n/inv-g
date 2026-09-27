@@ -6,6 +6,213 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-27 — Every customer list issued two identical queries on open
+
+**Symptom:** opening Customers (or CRM → Customers) fetched the list twice. The
+screen looked normal, so this only surfaced as doubled database load on the
+busiest screen in the shop. Caught by a new test asserting exactly one read.
+
+**Root cause:** both pages ran two independent effects that both called
+`fetchCustomers` on mount:
+
+```tsx
+useEffect(() => { fetchCustomers() }, [])          // initial paint
+useEffect(() => {                                    // debounced search
+  const timer = setTimeout(() => fetchCustomers(search), 300)
+  return () => clearTimeout(timer)
+}, [search])
+```
+
+The second effect also runs on mount, so the query fired immediately and again
+300 ms later. Removing the mount effect would have delayed the first paint by the
+full debounce.
+
+**Fix:** keep the mount fetch and skip only the debounced effect's *initial* run
+via a `useRef` guard, so the list still appears immediately:
+
+```tsx
+const skipFirstSearch = useRef(true)
+useEffect(() => {
+  if (skipFirstSearch.current) { skipFirstSearch.current = false; return }
+  const timer = setTimeout(() => fetchCustomers(search), 300)
+  return () => clearTimeout(timer)
+}, [search])
+```
+
+**Affected files:** `src/features/customers/pages/customers-page.tsx`,
+`src/features/crm/pages/crm-customers-page.tsx`,
+`tests/unit/components/customers-pages.test.tsx`
+
+**Investigation:** the assertion "called once" failed with "expected 1 times, but
+got 2 times" on both screens. Because the two are near-copies the guard had to be
+applied to both; a shared test asserts the same behaviour for each.
+
+---
+
+### 2026-09-27 — No form label in the app was associated with its input
+
+**Symptom:** assistive technology announced every text field, select, and price
+field in the product form (and every other form) as an unlabelled edit, and
+clicking a label did not move focus to its field.
+
+**Root cause:** two separate gaps. `FormFieldWrapper` rendered a bare `<Label>`
+with no `htmlFor`, and the field components derived `const fieldId = id ||
+props.name` — but almost no call site passes `id` or `name`, so `fieldId` was
+`undefined` and the label had nothing to point at. `checkbox-field` was the only
+component that got this right.
+
+**Fix:** `FormFieldWrapper` now takes `htmlFor`, the eight wrapper-based fields
+pass `fieldId`, `SelectField` gained the missing `id`/`fieldId` plumbing its
+trigger never had, and each field falls back to `useId()` so the association
+holds even when the caller supplies nothing. The error paragraph now carries
+`${fieldId}-error` and the controls reference it via `aria-describedby`, so
+validation messages are announced too.
+
+**Affected files:** `src/components/forms/form-field.tsx`, `text-field`,
+`textarea-field`, `number-field`, `currency-field`, `email-field`, `phone-field`,
+`date-field`, `select-field`,
+`tests/unit/inventory/product-form-page.test.tsx`
+
+**Investigation:** a test using `getByLabelText("Cost Price")` failed with
+"Found a label with the text of: Cost Price, however no form control was found
+associated to that label". The raw `fieldId` definitions showed the two gaps.
+
+---
+
+### 2026-09-27 — Shared action bar showed Spanish buttons to English users
+
+**Symptom:** the Save / Duplicate / Archive / Restore / Delete row at the bottom
+of every entity form read *"Guardar"*, *"Duplicar"*, *"Archivar"*, even with the
+interface language set to English.
+
+**Root cause:** `EntityActionBar` is a shared component but hardcoded six Spanish
+strings instead of calling `t()`, so the strings appeared on every form page in
+the app. It had no `useTranslation` import at all.
+
+**Fix:** translated all six and added the five verbs that had no key
+(`common.deleting`, `common.duplicate`, `common.archive`, `common.unarchive`,
+`common.restore`) to both `en` and `es`. `common.save`, `common.saving` and
+`common.delete` already existed and are now used.
+
+**Affected files:** `src/components/entity/entity-action-bar.tsx`,
+`src/i18n/locales/en/common.json`, `src/i18n/locales/es/common.json`
+
+**Investigation:** surfaced when a test looked for a button named "Save" and
+found none, while the DOM contained "Guardar".
+
+---
+
+### 2026-09-27 — Six validation messages showed literal `{min}` / `{max}` placeholders
+
+**Symptom:** typing an out-of-range margin on the product form showed the user
+`Must be between {min}% and {max}%` instead of *"Must be between 0% and 90%."*
+The same raw template appeared for min/max length and min/max value messages and
+for the inventory category count.
+
+**Root cause:** the six affected strings used **single** braces, but i18next
+only interpolates `{{double braces}}` (the rest of the locale files use
+`{{value}}` correctly). `i18n.t("validation.marginRange", { min: 0, max: 90 })`
+therefore returned the template verbatim. This was a formatting inconsistency
+that no test covered.
+
+**Fix:** converted the six keys to `{{...}}` in both locales —
+`validation.minLength`, `validation.maxLength`, `validation.minValue`,
+`validation.maxValue`, `validation.marginRange`, `inventory.acrossCategories`.
+
+**Affected files:** `src/i18n/locales/en/validation.json`,
+`src/i18n/locales/es/validation.json`, `src/i18n/locales/en/inventory.json`,
+`src/i18n/locales/es/inventory.json`
+
+**Investigation:** a direct `i18n.t(...)` call in a scratch test returned the
+un-substituted template, which ruled out the component and pointed at the config
+and the locale files. A scan of every locale string for single-brace
+placeholders found exactly 12 (6 keys × 2 locales) and no others.
+
+---
+
+### 2026-09-27 — `npm run test:coverage` then `npm run lint` failed, and the report could be committed
+
+**Symptom:** running the coverage suite made the next `npm run lint` fail with 6
+errors (`Unused eslint-disable directive`) in
+`quality/coverage/*.js`. The generated report was also untracked and not ignored,
+so `git add .` would have committed it.
+
+**Root cause:** the coverage reporter writes an HTML report into `quality/`,
+which was absent from `.gitignore` and from the flat config's global `ignores`.
+The report's bundled JS carries `/* eslint-disable */` banners, and the lint
+script runs with `--report-unused-disable-directives`.
+
+**Fix:** added `quality/` to `.gitignore` (with a comment) and `"quality"` to the
+`ignores` array in `eslint.config.js`. CI happens to lint before coverage, which
+is why this never showed up there.
+
+**Affected files:** `.gitignore`, `eslint.config.js`
+
+---
+
+---
+
+### 2026-09-27 — Business error toasts showed the raw i18n key instead of a translated sentence
+
+**Symptom:** a shopkeeper who tried to transfer stock from a warehouse to
+itself was told, in the error toast on the transfers page:
+
+```
+business.errors.transferSameStore
+```
+
+instead of *"The source and destination stores must be different."* The same
+applied to all five codes `src/lib/business-errors.ts` maps.
+
+**Root cause:** `src/i18n/config.ts` built a `resources` object containing a
+`business` bundle for both `es` and `en`, but the `ns` array passed to
+`i18n.init()` never listed `"business"`:
+
+```ts
+resources = { es: { common: esCommon, business: esBusiness, /* ... */ }, /* ... */ }
+
+ns: [
+  "common", /* "business" was missing here */ "dashboard", "inventory", /* ... */
+],
+```
+
+i18next loads only the namespaces named in `ns`. With `nsSeparator: "."`, a call
+to `t("business.errors.transferSameStore")` asks for namespace `business` and
+key `errors.transferSameStore`; no store existed for that namespace, so i18next
+fell back to returning the key string. Nothing threw — a missing namespace
+fails *open*, which is why this went unnoticed.
+
+`business` was the only namespace in the codebase used with the `ns.`
+prefix style that was absent from the list; the other 19 were all registered.
+
+**Investigation:** the code path was intact end to end — the Rust constant
+`ERR_TRANSFER_SAME_STORE` (`src-tauri/src/commands/business.rs:11`) is returned
+verbatim, `businessErrorMessage` (`src/lib/business-errors.ts`) maps it to
+`business.errors.transferSameStore`, and both `es/business.json` and
+`en/business.json` carry the sentence. Only the namespace registration was
+missing, so the failure was invisible in code review and undetectable by any
+key-level test, since every existing test asserted on namespaces that happened
+to be registered.
+
+**Fix:** added `"business"` to the `ns` array in `src/i18n/config.ts`.
+
+**Tests:**
+- `tests/unit/i18n-namespaces.test.ts` (new) — asserts every namespace present
+  in a locale file is registered in `ns`, that no registered namespace lacks a
+  locale file, and that each namespace resolves through the real `t()` in both
+  shipped locales. Verified to fail with the fix reverted.
+- `tests/unit/lib/validation-business-errors.test.ts` (new) — asserts each of
+  the five mapped codes resolves to a real sentence in `es` and `en`, and never
+  to its own key.
+
+**Affected files:** `src/i18n/config.ts`,
+`tests/unit/i18n-namespaces.test.ts`,
+`tests/unit/lib/validation-business-errors.test.ts`.
+
+**Commit:** pending
+
+---
+
 ### 2026-09-27 — CI generated zero screenshots and then reported that it had generated 132
 
 **Symptom:** the `screenshots` job on a pull request printed, for both themes:

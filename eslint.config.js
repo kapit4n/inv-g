@@ -6,7 +6,10 @@ import reactRefreshPlugin from "eslint-plugin-react-refresh"
 
 export default [
   {
-    ignores: ["dist", "node_modules", "src-tauri", "database", "scripts", "docs-site", "*.js", "*.cjs", "*.mjs"],
+    // `quality/` holds the generated coverage report. Its bundled JS carries
+    // `/* eslint-disable */` banners, which `--report-unused-disable-directives`
+    // then reports as errors, so `test:coverage` followed by `lint` fails.
+    ignores: ["dist", "node_modules", "src-tauri", "database", "scripts", "docs-site", "quality", "*.js", "*.cjs", "*.mjs"],
   },
   {
     files: ["src/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}"],

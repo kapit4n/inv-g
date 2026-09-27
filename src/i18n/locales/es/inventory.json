@@ -140,7 +140,7 @@
   "totalProducts": "Total de Productos",
   "totalStockValue": "Valor Total del Inventario",
   "retailValue": "Valor de Venta",
-  "acrossCategories": "En {count} categorías",
+  "acrossCategories": "En {{count}} categorías",
   "atCostPrice": "A precio de costo",
   "atSellPrice": "A precio de venta",
   "import": "Importar",

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
 import { Plus, Search, Edit, Archive, Phone, Mail, MapPin } from "lucide-react"
@@ -56,7 +56,16 @@ export function CrmCustomersPage() {
     fetchCustomers()
   }, [])
 
+  // The mount effect above already loaded the list; without this guard the
+  // debounced effect fired as well and every page load issued two identical
+  // queries. Skipping only the initial run keeps the list on screen immediately
+  // instead of waiting out the debounce.
+  const skipFirstSearch = useRef(true)
   useEffect(() => {
+    if (skipFirstSearch.current) {
+      skipFirstSearch.current = false
+      return
+    }
     const timer = setTimeout(() => {
       fetchCustomers(search)
     }, 300)

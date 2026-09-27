@@ -99,7 +99,7 @@ export function setupI18n(language?: string) {
       fallbackLng: "es",
       defaultNS: "common",
       ns: [
-        "common", "dashboard", "inventory", "sales", "purchases",
+        "common", "business", "dashboard", "inventory", "sales", "purchases",
         "customers", "vehicles", "warehouse", "reports",
         "settings", "auth", "employees", "validation", "errors", "help", "crm", "admin", "print", "part-finder",
       ],

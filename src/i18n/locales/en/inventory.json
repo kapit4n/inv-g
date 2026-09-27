@@ -140,7 +140,7 @@
   "totalProducts": "Total Products",
   "totalStockValue": "Total Stock Value",
   "retailValue": "Retail Value",
-  "acrossCategories": "Across {count} categories",
+  "acrossCategories": "Across {{count}} categories",
   "atCostPrice": "At cost price",
   "atSellPrice": "At sell price",
   "import": "Import",

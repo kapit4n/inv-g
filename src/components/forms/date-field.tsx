@@ -1,4 +1,4 @@
-import { forwardRef, useState } from "react"
+import { forwardRef, useState, useId } from "react"
 import { format, parseISO } from "date-fns"
 import { es, enUS } from "date-fns/locale"
 import { CalendarIcon } from "lucide-react"
@@ -33,7 +33,10 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
   ({ label, error, description, placeholder, className, id, name, value, onChange, disabled, required, ...props }, ref) => {
     const { t, i18n } = useTranslation()
     const locale = (i18n.language || "es").slice(0, 2) === "en" ? enUS : es
-    const fieldId = id || name
+    // A stable id is required for the label to be associated with the
+    // control; most call sites pass neither `id` nor `name`.
+    const generatedId = useId()
+    const fieldId = id || name || generatedId
     const iso = typeof value === "string" ? value : ""
     const [open, setOpen] = useState(false)
 
@@ -42,7 +45,7 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
     }
 
     return (
-      <FormFieldWrapper label={label} error={error} description={description} required={required}>
+      <FormFieldWrapper label={label} error={error} description={description} required={required} htmlFor={fieldId}>
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild disabled={disabled}>
             <Button

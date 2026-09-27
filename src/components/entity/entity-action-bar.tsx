@@ -1,4 +1,5 @@
 import type { ReactNode } from "react"
+import { useTranslation } from "react-i18next"
 import { Save, Trash2, Archive, Copy, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -34,6 +35,8 @@ export function EntityActionBar({
   className,
   children,
 }: EntityActionBarProps) {
+  const { t } = useTranslation()
+
   return (
     <div
       className={cn(
@@ -45,7 +48,7 @@ export function EntityActionBar({
         {onSave && (
           <Button onClick={onSave} disabled={saving}>
             <Save className="h-4 w-4 mr-2" />
-            {saving ? "Guardando..." : "Guardar"}
+            {t(saving ? "common.saving" : "common.save")}
           </Button>
         )}
         {children}
@@ -54,25 +57,25 @@ export function EntityActionBar({
         {showDuplicate && onDuplicate && (
           <Button variant="outline" size="sm" onClick={onDuplicate}>
             <Copy className="h-4 w-4 mr-2" />
-            Duplicar
+            {t("common.duplicate")}
           </Button>
         )}
         {showArchive && onArchive && (
           <Button variant="outline" size="sm" onClick={onArchive}>
             <Archive className="h-4 w-4 mr-2" />
-            {isArchived ? "Desarchivar" : "Archivar"}
+            {t(isArchived ? "common.unarchive" : "common.archive")}
           </Button>
         )}
         {isArchived && onRestore && (
           <Button variant="outline" size="sm" onClick={onRestore}>
             <RotateCcw className="h-4 w-4 mr-2" />
-            Restaurar
+            {t("common.restore")}
           </Button>
         )}
         {showDelete && onDelete && (
           <Button variant="destructive" size="sm" onClick={onDelete} disabled={deleting}>
             <Trash2 className="h-4 w-4 mr-2" />
-            {deleting ? "Eliminando..." : "Eliminar"}
+            {t(deleting ? "common.deleting" : "common.delete")}
           </Button>
         )}
       </div>
