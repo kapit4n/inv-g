@@ -23,7 +23,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Section } from "@/components/section"
 import { getDashboardWidgets, getPurchaseDashboard, getCrmDashboard, getDashboardStats, getSales, getStoreSales, getStoreInventory } from "@/lib/tauri"
-import { useBusinessCapabilities } from "@/hooks"
+import { useBusinessCapabilities, useModules } from "@/hooks"
 
 interface AttentionItem {
   id: string
@@ -46,6 +46,10 @@ export function DashboardPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const capabilities = useBusinessCapabilities()
+  const { isEnabled } = useModules()
+  // A module switched off in Admin > Settings must not be advertised here, or
+  // the buttons below dead-end on the module guard.
+  const salesEnabled = isEnabled("sales")
 
   const { data: storeSales = [] } = useQuery({
     queryKey: ["store-sales"],
@@ -343,13 +347,19 @@ export function DashboardPage() {
           )}
         </Section>
 
+        {salesEnabled && (
         <Section title={t("dashboard.recentSales")} description={t("dashboard.recentSalesDesc")}>
           {salesForToday.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12 text-center">
                 <ShoppingCart className="h-8 w-8 text-muted-foreground mb-2" />
                 <p className="text-sm font-medium">{t("dashboard.noRecentSales")}</p>
-                <Button variant="outline" size="sm" className="mt-2" onClick={() => navigate("/sales/new")}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => navigate("/sales/new")}
+                >
                   {t("dashboard.actions.newSale")}
                 </Button>
               </CardContent>
@@ -384,12 +394,15 @@ export function DashboardPage() {
                   </CardContent>
                 </Card>
               ))}
-              <Button variant="ghost" size="sm" className="w-full" onClick={() => navigate("/sales")}>
-                {t("dashboard.viewAllSales")} <ArrowRight className="ml-1 h-3 w-3" />
-              </Button>
+              {salesEnabled && (
+                <Button variant="ghost" size="sm" className="w-full" onClick={() => navigate("/sales")}>
+                  {t("dashboard.viewAllSales")} <ArrowRight className="ml-1 h-3 w-3" />
+                </Button>
+              )}
             </div>
           )}
         </Section>
+        )}
       </div>
     </div>
   )

@@ -6,6 +6,874 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-27 — CI could not run the Rust tests: Tauri system libraries missing on the runner
+
+**Symptom:** the `quality` job failed in the "Rust Tests" step before running a
+single test, with `exit status: 101` and a cascade of build-script failures from
+`glib-sys`, `gobject-sys`, `gio-sys` and more:
+
+```
+The system library `glib-2.0` required by crate `glib-sys` was not found.
+The PKG_CONFIG_PATH environment variable is not set.
+```
+
+The same `cargo test` passes locally (168 tests), so this looked like a Cargo
+dependency problem rather than an environment one. It was the environment.
+
+**Root cause:** `tauri` v2 links against webkit2gtk, and the `-sys` crates in that
+chain have build scripts that shell out to `pkg-config` looking for `glib-2.0`,
+`gobject-2.0`, `gio-2.0` and `webkit2gtk-4.1`. Those are OS packages, not Rust
+crates, so nothing in `Cargo.toml` can pull them in. The workflow set up Node
+and Rust but never installed them, and `ubuntu-latest` does not ship them.
+
+The job had been red on this step for as long as the step existed; nothing
+previously reported it, because coverage and test output arrive earlier in the
+log than the failure and read like a healthy run.
+
+**Fix:** install Tauri v2's documented Debian/Ubuntu dependency set before the
+Rust toolchain step:
+
+```
+libwebkit2gtk-4.1-dev build-essential curl wget file
+libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+```
+
+`4.1` is deliberate: Tauri v2 dropped webkit2gtk 4.0, so 4.0 is not a valid
+substitute. `libayatana-appindicator3-dev` is deliberate for the same reason — the
+`tray-icon` feature enabled in `src-tauri/Cargo.toml` is what needs it, and the
+older `libappindicator3-dev` is a different package with a different ABI.
+
+The `quality` job timeout also went from 15 to 30 minutes. The step it fixes now
+installs a large set of packages and builds the tauri crate graph from cold,
+several minutes on a 2-core runner, on top of npm ci, two full vitest runs, the
+frontend build and the tests. The old 15 minutes was set while the Rust step
+failed instantly, so it was never a budget for a pipeline that actually builds.
+
+**Affected files:** `.github/workflows/ci.yml`
+
+**Investigation:** the giveaway was the split between local and CI. `cargo test`
+passing locally with the same lockfile rules out a missing or wrong crate and
+points at a native dependency the runner simply does not have; the
+`PKG_CONFIG_PATH environment variable is not set` line in the failure confirmed
+it was pkg-config looking for an OS package rather than a Cargo resolution
+problem. The `-sys` crate names in the error map one-to-one onto the Tauri v2
+prerequisites list.
+
+**Not verified here:** this needs a push or a PR to exercise, since the failure is
+specific to the GitHub-hosted runner. The package names were checked against the
+Ubuntu archive and the workflow parses as valid YAML, but a green Rust Tests step
+is only observable in Actions. `gh` is not installed in this environment.
+
+---
+
+---
+
+### 2026-09-27 — The Artículos table on a purchase order showed a count, never the products
+
+**Symptom:** opening an Orden de Compra showed an empty items table — at most a
+row reading "3 Items" — while the subtotal, tax and total underneath were all
+correct. The totals are stored on the order record itself, so the screen looked
+plausible; you simply could not see what was being ordered, and could not check
+the order against the products on it.
+
+**Root cause:** the line items are not part of the order row. They live behind
+their own endpoint, `get_purchase_order_items`, and the page never called it. The
+table body was a placeholder that rendered `order.itemCount`:
+
+```tsx
+{/* Items are not eagerly fetched here; they are part of a dedicated endpoint.
+    A real implementation would call getPurchaseOrderItems and render them. */}
+{order.itemCount && order.itemCount > 0 ? (
+  <tr><td colSpan={7}>{order.itemCount} {t("itemsCount")}</td></tr>
+) : ( ... )}
+```
+
+So the count came from the order and the rows would have come from the endpoint,
+and only the count was ever rendered. `getPurchaseOrderItems` was already
+declared in `src/lib/tauri.ts` and registered in `lib.rs`, and was already used
+by the receipt detail page — it was simply never wired into this one. The count
+also cannot stand in for the rows: an order can carry an `itemCount` and no
+lines, so the placeholder was wrong in both directions.
+
+**Fix:** fetch the items with `useQuery`, keyed on the order id, following the
+pattern the receipt detail page already uses for the same data, and render a row
+per line. Two details the backend forces:
+
+- `get_po_items_inner` LEFT JOINs `products`, so a product deleted after the
+  order was placed comes back with a null name and SKU. The row falls back to
+  `#<productId>` so the line is still identifiable.
+- A line's `total` is authoritative; it is not recomputed from quantity and unit
+  cost, so it is rendered as stored.
+
+The received column shows `receivedQuantity / quantity` rather than the received
+count alone, because a line received in full and a line not yet received look
+identical otherwise.
+
+**Affected files:** `src/features/purchases/pages/purchase-order-detail-page.tsx`,
+`tests/unit/purchases/purchase-order-detail-page.test.tsx`
+
+**Investigation:** the placeholder comment in the table body named the endpoint
+that was never called, which is what identified both the cause and the existing
+sibling implementation to copy. The regression test was confirmed to fail 6 of 7
+cases with the placeholder restored and to pass 7 of 7 with the fix; the one that
+passes either way is the totals case, since the totals were never the problem.
+
+---
+
+---
+
+### 2026-09-27 — The customer detail pages repeated the unbound-label defect
+
+**Symptom:** the credit, vehicle and note forms on both customer detail screens
+announced their fields as unlabelled, and clicking a label did not focus the
+field it names.
+
+**Root cause:** commit `6070403` fixed this in the shared `components/forms/*`
+wrappers, but these two pages do not use them. They compose Radix `Input`,
+`Textarea` and `select` directly, each behind a bare `<Label>` with no `htmlFor`
+and no id on the control. The credit-limit input was worse still: it had no label
+at all, only a `placeholder`.
+
+**Fix:** bound all 20 labels on the two pages with an explicit `id`/`htmlFor`
+pair, and gave the credit-limit input an `aria-label` since it has no visible
+label to point at.
+
+**Affected files:**
+`src/features/crm/pages/crm-customer-detail-page.tsx`,
+`src/features/customers/pages/customer-detail-page.tsx`,
+`tests/unit/components/crm-customer-detail-page.test.tsx`,
+`tests/unit/components/customer-detail-page.test.tsx`
+
+**Still open:** this is the same defect class as the shared wrappers, and the
+page layer has not been swept. Most of the ~100 files under `src/features/**`
+build their forms the same way, so the fix is mechanical but wide. Until it is
+done, the detail pages are the exception rather than the rule. Recorded in
+`docs/testing/coverage-progress.md` under remaining work.
+
+---
+
+---
+
+### 2026-09-27 — Every customer list issued two identical queries on open
+
+**Symptom:** opening Customers (or CRM → Customers) fetched the list twice. The
+screen looked normal, so this only surfaced as doubled database load on the
+busiest screen in the shop. Caught by a new test asserting exactly one read.
+
+**Root cause:** both pages ran two independent effects that both called
+`fetchCustomers` on mount:
+
+```tsx
+useEffect(() => { fetchCustomers() }, [])          // initial paint
+useEffect(() => {                                    // debounced search
+  const timer = setTimeout(() => fetchCustomers(search), 300)
+  return () => clearTimeout(timer)
+}, [search])
+```
+
+The second effect also runs on mount, so the query fired immediately and again
+300 ms later. Removing the mount effect would have delayed the first paint by the
+full debounce.
+
+**Fix:** keep the mount fetch and skip only the debounced effect's *initial* run
+via a `useRef` guard, so the list still appears immediately:
+
+```tsx
+const skipFirstSearch = useRef(true)
+useEffect(() => {
+  if (skipFirstSearch.current) { skipFirstSearch.current = false; return }
+  const timer = setTimeout(() => fetchCustomers(search), 300)
+  return () => clearTimeout(timer)
+}, [search])
+```
+
+**Affected files:** `src/features/customers/pages/customers-page.tsx`,
+`src/features/crm/pages/crm-customers-page.tsx`,
+`tests/unit/components/customers-pages.test.tsx`
+
+**Investigation:** the assertion "called once" failed with "expected 1 times, but
+got 2 times" on both screens. Because the two are near-copies the guard had to be
+applied to both; a shared test asserts the same behaviour for each.
+
+**Commit:** `6070403`
+
+---
+
+### 2026-09-27 — No form label in the app was associated with its input
+
+**Symptom:** assistive technology announced every text field, select, and price
+field in the product form (and every other form) as an unlabelled edit, and
+clicking a label did not move focus to its field.
+
+**Root cause:** two separate gaps. `FormFieldWrapper` rendered a bare `<Label>`
+with no `htmlFor`, and the field components derived `const fieldId = id ||
+props.name` — but almost no call site passes `id` or `name`, so `fieldId` was
+`undefined` and the label had nothing to point at. `checkbox-field` was the only
+component that got this right.
+
+**Fix:** `FormFieldWrapper` now takes `htmlFor`, the eight wrapper-based fields
+pass `fieldId`, `SelectField` gained the missing `id`/`fieldId` plumbing its
+trigger never had, and each field falls back to `useId()` so the association
+holds even when the caller supplies nothing. The error paragraph now carries
+`${fieldId}-error` and the controls reference it via `aria-describedby`, so
+validation messages are announced too.
+
+**Affected files:** `src/components/forms/form-field.tsx`, `text-field`,
+`textarea-field`, `number-field`, `currency-field`, `email-field`, `phone-field`,
+`date-field`, `select-field`,
+`tests/unit/inventory/product-form-page.test.tsx`
+
+**Investigation:** a test using `getByLabelText("Cost Price")` failed with
+"Found a label with the text of: Cost Price, however no form control was found
+associated to that label". The raw `fieldId` definitions showed the two gaps.
+
+**Commit:** `6070403`
+
+---
+
+### 2026-09-27 — Shared action bar showed Spanish buttons to English users
+
+**Symptom:** the Save / Duplicate / Archive / Restore / Delete row at the bottom
+of every entity form read *"Guardar"*, *"Duplicar"*, *"Archivar"*, even with the
+interface language set to English.
+
+**Root cause:** `EntityActionBar` is a shared component but hardcoded six Spanish
+strings instead of calling `t()`, so the strings appeared on every form page in
+the app. It had no `useTranslation` import at all.
+
+**Fix:** translated all six and added the five verbs that had no key
+(`common.deleting`, `common.duplicate`, `common.archive`, `common.unarchive`,
+`common.restore`) to both `en` and `es`. `common.save`, `common.saving` and
+`common.delete` already existed and are now used.
+
+**Affected files:** `src/components/entity/entity-action-bar.tsx`,
+`src/i18n/locales/en/common.json`, `src/i18n/locales/es/common.json`
+
+**Investigation:** surfaced when a test looked for a button named "Save" and
+found none, while the DOM contained "Guardar".
+
+**Commit:** `6070403`
+
+---
+
+### 2026-09-27 — Six validation messages showed literal `{min}` / `{max}` placeholders
+
+**Symptom:** typing an out-of-range margin on the product form showed the user
+`Must be between {min}% and {max}%` instead of *"Must be between 0% and 90%."*
+The same raw template appeared for min/max length and min/max value messages and
+for the inventory category count.
+
+**Root cause:** the six affected strings used **single** braces, but i18next
+only interpolates `{{double braces}}` (the rest of the locale files use
+`{{value}}` correctly). `i18n.t("validation.marginRange", { min: 0, max: 90 })`
+therefore returned the template verbatim. This was a formatting inconsistency
+that no test covered.
+
+**Fix:** converted the six keys to `{{...}}` in both locales —
+`validation.minLength`, `validation.maxLength`, `validation.minValue`,
+`validation.maxValue`, `validation.marginRange`, `inventory.acrossCategories`.
+
+**Affected files:** `src/i18n/locales/en/validation.json`,
+`src/i18n/locales/es/validation.json`, `src/i18n/locales/en/inventory.json`,
+`src/i18n/locales/es/inventory.json`
+
+**Investigation:** a direct `i18n.t(...)` call in a scratch test returned the
+un-substituted template, which ruled out the component and pointed at the config
+and the locale files. A scan of every locale string for single-brace
+placeholders found exactly 12 (6 keys × 2 locales) and no others.
+
+**Commit:** `6070403`
+
+---
+
+### 2026-09-27 — `npm run test:coverage` then `npm run lint` failed, and the report could be committed
+
+**Symptom:** running the coverage suite made the next `npm run lint` fail with 6
+errors (`Unused eslint-disable directive`) in
+`quality/coverage/*.js`. The generated report was also untracked and not ignored,
+so `git add .` would have committed it.
+
+**Root cause:** the coverage reporter writes an HTML report into `quality/`,
+which was absent from `.gitignore` and from the flat config's global `ignores`.
+The report's bundled JS carries `/* eslint-disable */` banners, and the lint
+script runs with `--report-unused-disable-directives`.
+
+**Fix:** added `quality/` to `.gitignore` (with a comment) and `"quality"` to the
+`ignores` array in `eslint.config.js`. CI happens to lint before coverage, which
+is why this never showed up there.
+
+**Affected files:** `.gitignore`, `eslint.config.js`
+
+**Commit:** `6070403`
+
+---
+
+### 2026-09-27 — Business error toasts showed the raw i18n key instead of a translated sentence
+
+**Symptom:** a shopkeeper who tried to transfer stock from a warehouse to
+itself was told, in the error toast on the transfers page:
+
+```
+business.errors.transferSameStore
+```
+
+instead of *"The source and destination stores must be different."* The same
+applied to all five codes `src/lib/business-errors.ts` maps.
+
+**Root cause:** `src/i18n/config.ts` built a `resources` object containing a
+`business` bundle for both `es` and `en`, but the `ns` array passed to
+`i18n.init()` never listed `"business"`:
+
+```ts
+resources = { es: { common: esCommon, business: esBusiness, /* ... */ }, /* ... */ }
+
+ns: [
+  "common", /* "business" was missing here */ "dashboard", "inventory", /* ... */
+],
+```
+
+i18next loads only the namespaces named in `ns`. With `nsSeparator: "."`, a call
+to `t("business.errors.transferSameStore")` asks for namespace `business` and
+key `errors.transferSameStore`; no store existed for that namespace, so i18next
+fell back to returning the key string. Nothing threw — a missing namespace
+fails *open*, which is why this went unnoticed.
+
+`business` was the only namespace in the codebase used with the `ns.`
+prefix style that was absent from the list; the other 19 were all registered.
+
+**Investigation:** the code path was intact end to end — the Rust constant
+`ERR_TRANSFER_SAME_STORE` (`src-tauri/src/commands/business.rs:11`) is returned
+verbatim, `businessErrorMessage` (`src/lib/business-errors.ts`) maps it to
+`business.errors.transferSameStore`, and both `es/business.json` and
+`en/business.json` carry the sentence. Only the namespace registration was
+missing, so the failure was invisible in code review and undetectable by any
+key-level test, since every existing test asserted on namespaces that happened
+to be registered.
+
+**Fix:** added `"business"` to the `ns` array in `src/i18n/config.ts`.
+
+**Tests:**
+- `tests/unit/i18n-namespaces.test.ts` (new) — asserts every namespace present
+  in a locale file is registered in `ns`, that no registered namespace lacks a
+  locale file, and that each namespace resolves through the real `t()` in both
+  shipped locales. Verified to fail with the fix reverted.
+- `tests/unit/lib/validation-business-errors.test.ts` (new) — asserts each of
+  the five mapped codes resolves to a real sentence in `es` and `en`, and never
+  to its own key.
+
+**Affected files:** `src/i18n/config.ts`,
+`tests/unit/i18n-namespaces.test.ts`,
+`tests/unit/lib/validation-business-errors.test.ts`.
+
+**Commit:** `6070403`
+
+---
+
+### 2026-09-27 — CI generated zero screenshots and then reported that it had generated 132
+
+**Symptom:** the `screenshots` job on a pull request printed, for both themes:
+
+```
+❌ light screenshot generation failed: Command failed:
+  npx playwright test --config playwright.config.ts --project=light
+Error: Cannot find package '@playwright/test' imported from
+  /home/runner/work/inv-g/inv-g/scripts/screenshots/playwright.config.ts
+  ... code: 'ERR_MODULE_NOT_FOUND'
+```
+
+— and then finished with:
+
+```
+📸 All screenshots generated in /home/runner/work/inv-g/inv-g/docs/screenshots
+   Light theme: 66 screenshots
+   Dark theme: 66 screenshots
+```
+
+Nothing was generated. The 66 and 66 are the PNGs already committed to the
+repository.
+
+**Three defects, and the second one is why this survived.**
+
+**1. The sub-package was never installed.** `scripts/screenshots` is a separate
+npm package — its own `package.json`, its own `package-lock.json`, its own
+`node_modules` — and the root `package.json` declares no `workspaces`. So the
+workflow's root `npm ci` does not touch it:
+
+```yaml
+- run: npm ci                                        # root only
+- working-directory: scripts/screenshots
+  run: npx playwright install chromium               # <- the mistake
+- working-directory: scripts/screenshots
+  run: npx tsx generate_all.ts
+```
+
+`npx playwright install` does not install Playwright. With nothing in the local
+`node_modules`, `npx` fetches the `playwright` CLI into its own cache — visible
+in the original trace as
+`/home/runner/.npm/_npx/e41f203b7505f1fb/node_modules/playwright/...` — and
+downloads the Chromium *binaries*. `@playwright/test` is never installed, so
+the very first line of `playwright.config.ts` throws `ERR_MODULE_NOT_FOUND` and
+both suites die before running a single test.
+
+Fixed by adding `npm ci` in `scripts/screenshots` before the browser install.
+Also switched the browser step to `npx playwright install --with-deps chromium`:
+`ubuntu-latest` does not ship the shared libraries Chromium links against, so
+without `--with-deps` the next failure is a browser that will not launch.
+
+**2. The generator reported success over a total failure.** `runSuite` did set
+`process.exitCode = 1`, but `main()` ignored the result and then printed the
+banner unconditionally, counting files like this:
+
+```ts
+const lightCount = execSync(`ls ${LIGHT_DIR}/*.png 2>/dev/null | wc -l`, ...)
+```
+
+`docs/screenshots/light` holds 66 **committed** PNGs, so that count is 66
+whether the run produced everything, nothing, or crashed on import. A run in
+which every theme failed printed the exact same "66 / 66" summary as a run that
+worked — the one signal a human would use to notice was structurally incapable
+of noticing.
+
+`runSuite` now returns a boolean, `main` collects the results, and the success
+banner is only printed when every requested theme both exited 0 *and* wrote at
+least one file. A suite that passes while writing nothing (a project name
+matching no test, say) is now a failure. The counts come from `mtime >= run
+start`, so a clean run reports what it actually produced rather than what the
+repository already contained.
+
+**3. The derivative copies could never fail.** Every one ran as:
+
+```ts
+execSync(`cp ${src}.png ${dest}.png 2>/dev/null; true`, { stdio: "ignore" })
+```
+
+The trailing `; true` forces exit 0 unconditionally, so `execSync` could never
+throw and the surrounding `try { ... } catch { /* Already handled */ }` was
+dead code. A missing source produced a silently absent marketing or README
+image. Replaced with a `copyScreenshot` helper that warns per file. It still
+does not fail the run — a derivative image is not worth failing over — but it
+now says which file it could not produce.
+
+**Left alone, worth knowing.** `helpers/screenshot.ts` imports `sharp` for
+thumbnails, but `sharp` is not in the sub-package's dependencies, so it is
+absent. The import sits inside a `try` with a `fs.cpSync` fallback, so
+generation still succeeds — the thumbnails are just full-size copies of the
+screenshot instead of 256px wide, and the `catch {}` hides that too. Declaring
+the dependency is the real fix, but it needs a lockfile update, so it is not
+part of this change.
+
+**Affected files:** `.github/workflows/ci.yml`,
+`scripts/screenshots/generate_all.ts`
+
+**Commit:** `6474409`
+
+---
+
+### 2026-09-26 — The Part Finder never returned a result, and nothing could ever make it
+
+**Symptom:** *Buscador de Partes* answered "No se encontraron partes compatibles"
+for every input. The brand/model/year/engine/transmission pickers were either
+empty or led nowhere, and the "Recomendadas para Este Vehículo" panel stayed
+blank even after filling in every dropdown. On a fresh database the whole
+feature was dead on arrival.
+
+This turned out to be four independent faults stacked on top of each other.
+Any one of them alone would have produced the same blank screen, which is why
+the page looked broken rather than half-built.
+
+**Root cause 1 — the table could never be written to.** `search_compatible_products`
+reads `product_vehicle_compatibility`, and *no code path could insert a row*.
+`create_compatibility` and `delete_compatibility` were registered in
+`src-tauri/src/lib.rs` and bound in `src/lib/tauri.ts`, but **no component ever
+called them**:
+
+```
+$ grep -rn "createCompatibility" src/ --include=*.tsx
+(no matches — only the wrapper in src/lib/tauri.ts)
+```
+
+`ProductCompatibilityTab` — the sole reader of the table — was read-only, showed
+`Sin datos`, and offered no way forward. `db/seed.rs` contains no
+`product_vehicle_compatibility` rows either, so a new database started with an
+empty table. The vehicle catalog (brands, models) *can* be filled in from
+CRM > Vehículos, which is what made this look like a search bug rather than a
+missing-feature bug: the dropdowns populated, and then the search returned
+nothing.
+
+**Root cause 2 — the search inner-joined the compatibility table.**
+
+```sql
+FROM product_vehicle_compatibility pvc JOIN products p ON p.id = pvc.product_id
+```
+
+With no vehicle filter this is a *catalog* lookup, but the join still required
+a fitment row, so any part nobody had mapped to a vehicle was invisible. The
+search box is labelled "Nombre o SKU de la parte" — a SKU search is a catalog
+question, and it needs the catalog.
+
+**Root cause 3 — the SKU was never searched.** The predicate was
+`AND p.name LIKE ?n`, so typing `BP-100` matched nothing even for a part that
+had a fitment row. The placeholder promised "Nombre o SKU" and the SQL only
+honoured the first half.
+
+**Root cause 4 — the recommendations panel could never return a row**, for two
+reasons at once:
+
+```sql
+WHERE ... AND (pvc.brand_id = ?1 OR pvc.brand_id IS NULL)
+      AND (pvc.model_id  = ?2 OR pvc.model_id  IS NULL)
+      AND (pvc.year_start IS NULL OR pvc.year_start <= ?3)
+      AND c.name IN ('Filters','Brakes','Electrical','Lubricants','Cooling','Engine','Exhaust','Transmission')
+```
+
+- `?1`/`?2`/`?3` were bound **unconditionally**, so selecting only a brand made
+  SQLite evaluate `pvc.model_id = NULL` — never true — and the entire predicate
+  collapsed. The panel stayed empty until all three dropdowns were filled.
+- The category allow-list was **hardcoded English**. Those eight strings appear
+  nowhere else in the Rust codebase, and the categories this app actually seeds
+  are Spanish — `SEED_CATEGORIES` in `src-tauri/src/db/seed.rs` is
+  `Dirección` and `Suspensión`, neither of which is in the list. On any
+  stock install `c.name IN (...)` therefore matched **nothing at all**, not
+  merely the wrong language. And because `NULL IN (...)` is `NULL` rather than
+  true, parts with no category were dropped as well — so a shop that had fixed
+  its catalog labels would still have seen an empty panel for its uncategorised
+  parts.
+
+**Fix:**
+
+- `ProductCompatibilityTab` is now a real CRUD surface: cascading
+  brand → model → generation, plus engine, transmission, a year range and notes,
+  writing through the `createCompatibility` command that already existed. Every
+  field has a `<label htmlFor>`, changing the brand invalidates the model and
+  generation (a model belongs to exactly one brand), and the save button is
+  disabled for a row that names no vehicle or has an inverted year range.
+- `search_compatible_products` now picks its join from the filters: `INNER` when
+  a vehicle dimension is selected (a fitment filter is a claim about a fitment
+  row), `LEFT` when it is not (so a plain name/SKU lookup reaches the whole
+  active catalog). The search term matches `p.name` **or** `p.sku`, and
+  whitespace-only input is treated as no input rather than as a `%` wildcard.
+- `get_recommendations_for_vehicle` was rebuilt the same way
+  `search_compatible_products` already was: absent filters are simply not
+  applied, placeholders are derived from the bound-parameter vector so they
+  cannot drift, and the English category allow-list is gone. Ordering is now
+  `compatibility_count DESC, p.name`.
+
+**Investigation notes.** The category allow-list was the reason the panel looked
+unrelated to the rest of the bug: the dropdowns and the search share the same
+data, so an empty `product_vehicle_compatibility` explains all of it *except*
+the panel, and the panel had its own two bugs. Fixing only the write path would
+have left the panel blank; fixing only the search would have left the feature
+empty on a real database. The `search_tests.rs` harness makes this class of
+fault cheap to prove — see the note below on why the assertions are written
+against the *real* schema.
+
+Covered by `src-tauri/src/commands/search_tests.rs` (`catalog_lookup_finds_parts_with_no_fitment_row`,
+`compatible_products_search_matches_sku_as_well_as_name`,
+`recommendations_survive_a_non_english_catalog`,
+`recommendations_appear_before_every_dropdown_is_filled` — all four fail against
+the old code) and `tests/unit/components/product-compatibility-tab.test.tsx`
+(10 tests, all of which fail against the old read-only tab).
+
+The test seed deliberately names its categories `Frenos` / `Filtros` and leaves
+one product uncategorised, so the language and `NULL IN (...)` faults cannot
+regress silently.
+
+**Affected files:** `src-tauri/src/commands/compatibility.rs`,
+`src-tauri/src/commands/search_tests.rs`,
+`src/features/inventory/components/product-compatibility-tab.tsx`,
+`src/i18n/locales/{es,en}/inventory.json`,
+`tests/unit/components/product-compatibility-tab.test.tsx`,
+`tests/unit/components/product-360-tabs.test.tsx`
+
+**Commit:** `1434149`
+
+---
+
+### 2026-09-26 — "Activar módulo de compras" in Settings did nothing
+
+**Symptom:** switching off *Activar módulo de compras* in Admin > Settings
+appeared to save, but the Purchases section stayed in the sidebar and every
+purchases URL still opened. Same for *Activar módulo de ventas* and *Activar
+módulo de CRM*.
+
+**Root cause: the three flags were write-only.** `enable_sales`,
+`enable_purchasing` and `enable_crm` are seeded into `application_settings`
+(`db/seed.rs`, all three under the `business` category as `boolean` rows), the
+admin page renders a `<Switch>` for any row whose `setting_type` is `boolean`
+and saves them through `update_app_settings_bulk` — and then **nothing ever read
+them back**. There was no route guard, no sidebar filter and no
+command-palette filter. The settings round-tripped correctly into SQLite; there
+was simply no consumer. The new module reader records the same finding: *"They
+used to be write-only: the admin page could render and save the toggles but
+nothing ever read them, so switching a module off appeared to do nothing."*
+
+**Fix:** `src/hooks/use-modules.ts` is now the single reader, and three
+consumers use it:
+
+- `ModuleRoute` in `src/components/auth-guards.tsx` wraps the authenticated
+  layout, so it covers every route without annotating each one. It keys off the
+  path prefix, which means a bookmarked or hand-typed `/purchases/...` URL is
+  blocked too — hiding a sidebar entry alone never would have.
+- `src/layouts/sidebar.tsx` filters whole module groups out of both navigations.
+- `src/components/command-palette.tsx` filters palette entries, so a disabled
+  module is not reachable from the palette either.
+- `dashboard-page.tsx` no longer advertises quick actions into a module that is
+  switched off.
+
+The reader **fails open**: a module is disabled only when its value is exactly
+`"false"` (case-insensitive). A database predating the seed has no row for the
+flag at all, and hiding a whole business module in that state would be far more
+damaging than briefly showing one that was meant to be off.
+
+**Investigation notes.** Two things made this look like a save failure rather
+than a missing feature. First, the admin page *does* update its zustand store
+after saving, so the switch visibly stays in the new position — the UI
+confirmed the write and nothing more. Second, the flags are read from the
+in-memory app-settings store that `App.tsx` hydrates at start-up, not from
+`localStorage` and not from Rust, so there was no second code path where the
+value might have been picked up and missed.
+
+Covered by `tests/unit/components/module-gating.test.tsx` (9 tests; 4 fail if
+the guard's condition is short-circuited). The tree it mounts matters: with
+`ModuleRoute` on its own, the guard's `<Navigate to="/dashboard">` simply
+re-renders its own children at the new path and appears to do nothing, so the
+tests reproduce the real layout-and-`Outlet` shape from `src/routes/index.tsx`
+and assert "the purchases page is replaced by the dashboard".
+
+**A fifth fault, found by writing the end-to-end test.** Wiring up the missing
+reader was not sufficient on its own. The admin page propagates its save to the
+in-memory store like this:
+
+```ts
+await updateAppSettingsBulk(bulk, user?.id)
+for (const setting of settings) {
+  appSettingsStore.setValue(setting.key, values[setting.key] ?? "")
+}
+```
+
+and `setValue` was a `map` over the store's rows — so it *patched in place* and
+never upserted. `hydrate()` runs fire-and-forget inside a `useEffect` in
+`App.tsx` while the router renders immediately, so there is a real window in
+which the store is still empty. An admin who reached Settings, flipped a switch
+and saved inside that window persisted the flag to SQLite and updated nothing in
+memory: `map` over `[]` changes nothing, and the switch still looked flipped
+because the control keeps its own local `values` state. The module then stayed
+visible with no indication that the write had been dropped — the same
+"it saved and nothing happened" report, one level down.
+
+`setValue` now appends when the key is absent, and the value is readable
+immediately whether or not hydration has finished. This is why the regression is
+an integration test rather than two unit tests: the store test proves the
+upsert, and the page test proves the page reaches the store, but only the
+combined assertion covers the seam that actually broke.
+
+**Affected files:** `src/hooks/use-modules.ts` (new), `src/hooks/index.ts`,
+`src/stores/app-settings.store.ts`,
+`src/components/auth-guards.tsx`, `src/layouts/sidebar.tsx`,
+`src/components/command-palette.tsx`, `src/lib/command-palette/commands.ts`,
+`src/lib/command-palette/types.ts`,
+`src/features/dashboard/pages/dashboard-page.tsx`,
+`tests/unit/components/module-gating.test.tsx`,
+`tests/unit/components/admin-settings-page.test.tsx`,
+`tests/unit/stores/app-settings-store.test.ts`
+
+**Commit:** `1434149`
+
+---
+
+### 2026-09-26 — "Crear Orden de Compra" from a suggestion opened an empty order
+
+**Symptom:** on *Sugerencias de Reorden*, clicking **Crear Orden de Compra**
+landed on an empty purchase order form reading "Sin artículos" with Save
+disabled. The product, quantity and preferred supplier all had to be re-typed
+by hand — which is the whole job the button was supposed to do.
+
+**Root cause: the payload was handed over in a channel the form never read.**
+The button navigated with React Router's `state`:
+
+```tsx
+navigate("/purchases/orders/new", {
+  state: { productId, productName, suggestedOrder, preferredSupplierId },
+})
+```
+
+but `PurchaseOrderFormPage` never called `useLocation().state` — it only read
+route params (`id` for the edit path) and its own `items` state, which starts as
+`[]`. The state object was constructed, serialised into the history entry, and
+dropped on the floor.
+
+**Fix:** the handoff now travels in the query string, which survives a reload
+and a bookmark, and is parsed by the form.
+`src/features/purchases/order-from-suggestion.ts` holds both halves of the
+contract — `createOrderFromSuggestionUrl()` for the producer and
+`parseOrderFromSuggestion()` for the consumer — so the two cannot drift. The
+parser rejects a URL with no `productId`, clamps a non-positive quantity to 1,
+and treats a missing cost as 0. Seeding is guarded by a ref so a re-render never
+discards lines the user added, and it is inert on `/purchases/orders/:id/edit`.
+
+Also fixed in passing: the form saved every new order as `createPurchaseOrder(1, ...)`,
+hardcoding user 1 as the author regardless of who was signed in. It now reads
+the id from the auth store.
+
+Covered by `tests/regression/bug-012-purchase-order-from-suggestion.test.tsx`.
+
+**Affected files:** `src/features/purchases/order-from-suggestion.ts` (new),
+`src/features/purchases/pages/reorder-suggestions-page.tsx`,
+`src/features/purchases/pages/purchase-order-form-page.tsx`,
+`tests/regression/bug-012-purchase-order-from-suggestion.test.tsx`
+
+**Commit:** `1434149`
+
+---
+
+### 2026-09-26 — The CRM section was labelled "Título", and duplicate i18n keys were shadowing labels across the app
+
+**Symptom:** the CRM section in the sidebar, the breadcrumb in the top bar and
+the command palette all read **"Título"** instead of a section name. Related
+labels were also wrong in places: Settings' category tabs read "Datos del
+negocio" where a section name was meant, and some Admin/Inventory labels showed
+the value of a shadowed key.
+
+**Root cause: duplicate keys inside a single JSON file, and `JSON.parse` keeps
+the last one.** `src/i18n/locales/es/crm.json` declared `title` twice — once at
+the top as the section name, and again ~120 lines down as the label for a
+note/reminder *field*:
+
+```json
+{
+  "title": "CRM",          // line 2  — silently discarded
+  ...
+  "title": "Título",       // line 119 — this one won
+}
+```
+
+Nothing warns about this. The file parses, the type is `string`, and
+`t("crm.title")` dutifully returns the field label everywhere the *section*
+name was meant. A JSON object cannot hold two `title` keys, and the second
+declaration is not an error — it is a silent overwrite.
+
+The same fault existed elsewhere: `admin.json` (duplicated
+`roles.description`, `roles.create`/`edit`/`delete`, four
+`settings.*`/`settings.*.description` pairs, `backups.restore`),
+`inventory.json` (`description` as both page subtitle and field label) and
+`customers.json` (`email`).
+
+**Fix:** the field labels were renamed to names that say what they are, and
+the section names were allowed to keep theirs:
+
+| File | Shadowed key | Renamed to |
+| --- | --- | --- |
+| `crm.json` | `title` | `recordTitle` |
+| `crm.json` | `notes` | `notesPage` (CRM sub-nav label) |
+| `inventory.json` | `description` | `descriptionField` |
+| `admin.json` | `roles.description` | `roles.fieldDescription` |
+
+Callers were updated to the new keys. A guard now runs in CI:
+`scripts/check-i18n-duplicates.mjs` (exposed as `npm run i18n:check`, wired into
+`npm run verify`) parses each locale file with a reviver that records every
+repeated path, and `tests/unit/utils/i18n-duplicates.test.ts` covers the
+detector itself. This class of bug is invisible to the type checker and to
+reading, so it needs a mechanical check.
+
+**The new guard was itself broken on the way in — a shebang in an imported
+module.** `check-i18n-duplicates.mjs` is both a CLI entry and an imported
+module, because two test files import `findDuplicateKeys` from it. It started
+with `#!/usr/bin/env node`, which is only legal on line 1. When the runner
+transforms the file through Vite/Rolldown's SSR path instead of loading it
+natively, it hoists the `node:` imports to the top of the emitted module and
+leaves the shebang stranded in the middle:
+
+```
+RolldownError: Parse failure: Invalid Character `!`
+1: const readdirSync = ...; const dirname = ...;#!/usr/bin/env node
+```
+
+Both suites that import it then failed to load at all, taking 30 tests with
+them. **This is worth remembering as a shape of bug, not just an incident:** the
+outcome depended on a loader decision, so the same commit passed here and
+failed on another machine, and clearing the Vite cache could flip it either
+way. A shebang in a file that anything might import is a latent parse error
+regardless of which runner you happen to use.
+
+The fix is to drop the shebang. `npm run i18n:check` invokes the file as
+`node scripts/check-i18n-duplicates.mjs`, which never needed one. The other ten
+shebangs under `scripts/` are untouched — none of them is imported anywhere, so
+for a script that is only ever executed directly the shebang is correct and
+harmless. The file now carries a comment saying why it must not grow one back.
+
+**On the tab name.** The report suggested renaming the section to "Clientes".
+That would have been wrong: the section also holds vehicles, compatibility,
+reminders, warranties, credit and notes, so "Clientes" would misdescribe it —
+the reporter's own instinct ("*o tal vez no porque tiene otra información*") was
+right. The section name `crm.title` = "CRM" is restored and now actually
+renders.
+
+**Affected files:** `scripts/check-i18n-duplicates.mjs` (new),
+`package.json`, `src/i18n/locales/{es,en}/{crm,admin,inventory,customers}.json`,
+`src/features/crm/pages/crm-{reminders,notes,customer-detail}-page.tsx`,
+`src/features/admin/pages/admin-role{,-form}-page.tsx`,
+`src/features/inventory/pages/product-form-page.tsx`,
+`src/features/inventory/components/product-overview-tab.tsx`,
+`src/config/navigation.ts`,
+`tests/unit/utils/i18n-duplicates.test.ts`,
+`tests/regression/bug-013-014-015-i18n-and-suppliers.test.ts`
+
+**Commit:** `1434149`
+
+---
+
+### 2026-09-26 — A second "Proveedores" page in the sidebar showed invented data
+
+**Symptom:** the sidebar carried a top-level **Proveedores** entry, apparently
+duplicating the supplier list already under Compras.
+
+**Root cause: it was a static mock-up that was never wired to anything.**
+`src/features/suppliers/pages/suppliers-page.tsx` hardcoded five suppliers in a
+module-level array and rendered them, with three fabricated KPI tiles
+(`Total de Proveedores 24`, `Activos 21`, `Productos Origen 1,230`) that were
+literal numbers, not aggregates:
+
+```tsx
+const suppliers = [
+  { name: "AutoParts Co.", contact: "David Lee", phone: "(555) 111-2222", ... },
+  { name: "OEM Direct",     contact: "Karen White", ... },
+  ...
+]
+```
+
+It never called a Tauri command, so it showed the same five rows on every
+install regardless of the database. The `SearchBar` filtered nothing, and it had
+no create, edit or delete action. The page was registered in the sidebar
+(`/suppliers`), the router, the top-bar breadcrumb map, the permission service
+and the i18n namespace list, so it looked like a real feature from every angle
+except the only one that mattered: it could not disagree with the database.
+
+**Fix:** removed. The genuine supplier master data lives in **Inventario >
+Proveedores** (`/inventory/suppliers`, `inventory.suppliers`), which is backed
+by `getSuppliers()` and the `suppliers` table. The *relationship* data — which
+supplier offers which product, at what cost, lead time and MOQ — is a different
+grain and legitimately stays in **Compras > Catálogo de Proveedores**
+(`/purchases/supplier-products`, `supplier_products` table), which does have
+full CRUD. The removed top-level page was neither of those: it was a third,
+fictional grain.
+
+**Investigation notes.** Worth keeping in mind: this is why the removal needed a
+dangling-reference sweep rather than a file delete. Five other files referenced
+`suppliers.title` or the `SuppliersPage` export (router, navigation, top bar,
+permission service, i18n config), and a leftover entry in any one of them would
+have rendered a sidebar item pointing at a dead route.
+
+**Affected files:** `src/features/suppliers/` (deleted),
+`src/i18n/locales/{es,en}/suppliers.json` (deleted),
+`src/routes/index.tsx`, `src/config/navigation.ts`, `src/layouts/top-bar.tsx`,
+`src/services/permission.service.ts`, `src/i18n/config.ts`,
+`tests/regression/bug-013-014-015-i18n-and-suppliers.test.ts`
+
+**Commit:** `1434149`
+
+
+---
+
 ### 2026-09-26 — Prerelease versions rejected by the version tools
 
 **Symptom:** `npm run version:set 1.0.0-alpha.1` failed with
@@ -173,6 +1041,602 @@ human, which is the behaviour `docs/windows-installer.md` already documented.
 `docs/progress/MILESTONE_17.md`, `docs/ROADMAP.md`
 
 **Commit:** `43f6f37`
+
+---
+
+### 2026-09-26 — "Sin Stock" never updated after selling a product out
+
+**Symptom:** sell the last unit of a product, go back to the dashboard, and
+*Necesita Atención → Sin Stock* still reads `0` (or the old number). The product
+is genuinely out of stock; the tile only corrects itself after a full page
+reload. Manual stock adjustments, receiving a purchase order, refunds, supplier
+returns, inter-store transfers and data imports all showed the same staleness.
+
+**Root cause: the invalidation list was written out by hand and never included
+the stock counters.** The backend is correct — `commands/sales.rs` decrements
+`products.stock_quantity` inside the checkout transaction and restores it on
+refund — so the number in the database was right and the number on screen was
+cached. The dashboard builds its attention list from the `inventory-stats` query:
+
+```ts
+const { data: inventoryStats } = useQuery({
+  queryKey: ["inventory-stats"],
+  queryFn: getDashboardStats,
+})
+```
+
+and after a sale the POS invalidated `sales`, `pos-search`,
+`global-product-search`, `daily-closeout`, `sales-summary` and
+`dashboard-widgets` — everything except `inventory-stats`. Production runs a
+5-minute `staleTime`, so the stale value was served without a refetch.
+
+The same omission existed in the other five stock-moving flows, each with its
+own hand-written subset:
+
+| Flow | Invalidated | Missing |
+| --- | --- | --- |
+| Checkout (POS) | `sales`, `pos-search`, `global-product-search`, closeout, summary, widgets | `inventory-stats`, product rows |
+| Refund (returns page, sale detail) | `sales`, closeout, summary, widgets | all stock views |
+| Receive purchase order | *(no query client at all)* | all stock views |
+| Supplier return | `purchase-returns` | all stock views |
+| Stock adjustment, transfer | `inventory-movements`, `inventory-products` | every count |
+| Import | `inventory-products`, `inventory-movements`, `inventory-dashboard` | every count |
+
+Two dead keys were being invalidated along the way, so those calls did nothing:
+`pos-search` has never been a query key (the product search uses
+`global-product-search`), and `inventory-dashboard` is not one either — the real
+key is `inventory-dashboard-stats`, so the import page never refreshed the
+inventory KPIs despite appearing to.
+
+**Fix:** the list now lives in one place, `src/hooks/use-stock-invalidation.ts`.
+`useInvalidateStock()` invalidates every key that displays a stock level, and
+all six flows call it on success. The keys are treated as *prefixes*, so
+`["inventory-products"]` also covers the paginated `["inventory-products", page,
+pageSize, search]` variants without listing them.
+
+Covered by `tests/unit/components/stock-out-of-stock-refresh.test.tsx` (drives a
+real checkout through the POS with a 5-minute `staleTime` and asserts the tile
+appears) and `tests/integration/stock-invalidation-contract.test.ts`, which
+fails if a stock-moving flow loses its invalidation, if `inventory-stats` leaves
+the list again, or if the list contains a key no query actually uses.
+
+**Affected files:** `src/hooks/use-stock-invalidation.ts` (new),
+`src/hooks/index.ts`, `src/features/sales/pages/pos-page.tsx`,
+`src/features/sales/pages/returns-page.tsx`,
+`src/features/sales/pages/sale-detail-page.tsx`,
+`src/features/purchases/pages/purchase-receipt-form-page.tsx`,
+`src/features/purchases/pages/purchase-returns-page.tsx`,
+`src/features/inventory/pages/inventory-movement-form-page.tsx`,
+`src/features/inventory/pages/transfers-page.tsx`,
+`src/features/inventory/pages/import-export-page.tsx`
+
+**Commit:** `b6000f8`
+
+---
+
+### 2026-09-26 — "Nueva Devolución" listed no products and could not be saved
+
+**Symptom:** *Compras → Devoluciones → Nueva Devolución*, pick a purchase order,
+and the items table stays empty. Because there is nothing to fill in, **Crear
+devolución** never enables, so the return cannot be recorded at all.
+
+**Root cause: the line items were seeded from a query result that had not loaded
+yet.** `handleSelectPo` built the rows from `poItems`, the react-query result of
+`getPurchaseOrderItems(selectedPoId)`:
+
+```tsx
+function handleSelectPo(po: PurchaseOrder) {
+  setSelectedPoId(po.id)          // state has not updated yet
+  setReturnItems(
+    poItems.map((item) => ({ ... quantity: 0 ... })),   // poItems is still []
+  )
+}
+```
+
+At that moment `selectedPoId` is still `null`, so the query is `disabled` and
+`poItems` is the `[]` default. The seed therefore produced an empty list. Nothing
+re-derived it when the query later resolved, because the rows were state rather
+than a projection of the query. Both reported symptoms are the same line:
+
+- no products listed, because `returnItems` was `[]`;
+- the button disabled, because `[].every((i) => i.quantity === 0)` is `true` for
+  an empty array — the guard was working correctly on an empty list.
+
+**Fix:** the rows are now derived from the query and only the user's input is
+held in state, which is the pattern already used by the receiving form
+(`purchase-receipt-form-page.tsx`). `itemLines` is a `Record<productId, {quantity,
+reason}>` of edits, and `returnItems` is a `useMemo` projection over `poItems`,
+so the table appears whenever the items arrive and a refetch cannot discard
+typed-in quantities. `handleSelectPo` only records the selection. An order with
+no lines now says so instead of showing a blank table, and the button is also
+held disabled while the items are still loading.
+
+**Affected files:** `src/features/purchases/pages/purchase-returns-page.tsx`,
+`src/i18n/locales/{es,en}/purchases.json` (`orderHasNoItems`)
+
+**Commit:** `b6000f8`
+
+---
+
+### 2026-09-25 — "Crear Devolución" (and three other wrappers) failed to save
+
+**Symptom:** open a purchase order, press **Crear Devolución**, fill the reason and
+the lines, press save, and nothing is stored. Creating a purchase request from the
+same module fails the same way, and saving a product compatibility entry fails too.
+
+**Root cause: the TypeScript wrappers had drifted from the Rust signatures.** Every
+command crosses the IPC boundary through a hand-written wrapper in
+`src/lib/tauri.ts`, and the payload shape is not checked by anything. Tauri
+deserialises the arguments into the command's own parameter list, so a payload
+nested one level deeper than the command expects is rejected before the command
+ever runs:
+
+```
+invalid args `supplierId` for command `create_purchase_return`
+```
+
+```ts
+// before
+export async function createPurchaseReturn(userId: number, input: {...}) {
+  return invoke("create_purchase_return", { userId, input })
+}
+// after
+export async function createPurchaseReturn(userId: number, input: {...}) {
+  return invoke("create_purchase_return", { userId, poId, supplierId, reason, items })
+}
+```
+
+`create_purchase_request` had the identical defect, and `deleteProductCompatibility`
+invoked `delete_product_compatibility`, a command that does not exist — the backend
+registers `delete_compatibility`.
+
+**Investigation.** The component tests could not have caught this: they mock
+`@/lib/tauri`, so the wrapper is stubbed out and only the page is under test. The
+mocks were written to agree with the wrapper, so a wrong payload passed as a
+correct one. The gap was found by reading the wrappers against the signatures after
+the receiving fix, and the first finding was that a compile-time check was needed.
+
+**Fix.** The three wrappers now send the flat, camelCase arguments their commands
+declare, matching the shape every other wrapper in the file already used.
+
+A **static contract test** now prevents the whole class of bug. It parses every
+`#[tauri::command]` signature out of the Rust sources, parses every `invoke()` call
+out of `src/lib/tauri.ts`, and fails when a wrapper invokes a command that does not
+exist or omits a required argument. It covers the ~215 calls whose payload is
+written inline. Three kinds of call cannot be checked that way and are pinned by
+name so that adding one is a deliberate act: payloads that spread another object,
+payloads forwarded as a bare expression (`invoke("create_category", data)`), and
+Rust parameters whose wire name is ambiguous because they are bound but never read
+(`_sale_price` in `create_product`/`update_product`, and the five `create_sale`
+parameters the backend recomputes). The audit found no further mismatches.
+
+**Also guarded: the return form.** A return against an order that has no supplier
+was offered as a valid action. The button is now disabled with an explanation, and
+`selectedOrderHasSupplier` decides it.
+
+**Still open, needs a product decision.** `createProductCompatibility` sends
+`vehicleBrand`/`vehicleModel`/`engine` as free text, but `create_compatibility`
+takes `brand_id`/`model_id`/`engine_id`. The command name is wrong *and* the data
+model does not match, so this needs a decision about whether the form should pick
+from the vehicle catalogue or the backend should resolve names. It is listed in the
+contract test's `KNOWN_BROKEN_COMMANDS` so it is not mistaken for a regression, and
+it is deliberately **not** counted as fixed here. Tracked as M-14 in
+`docs/KNOWN_ISSUES.md`.
+
+**Commit:** `40b2a75`
+
+---
+
+### 2026-09-25 — The global profit percentage could not be found in Settings
+
+**Symptom:** the app applies a default profit percentage to products that do not
+carry their own, but the setting cannot be located in **Configuración**, and there
+is no sign of it in Settings → Negocio.
+
+**Root cause: not a missing feature — a missing label.** The whole mechanism was
+already correct and remains untouched:
+
+- `seed.rs` creates the row: `default_margin_percent`, category `business`,
+  type `number`, validation `{"min":0,"max":90}`.
+- `pricing::get_default_margin` reads it, falling back to `30.0`.
+- `resolve_sale_price` uses a product's own margin when it has one, its manually
+  edited price when it has one, and the global default otherwise.
+- `persist_setting` re-prices every product that follows the default
+  (`reprice_following_global_default`) whenever the setting is saved, and the
+  settings page's **bulk** endpoint goes through that same helper, so saving from
+  the UI does apply it.
+
+What was missing was the name. `AdminSettingsPage` labelled each row with
+`setting.key.replace(/_/g, " ")` and the category with a CSS `capitalize`, so the
+page offered a tab reading **business** and a row reading **default margin
+percent**, with the seeded English description underneath. Both strings are
+developer-facing, which is why the setting looked absent rather than merely ugly.
+Four categories (`performance`, `company`, `tax`, `notifications`) had no
+translation at all and rendered as bare English words.
+
+**Fix.** The page now resolves `settings.keys.<key>` and
+`settings.keys.<key>.description` from the `admin` namespace, falling back to the
+readable key and the row's own description so a setting nobody has translated still
+renders. All **67** seeded settings and the four untranslated categories now have
+names and descriptions in Spanish and English. The product form's margin hint points
+at the place the value is changed.
+
+**Verification.** Confirmed against a copy of the real database that the setting
+exists (`default_margin_percent` = `30`, category `business`) and that the fallback
+is reachable: `pricing::get_default_margin`, `resolve_sale_price` and
+`reprice_following_global_default` all key off `profit_margin_pct IS NULL`, and the
+product form already submits `null` when the field is left empty.
+
+**Worth knowing.** In the real database **0 of the products have a NULL margin**:
+the schema migration at `schema.rs:42` backfilled
+`ROUND((sale_price / cost_price - 1) * 100, 1)` for every existing row, and every
+product keeps its historical margin. That is correct — existing prices should not
+move — but it means the global default only applies to products created from now on
+with the field left empty. Nothing was re-priced, by design.
+
+**Commit:** `40b2a75`
+
+### 2026-09-25 — "Recibir Orden" showed an error instead of the receiving form
+
+**Symptom:** send a purchase order to its supplier, press **Recibir Orden**, and the
+receiving form never appears. A toast reports that the order could not be loaded,
+and the page stays empty. The order is correctly `sent`, so the step before it
+worked.
+
+**Root cause: `get_purchase_order_items` read the wrong columns out of every
+row.** The query joined the product table for its name and SKU:
+
+```sql
+SELECT poi.*, p.name as product_name, p.sku as product_sku
+FROM purchase_order_items poi
+LEFT JOIN products p ON poi.product_id = p.id
+```
+
+`purchase_order_items` has **13** columns, so `poi.*` occupies indices 0-12 and the
+two joined values land at 13 and 14. The row mapper read `product_name` at index
+**3** and every later field from there on, as if the join had added its columns
+next to `product_id` rather than at the end. So each field was filled from the
+wrong column:
+
+| index | actual column | read as |
+|---|---|---|
+| 3 | `supplier_sku` | `product_name` |
+| 4 | `quantity` | `product_sku` |
+| 5 | `unit_cost` | `supplier_sku` |
+| 6 | `discount` | `quantity` |
+| 11 | `created_at` | `received_quantity` |
+| 13 | `product_name` | `created_at` |
+
+The command therefore failed on **every order that has any line at all**: the very
+first read, `product_name`, pointed at `supplier_sku`, which is `NULL` for orders
+created through the interface — `Invalid column type Null at index: 3, name:
+supplier_sku`. Even with a non-NULL `supplier_sku` it could not have produced
+usable data: `quantity` would have come from `discount` and `received_quantity`
+from the `created_at` text, which cannot convert to `i64`.
+
+The defect is old, but invisible: the only intended caller was never written. The
+order detail page still carries the comment *"A real implementation would call
+getPurchaseOrderItems and render them"*, so nothing had ever invoked the command.
+Shipping the receiving form made it the first real caller, which is why the bug
+surfaced at exactly this point in the workflow.
+
+**Investigation.** The two halves were separated first. The database was copied
+and `receive_purchase_order_inner` was run against the real rows for both `sent`
+orders: both succeeded, created `REC-000001`/`REC-000002` and moved the orders to
+`completed`, so the write path was sound. That left the read path. The page's
+first call on mount is `getPurchaseOrderItems`, and a probe replaying its exact
+`SELECT` alongside the mapper's exact `row.get(n)` calls printed the real column
+layout next to the reads and showed the shift.
+
+Note that the frontend could not have caught this: the test for the receiving form
+mocks `getPurchaseOrderItems`, and the mock was written from the same wrong
+assumption. The gap was only visible against the real command.
+
+**Fix.** The `SELECT` now lists its columns explicitly, and `map_po_item_row` reads
+every value **by column name** (`row.get("received_quantity")`), so the mapper can
+no longer drift from the query when either side changes. The command delegates to a
+new `get_po_items_inner`, which is directly testable.
+
+**The same defect was in five more queries.** Auditing every `SELECT <alias>.*` in
+the backend turned up six in this module, and all six were mis-mapped:
+
+| query | base columns | joined values actually at | mapper read them at | effect |
+|---|---|---|---|---|
+| `purchase_order_items` | 13 | 13, 14 | 3, 4 | error (reported above) |
+| `purchase_receipt_items` | 9 | 9, 10 | 4, 5 | error, on the page the form opens after a successful receipt |
+| `purchase_request_items` | 8 | 8, 9 | 3, 4 | error |
+| `purchase_return_items` | 7 | 7, 8 | 3, 4 | error |
+| `product_cost_history` | 9 | 9-13 | 2-6 | error (five joins) |
+| `supplier_products` | 12 | 12, 13, 14 | 10, 11, 12 | **no error, wrong data** |
+
+`supplier_products` is the one that would have been hardest to notice: every value
+from `product_name` onwards came from the wrong column but the *types* still lined
+up, so the page rendered a timestamp as the product name, the product SKU as
+`created_at`, and the brand name as `updated_at` — no error, just quietly wrong
+data. All six now select explicit columns and read by name.
+
+`sales.rs` has the same pattern in 16 further queries (sales, quotes, credit,
+daily closings, cash register history). Those were left alone: they are a separate
+module, and the sales and purchase mappers cannot be assumed consistent. For
+example `sales.rs:526` reads the joined product values at 9 and 10, which is correct
+for its 9 base columns, while `sales.rs:1613` reads `customer_name` at index 12
+where `sales` has 16 base columns.
+
+**Files:** `src-tauri/src/commands/purchases.rs`
+
+**Tests:** `po_items_report_real_columns_not_shifted_ones`,
+`receipt_items_report_real_columns_and_the_receipt_reads_back`, and
+`every_shifted_join_query_in_purchases_is_aligned` assert the real values, not just
+that the query runs. Reverting each mapper to its original positional form fails
+them — for example the supplier-product assertion reports
+`left: Some("2026-09-26 03:45:18"), right: Some("Widget")`.
+
+---
+
+### 2026-09-25 — "Enviar a Proveedor" did nothing, and a sent order could never be received
+
+**Symptom:** approve a purchase order, press **Enviar a Proveedor**, and nothing
+happens. The order stays *Aprobado* forever. Following the order from there was
+impossible: there was nowhere to record the delivery, so an order could never
+leave *Enviado*.
+
+**Root cause: three defects in a row, on one path.**
+
+**1. The transition the button performs was not allowed.** The order detail page
+offers *Enviar a Proveedor* exactly when the order is `approved`, and sends
+`update_purchase_order_status(id, "sent")`. The backend's transition table had no
+`approved` arm at all, so the command answered `Invalid status transition from
+'approved' to 'sent'`. The failure surfaced only as a toast, so from the user's
+side the button did nothing.
+
+The table had drifted from the interface: the page had grown an approval step
+(*Borrador → Pendiente de Aprobación → Aprobado → Enviado*) and the table was
+never extended to match. `approved` could also not be cancelled, and the only way
+out of `approved` was nothing.
+
+**2. The receive page did not exist.** *Recibir Orden* navigated to
+`/purchases/receipts/new?poId=`, which was not a route, so the catch-all
+redirected to `/dashboard`. The click looked like it did something — the app
+simply changed page. `receive_purchase_order` only accepts an order that is
+`sent` or `partially_received`, so with the order stuck in `approved` and no
+receipt page, the workflow had no exit at either end.
+
+**3. The pages and the backend disagreed on the name of the final status.** The
+backend writes `completed` when every ordered unit is accounted for
+(`receive_purchase_order` picks `completed` or `partially_received` itself), but
+both the detail page and the orders list carried hand-written English maps with
+`received` in that slot. So a finished order showed the raw string `completed` in
+an otherwise translated interface, and the status filter offered a value that no
+query ever returns instead of the one that does.
+
+**Investigation.** The reported button maps to exactly one call,
+`purchase-order-detail-page.tsx` → `update_purchase_order_status(..., "sent")`,
+so the first thing checked was the transition table, which is where the arm was
+missing. From there: the reachable routes were listed to find the second dead
+end, and the statuses written by every query compared against the ones the pages
+named. The documentation was checked too, and had drifted as well — it described
+a `Draft → Sent → Confirmed → Received → Closed` flow with no approval step and
+a `+ New Receipt` button on the receipts list that has never existed.
+
+**How the workflow is meant to run.** `approved` is the gate: an order is signed
+off, then sent, then received, and receiving is the only way to finish. The
+transition table now covers every step the interface offers, and the two terminal
+states — `completed`, `cancelled` — accept nothing further. `completed` and
+`partially_received` are chosen by the backend from the lines actually received,
+so they are not statuses a user picks.
+
+**Fix.**
+
+- `valid_status_transition` is now a named function with the lifecycle drawn
+  above it, and gains the two missing `approved` arms: `→ sent` and
+  `→ cancelled`. `update_purchase_order_status` is split into a thin command and
+  an `_inner` that takes a connection, matching the pattern the two earlier
+  purchase-order fixes in this file established.
+- New `src/features/purchases/pages/purchase-receipt-form-page.tsx`, routed at
+  `/purchases/receipts/new`. It loads the order and its lines, shows what is
+  still **outstanding** — ordered minus already received minus already damaged,
+  so a second delivery is counted against what is left and not against the
+  original quantity — and pre-fills each line with it, making a complete
+  delivery one click. Received and damaged are separate columns, and only
+  `received − damaged` reaches stock. It refuses a line that claims more than is
+  outstanding, refuses an empty receipt, requires a warehouse, and lands on the
+  receipt it created.
+- `src/features/purchases/purchase-order-status.ts` holds the canonical status
+  list, its translation keys and its badge variants. Both pages read from it, so
+  a status cannot be named one thing in a badge and another in a filter. The
+  hardcoded English maps are gone, which also means the status column follows the
+  interface language like the rest of the page.
+- Seven new keys per locale for the receive page, inserted next to their
+  neighbours rather than re-sorting the file.
+
+**Tests.** 5 Rust tests, 15 frontend.
+
+Rust, on a real database: an approved order reaches the supplier and stamps
+`sent_at` (the timeline and the supplier KPIs read that column); approving records
+the approver and the moment; an approved order cannot be received before it is
+sent; receiving everything closes the order and the same order cannot be received
+twice; and the transition table itself is asserted, every allowed step and ten
+refused ones. Dropping the `approved → sent` arm fails 3 of the 5.
+
+Frontend, in `tests/regression/bug-011-purchase-order-workflow.test.tsx`: the
+route the button links to exists; lines are pre-filled with what is outstanding
+and a partially received order is counted against the remainder; the submitted
+payload carries the order, the signed-in user, the warehouse and every line, with
+damaged units kept separate; over-receipt and empty receipts are refused; the
+approved order's *Send to Supplier* calls the status command with `sent`; and
+the status vocabulary is the one the backend writes, with every status translated.
+Removing the route fails 1, restoring `received` in place of `completed` fails 2.
+
+**Files.** `src-tauri/src/commands/purchases.rs`,
+`src/features/purchases/purchase-order-status.ts` (new),
+`src/features/purchases/pages/purchase-receipt-form-page.tsx` (new),
+`src/features/purchases/pages/purchase-orders-page.tsx`,
+`src/features/purchases/pages/purchase-order-detail-page.tsx`,
+`src/features/purchases/index.ts`, `src/routes/index.tsx`,
+`src/i18n/locales/{es,en}/purchases.json`,
+`tests/regression/bug-011-purchase-order-workflow.test.tsx` (new),
+`docs-site/purchases/receiving.md`, `docs-site/purchases/orders.md`.
+
+Frontend 488 → **503**, Rust 156 → **161**.
+
+---
+
+### 2026-09-25 — A page header was hidden under the top bar, and the page called itself "Panel de Control"
+
+**Symptom:** on *Inventario → Fabricantes* the page title was cut in half by the
+bottom edge of the top bar — only the last four rows of "Fabricantes" were
+visible, while the description, the *Agregar Fabricante* button and the table
+rendered normally below it. The top bar itself read "Panel de Control".
+
+**Root cause: two defects, one report.**
+
+**1. The scroll container could report scrollable overflow on a page that fits.**
+`main` is the scroll container of the content column, and its only child carried
+`h-full` — `height: 100%`. A percentage height resolves against the containing
+block, and the containing block's own height is a *flex item* height, resolved
+from the free space of the column. Those two resolutions are not guaranteed to
+agree, so the child can end up computed taller than the box `main` actually
+scrolls. `main` then has scrollable overflow out of nothing, even though the page
+content is only a few hundred pixels tall — and `overflow` clips at the padding
+edge, so a scrolled short page shows its first line box sliced by the top of
+`main`.
+
+The screenshot is that state precisely. Measured off the image: `main` 927px
+tall, its child 45px taller, `scrollTop` 45, `h1` line box at 35 relative to the
+viewport where a correct layout puts it at 80, and *every* following element —
+description, button, table borders, pagination — displaced upward by the same
+45px. Nothing else in the app could produce that: a uniform shift of all page
+content, with the clipping happening exactly at `main`'s top edge, is the
+signature of a scroll offset and nothing else.
+
+**2. The top bar's title came from a hand-written map of thirteen routes.**
+`routeNameKeys` in `top-bar.tsx` fell back to `dashboard.title` for any path it
+did not list. `/inventory/manufacturers` was not listed — nor were most of the
+eleven child pages under *Inventario* — so the page announced itself as "Panel de
+Control", the very label the user described the header as being hidden
+underneath. The map had also drifted from the sidebar: it carried
+`inventory.transfersTitle` where the sidebar says `inventory.storeTransfers`, and
+listed `/customers`, `/vehicles`, `/reports` and `/employees`, which the sidebar
+files under *CRM* and secondary navigation.
+
+**Investigation, including what was ruled out.** The screenshot is 1920×1080 with
+the window at (70, 69), so the webview is 1850×1011; the sidebar measures 256px
+(`w-64`) and the top bar 56px (`h-14`) in screenshot pixels, which pins device
+pixel ratio 1 and rules out a scaled or HiDPI capture. `dist/` was confirmed
+stale (built 15:41, predating the `min-w-0` fix at 15:47) but that build only
+explains *horizontal* clipping, and the app was running through Vite at
+`localhost:5173`, so `dist/` was not what the screenshot rendered. The live app
+was then measured in the same engine at the same size with a stubbed Tauri IPC,
+and it reported `h1.top = 80`, `scrollTop = 0`, `scrollHeight === clientHeight`
+— i.e. the faulty state did not reproduce on demand, which is expected of a
+height-resolution disagreement and is why the invariant was removed rather than
+the trigger chased.
+
+**Fix.**
+
+- `app-shell.tsx`: the child is now `min-h-full` instead of `h-full`, and `main`
+  gains `min-h-0` with `overflow-y-auto overflow-x-hidden`. `min-h-full` cannot
+  exceed its container, so a page shorter than `main` can no longer produce
+  scrollable overflow at all; `min-h-0` lets the flex item shrink below its
+  content so `main` is the only box that scrolls. Horizontal scrolling stays with
+  the tables that need it, which scroll in their own container.
+- `top-bar.tsx`: the hand-written map is gone. Titles are resolved from the
+  sidebar's own navigation config — the single source of truth, so a page cannot
+  drift from the menu again — matching the **longest** href prefix, so
+  `/inventory/manufacturers/7/edit` reports "Fabricantes" and not "Inventario". A
+  route with no nav entry falls back to its section's label rather than to the
+  dashboard.
+- `src/config/navigation.ts`: new module holding `navigation` /
+  `secondaryNavigation` (moved verbatim out of `sidebar.tsx`, which now imports
+  them) plus `resolveRouteNameKey`. Nothing about the menu itself changed.
+
+**Tests.** `tests/regression/bug-010-page-header-clipped.test.ts`, 9 tests. The
+layout half asserts the invariant against the source, since jsdom performs no
+layout; reverting `min-h-full`/`min-h-0` fails 2 of them. The title half drives
+the real resolver: nested paths, longest-prefix preference, the routes the old map
+covered, trailing slashes, and the case that motivated the prefix rule —
+`/inventory/manufacturers-archive` must *not* resolve through
+`/inventory/manufacturers`. Frontend: 479 → **488**.
+
+`bug-007-tab-bar-clipping.test.ts` asserted main's exact old className string.
+Its intent — main shrinks and main is what scrolls — is unchanged, so the
+assertion was widened to the invariant instead of the literal.
+
+**Files.** `src/layouts/app-shell.tsx`, `src/layouts/top-bar.tsx`,
+`src/layouts/sidebar.tsx`, `src/config/navigation.ts` (new),
+`tests/regression/bug-010-page-header-clipped.test.ts` (new),
+`tests/regression/bug-007-tab-bar-clipping.test.ts`.
+
+**Commit:** `cff7588`
+
+---
+
+### 2026-09-25 — Picking a date left the calendar open with no way to close it
+
+**Symptom:** in *Compras → Nueva orden de compra*, choosing a date in
+*Entrega Esperada* left the calendar sitting on screen. Neither clicking again
+nor pressing Enter dismissed it.
+
+**Root cause: the calendar was not ours to close.** `DateField` rendered a native
+`<input type="date">`. Its calendar is drawn by the webview, outside the DOM, and
+the platform exposes `showPicker()` to *open* it with no counterpart to close it.
+There was no code path that could have hidden it, so the field could only ever
+be dismissed by whatever the webview chose to do. jsdom cannot show the symptom,
+and no source-level assertion could catch it: the component was doing exactly
+what it was written to do.
+
+**Fix.** `DateField` now owns its calendar, built on the `Popover` primitive the
+app already uses in `customer-search-field.tsx` and
+`product-search-combobox.tsx`. Dismissal is now deterministic — the calendar
+closes on:
+
+- picking a day (the reported bug)
+- `Enter`
+- `Escape`
+- a click outside
+- clicking the field again
+
+A new `Calendar` component renders the month grid with `date-fns` (already a
+dependency; it was previously used only by the status bar). It follows the
+selection when the value changes from outside, and month and weekday names
+follow the active language.
+
+**The value contract is unchanged: still `yyyy-MM-dd`.** Callers, the API and
+the database see exactly what they saw before, and a hidden input keeps the
+value in the DOM under its own `name` so native form posts still work. Nothing
+downstream needed changing.
+
+**Tests.** 9 new tests, mutation-tested rather than merely written:
+
+- dropping the `setOpen(false)` from the select handler — the original bug —
+  fails 4 of them;
+- additionally dropping the `Enter` handler fails a 5th, which is the one that
+  pins `Enter` specifically.
+
+They drive the real component with the real i18next resources and assert the
+popover is **absent from the document**, not merely hidden. The target day is
+derived from the current month rather than hardcoded, so the suite does not start
+failing on the 1st of a new month. Frontend: 470 → **479**.
+
+**One test bug worth recording, because it would have shipped a false
+pass.** The suite first located day cells by role plus accessible name. Once a
+date is set, the *field itself* reads the same "15 de septiembre de 2026", so
+the query matched two elements and the test failed for the wrong reason. Day
+cells are now scoped with `within(getByRole("group"))`. Related: the tests
+needed `ResizeObserver` and pointer-capture polyfills, which no test in the repo
+had, because nothing had ever opened a Radix overlay under jsdom. They are in
+`tests/helpers/setup.ts` now, for the next overlay component.
+
+**Not changed:** five other forms still use a raw `<Input type="date">` and so
+still get the native calendar — `crm-reminders-page.tsx`,
+`crm-warranties-page.tsx`, `quote-form-page.tsx` and the two date-range inputs
+in `report-filters.tsx`. `DateField` is now a drop-in for all of them; migrating
+them was outside what was reported and is left as a deliberate follow-up.
+
+**Files:** `src/components/ui/calendar.tsx` (new),
+`src/components/forms/date-field.tsx`, `src/i18n/locales/{es,en}/common.json`,
+`tests/regression/bug-009-date-picker-dismiss.test.tsx` (new),
+`tests/helpers/render.tsx`, `tests/helpers/setup.ts`.
 
 ---
 

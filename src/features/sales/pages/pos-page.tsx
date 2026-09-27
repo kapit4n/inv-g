@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator"
 import { CustomerSearchField, TextareaField } from "@/components/forms"
 import { processCheckout, getSaleItems, getHeldSales, getHeldSaleItems, holdSale, deleteHeldSale, getProductEquivalents } from "@/lib/tauri"
 import { useNotification } from "@/hooks/use-notification"
-import { usePrint, usePrintConfig, useProductSearch } from "@/hooks"
+import { useInvalidateStock, usePrint, usePrintConfig, useProductSearch } from "@/hooks"
 import { useBusinessStore } from "@/stores"
 import { buildSaleReceiptModel, type ReceiptLabels } from "@/lib/print"
 import { cn } from "@/lib/utils"
@@ -42,6 +42,7 @@ export function PosPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const notification = useNotification()
+  const invalidateStock = useInvalidateStock()
   const searchRef = useRef<HTMLInputElement>(null)
   const paymentRef = useRef<HTMLInputElement>(null)
   const print = usePrint()
@@ -319,11 +320,12 @@ export function PosPage() {
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["sales"] })
-      queryClient.invalidateQueries({ queryKey: ["pos-search"] })
-      queryClient.invalidateQueries({ queryKey: ["global-product-search"] })
       queryClient.invalidateQueries({ queryKey: ["daily-closeout"] })
       queryClient.invalidateQueries({ queryKey: ["sales-summary"] })
       queryClient.invalidateQueries({ queryKey: ["dashboard-widgets"] })
+      // Checkout writes products.stock_quantity; without this the dashboard's
+      // out-of-stock count keeps showing the pre-sale figure.
+      invalidateStock()
       notification.success(t("common.success"), t("sales.invoiceCreated"))
       void printReceiptForSale(result)
       setCompletedSale(result)

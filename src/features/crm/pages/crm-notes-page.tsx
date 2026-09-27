@@ -52,7 +52,7 @@ export function CrmNotesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={t("notes")}
+        title={t("notesPage")}
         description={t("customerNotesOverview")}
       />
 

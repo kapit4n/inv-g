@@ -1,6 +1,6 @@
 import type { TFunction } from "i18next"
 import {
-  LayoutDashboard, ShoppingCart, Package, ShoppingBag, Users, Truck,
+  LayoutDashboard, ShoppingCart, Package, ShoppingBag, Users,
   Car, Warehouse, BarChart3, Settings, HelpCircle, UsersRound,
   Layers, Tag, Cog, Briefcase, MapPin, Box, ArrowUpDown,
   FileText, RotateCcw, DollarSign, Printer, Receipt,
@@ -23,10 +23,12 @@ interface CommandRegistryDeps {
   sidebarCollapsed: boolean
   toggleSidebar: () => void
   t: TFunction
+  /** False for paths inside a module an administrator switched off. */
+  isModuleEnabled?: (path: string) => boolean
 }
 
 export function buildCommands(deps: CommandRegistryDeps): Command[] {
-  const { navigate, cycleTheme, sidebarCollapsed, toggleSidebar, t } = deps
+  const { navigate, cycleTheme, sidebarCollapsed, toggleSidebar, t, isModuleEnabled } = deps
 
   const nav = (id: string, label: string, path: string, icon: typeof LayoutDashboard, keywords?: string[]): Command => ({
     id,
@@ -34,10 +36,11 @@ export function buildCommands(deps: CommandRegistryDeps): Command[] {
     category: "navigation",
     icon,
     keywords,
+    path,
     action: () => navigate(path),
   })
 
-  return [
+  const commands: Command[] = [
     nav("nav.dashboard", t("dashboard.title"), "/dashboard", LayoutDashboard),
     nav("nav.sales.pos", t("sales.pointOfSale"), "/sales/new", ShoppingCart, ["pos", "point of sale", "venta"]),
     nav("nav.sales.history", t("sales.salesHistory"), "/sales", Receipt, ["ventas"]),
@@ -68,8 +71,7 @@ export function buildCommands(deps: CommandRegistryDeps): Command[] {
     nav("nav.crm.reminders", t("crm.reminders"), "/crm/reminders", BellRing),
     nav("nav.crm.warranties", t("crm.warranties"), "/crm/warranties", ShieldCheck),
     nav("nav.crm.credit", t("crm.credit"), "/crm/credit", CreditCard),
-    nav("nav.crm.notes", t("crm.notes"), "/crm/notes", StickyNote),
-    nav("nav.suppliers", t("suppliers.title"), "/suppliers", Truck),
+    nav("nav.crm.notes", t("crm.notesPage"), "/crm/notes", StickyNote),
     nav("nav.warehouse", t("warehouse.title"), "/warehouse", Warehouse),
     nav("nav.reports", t("reports.title"), "/reports", BarChart3),
     nav("nav.reports.sales", t("reports.sales"), "/reports/sales", ShoppingCart),
@@ -147,4 +149,10 @@ export function buildCommands(deps: CommandRegistryDeps): Command[] {
       action: toggleSidebar,
     },
   ]
+
+  // A module switched off in Admin > Settings must not be reachable from the
+  // palette either, otherwise the entry becomes a dead end.
+  return isModuleEnabled
+    ? commands.filter((cmd) => !cmd.path || isModuleEnabled(cmd.path))
+    : commands
 }

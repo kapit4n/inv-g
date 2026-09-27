@@ -48,13 +48,13 @@ docs/manual/*.md (Markdown source — single source of truth)
 | Inventory | 20 | inventory.md | 08-17 inventory |
 | Sales | 10 | sales.md, pos.md, quotes.md, returns.md, receipts.md, closeout.md, cash-register.md | 18-26 sales |
 | Purchasing | 11 | purchasing.md | 27-36 purchases |
-| CRM | 9 | crm.md, customers.md, vehicles.md, compatibility.md | 37-44 crm |
+| CRM | 9 | crm.md, customers.md, vehicles.md, credit-notes.md, reminders-warranties.md | 37-44 crm |
 | Reports | 12 | reports.md | 45-56 reports |
 | Admin | 17 | admin.md | 57-70 admin |
 | Employees | 1 | employees.md | — |
 | Settings | 1 | settings.md | — |
 | Help | 1 | help.md | — |
-| Part Finder | 1 | — | — |
+| Part Finder | 1 | manual/part-finder.md | — |
 | Cross References | 1 | — | — |
 | Product Equivalents | 1 | — | — |
 | Warehouse | 1 | — | — |

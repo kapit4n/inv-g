@@ -25,7 +25,7 @@ export function ProductOverviewTab({ product, catName, brandName, mfrName, whNam
         <InfoRow label={t("inventory.barcode")} value={product.barcode} />
         <InfoRow label={t("inventory.oemNumber")} value={product.oemNumber} />
         <InfoRow label={t("inventory.internalCode")} value={product.internalCode} />
-        <InfoRow label={t("inventory.description")} value={product.description} />
+        <InfoRow label={t("inventory.descriptionField")} value={product.description} />
         <InfoRow label={t("inventory.category")} value={catName} />
         <InfoRow label={t("inventory.brand")} value={brandName} />
         <InfoRow label={t("inventory.manufacturer")} value={mfrName} />

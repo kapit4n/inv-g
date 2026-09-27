@@ -148,6 +148,19 @@ export function AdminSettingsPage() {
   const categoryDescription = (category: string) =>
     t(`admin.settings.${category}.description`, { defaultValue: "" })
 
+  /**
+   * Settings are rows in `application_settings`, so their natural name is the
+   * key, which reads as an internal slug ("default margin percent") rather than
+   * something a shopkeeper recognises. Translations live under
+   * `settings.keys.<key>`; a key with no translation still renders, falling back
+   * to the readable key and to whatever description the row carries.
+   */
+  const settingLabel = (setting: AdminAppSetting) =>
+    t(`admin.settings.keys.${setting.key}`, { defaultValue: setting.key.replace(/_/g, " ") })
+
+  const settingDescription = (setting: AdminAppSetting) =>
+    t(`admin.settings.keys.${setting.key}.description`, { defaultValue: setting.description || "" })
+
   return (
     <div className="space-y-6">
       <div>
@@ -209,9 +222,9 @@ export function AdminSettingsPage() {
                   return (
                     <div key={setting.key} className="flex items-center justify-between py-2 border-b last:border-0">
                       <div className="space-y-1 flex-1 mr-4">
-                        <Label className="text-sm font-medium">{setting.key.replace(/_/g, " ")}</Label>
-                        {setting.description && (
-                          <p className="text-xs text-muted-foreground">{setting.description}</p>
+                        <Label className="text-sm font-medium">{settingLabel(setting)}</Label>
+                        {settingDescription(setting) && (
+                          <p className="text-xs text-muted-foreground">{settingDescription(setting)}</p>
                         )}
                         {error && (
                           <p className="text-xs text-destructive">{errorText(setting, error)}</p>

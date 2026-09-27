@@ -20,6 +20,11 @@ vi.mock("@/lib/tauri", () => ({
   getSupplierProducts: vi.fn().mockResolvedValue([]),
   getSuppliers: vi.fn().mockResolvedValue([]),
   getProductCompatibility: vi.fn().mockResolvedValue([]),
+  getVehicleBrands: vi.fn().mockResolvedValue([]),
+  getVehicleModels: vi.fn().mockResolvedValue([]),
+  getVehicleGenerations: vi.fn().mockResolvedValue([]),
+  getVehicleEngines: vi.fn().mockResolvedValue([]),
+  getVehicleTransmissions: vi.fn().mockResolvedValue([]),
   getProductImages: vi.fn().mockResolvedValue([]),
   getWarehouses: vi.fn().mockResolvedValue([]),
   getProductEquivalents: vi.fn().mockResolvedValue([]),
@@ -217,9 +222,19 @@ describe("ProductSuppliersTab", () => {
 })
 
 describe("ProductCompatibilityTab", () => {
-  it("shows no data message when empty", () => {
+  it("explains the empty state and still offers a way in", async () => {
     render(<ProductCompatibilityTab productId={1} />)
-    expect(screen.getByText("No data")).toBeInTheDocument()
+    // Not a bare "No data": with no fitment recorded the Part Finder cannot
+    // return this product, so the empty state says so and offers the form.
+    expect(
+      await screen.findByText("This product has no vehicle compatibility")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/Add a fitment so the Part Finder can return this product/)
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: /add compatibility/i })
+    ).toBeInTheDocument()
   })
 })
 

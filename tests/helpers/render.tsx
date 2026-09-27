@@ -42,5 +42,5 @@ export function render(ui: ReactElement, options?: RenderOptions & WrapperOption
   return rtlRender(ui, { wrapper: Wrapper, ...renderOptions })
 }
 
-export { screen, waitFor, fireEvent, act } from "@testing-library/react"
+export { screen, waitFor, fireEvent, act, within } from "@testing-library/react"
 export { userEvent } from "@testing-library/user-event"

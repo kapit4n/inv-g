@@ -150,9 +150,25 @@ pub fn search_compatible_products(
     let db = DB_STATE.get().ok_or("Database not initialized")?;
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
 
+    // A vehicle filter is a statement about a *fitment row*, so it only means
+    // anything against an INNER join. With no vehicle filter this is a plain
+    // catalog lookup, and a product nobody has recorded a fitment for still has
+    // to be findable -- otherwise the "Nombre o SKU de la parte" box returns
+    // nothing for any part that is not in the compatibility table.
+    let vehicle_filtered = brand_id.is_some()
+        || model_id.is_some()
+        || year.is_some()
+        || engine_id.is_some()
+        || transmission_id.is_some();
+
     let mut sql = String::from(
-        "SELECT p.id, p.name, p.sku, p.sale_price, p.stock_quantity, c.name AS category_name, b.name AS brand_name, COUNT(pvc.id) AS compatibility_count FROM product_vehicle_compatibility pvc JOIN products p ON p.id = pvc.product_id LEFT JOIN categories c ON c.id = p.category_id LEFT JOIN brands b ON b.id = p.brand_id WHERE p.is_active = 1"
+        "SELECT p.id, p.name, p.sku, p.sale_price, p.stock_quantity, c.name AS category_name, b.name AS brand_name, COUNT(pvc.id) AS compatibility_count FROM products p LEFT JOIN categories c ON c.id = p.category_id LEFT JOIN brands b ON b.id = p.brand_id ",
     );
+    sql.push_str(if vehicle_filtered {
+        "JOIN product_vehicle_compatibility pvc ON pvc.product_id = p.id WHERE p.is_active = 1"
+    } else {
+        "LEFT JOIN product_vehicle_compatibility pvc ON pvc.product_id = p.id WHERE p.is_active = 1"
+    });
     let mut query_params: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
 
     // The placeholder number is derived from the parameter vector instead of a
@@ -189,10 +205,13 @@ pub fn search_compatible_products(
     }
 
     if let Some(ref s) = search {
-        if !s.is_empty() {
+        let term = s.trim();
+        if !term.is_empty() {
+            // The placeholder offers "name or SKU", so the SKU has to be
+            // searched too. One bound value serves both placeholders.
             let i = query_params.len() + 1;
-            sql.push_str(&format!(" AND p.name LIKE ?{i}"));
-            query_params.push(Box::new(format!("%{}%", s)));
+            sql.push_str(&format!(" AND (p.name LIKE ?{i} OR p.sku LIKE ?{i})"));
+            query_params.push(Box::new(format!("%{}%", term)));
         }
     }
 
@@ -217,10 +236,45 @@ pub fn get_recommendations_for_vehicle(
     let db = DB_STATE.get().ok_or("Database not initialized")?;
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
 
-    let mut stmt = map_err!(conn.prepare(
-        "SELECT p.id, p.name, p.sku, p.sale_price, p.stock_quantity, c.name AS category_name, b.name AS brand_name, COUNT(pvc.id) AS compatibility_count FROM product_vehicle_compatibility pvc JOIN products p ON p.id = pvc.product_id LEFT JOIN categories c ON c.id = p.category_id LEFT JOIN brands b ON b.id = p.brand_id WHERE p.is_active = 1 AND (pvc.brand_id = ?1 OR pvc.brand_id IS NULL) AND (pvc.model_id = ?2 OR pvc.model_id IS NULL) AND (pvc.year_start IS NULL OR pvc.year_start <= ?3) AND (pvc.year_end IS NULL OR pvc.year_end >= ?3) AND c.name IN ('Filters', 'Brakes', 'Electrical', 'Lubricants', 'Cooling', 'Engine', 'Exhaust', 'Transmission') GROUP BY p.id, p.name, p.sku, p.sale_price, p.stock_quantity, c.name, b.name ORDER BY c.sort_order, compatibility_count DESC, p.name"
-    ))?;
-    let rows = map_err!(stmt.query_map(rusqlite::params![brand_id, model_id, year], row_to_product_recommendation))?;
+    // Absent filters must simply not be applied.
+    //
+    // The previous version bound ?1/?2/?3 unconditionally, so selecting only a
+    // brand made SQLite evaluate `pvc.model_id = NULL`, which is never true, and
+    // the whole predicate collapsed: the panel stayed empty until all three
+    // dropdowns were filled. It also filtered on a hardcoded English category
+    // allowlist ('Filters', 'Brakes', ...), which matches nothing in a
+    // Spanish-language catalog and additionally drops every uncategorised
+    // product, because `NULL IN (...)` is NULL rather than true. Between the
+    // two, "Recomendadas para Este Vehículo" could never return a row.
+    let mut sql = String::from(
+        "SELECT p.id, p.name, p.sku, p.sale_price, p.stock_quantity, c.name AS category_name, b.name AS brand_name, COUNT(pvc.id) AS compatibility_count FROM products p LEFT JOIN categories c ON c.id = p.category_id LEFT JOIN brands b ON b.id = p.brand_id JOIN product_vehicle_compatibility pvc ON pvc.product_id = p.id WHERE p.is_active = 1"
+    );
+    let mut query_params: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
+
+    if let Some(bid) = brand_id {
+        let i = query_params.len() + 1;
+        sql.push_str(&format!(" AND (pvc.brand_id = ?{i} OR pvc.brand_id IS NULL)"));
+        query_params.push(Box::new(bid));
+    }
+
+    if let Some(mid) = model_id {
+        let i = query_params.len() + 1;
+        sql.push_str(&format!(" AND (pvc.model_id = ?{i} OR pvc.model_id IS NULL)"));
+        query_params.push(Box::new(mid));
+    }
+
+    if let Some(y) = year {
+        let i = query_params.len() + 1;
+        sql.push_str(&format!(" AND (pvc.year_start IS NULL OR pvc.year_start <= ?{i}) AND (pvc.year_end IS NULL OR pvc.year_end >= ?{})", i + 1));
+        query_params.push(Box::new(y));
+        query_params.push(Box::new(y));
+    }
+
+    sql.push_str(" GROUP BY p.id, p.name, p.sku, p.sale_price, p.stock_quantity, c.name, b.name ORDER BY compatibility_count DESC, p.name");
+
+    let params_refs: Vec<&dyn rusqlite::types::ToSql> = query_params.iter().map(|p| p.as_ref()).collect();
+    let mut stmt = map_err!(conn.prepare(&sql))?;
+    let rows = map_err!(stmt.query_map(params_refs.as_slice(), row_to_product_recommendation))?;
     let mut result = Vec::new();
     for row in rows {
         result.push(map_err!(row)?);

@@ -22,7 +22,7 @@ use rusqlite::Connection;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard, Once};
 
-use super::compatibility::search_compatible_products;
+use super::compatibility::{get_recommendations_for_vehicle, search_compatible_products};
 use super::cross_references::cross_reference_search;
 use super::customers::get_customers;
 use super::inventory::{paginate, PRODUCTS_SEARCH_WHERE};
@@ -73,6 +73,15 @@ fn seed(c: &Connection) {
     )
     .unwrap();
 
+    // ── categories, named in Spanish on purpose ──
+    // `get_recommendations_for_vehicle` used to allow-list English category
+    // names ('Filters', 'Brakes', ...). A real Spanish-language catalog calls
+    // them 'Filtros' / 'Frenos', so the recommendation panel matched nothing.
+    c.execute_batch(
+        "INSERT INTO categories (id, name, sort_order) VALUES (1, 'Frenos', 1), (2, 'Filtros', 2);",
+    )
+    .unwrap();
+
     // ── products + identifiers ──
     c.execute_batch(
         "INSERT INTO products (id, name, sku, barcode, oem_number, internal_code, is_active) VALUES
@@ -81,6 +90,11 @@ fn seed(c: &Connection) {
            (3, 'Spark Plug',     'SPK-300','7801110000003', 'OEM-SP1', 'INT-SP1', 1),
            (4, 'Oil Filter XL',  'OIL-400','7801110000004', 'OEM-OF2', 'INT-OF2', 1),
            (5, 'Retired Part',   'OLD-900', NULL,          NULL,       NULL,       0);
+         -- Product 4 is deliberately left uncategorised *and* without a
+         -- compatibility row: `NULL IN (...)` used to drop it outright.
+         UPDATE products SET category_id = 1 WHERE id = 1;
+         UPDATE products SET category_id = 2 WHERE id = 2;
+         UPDATE products SET category_id = 2 WHERE id = 3;
          INSERT INTO product_identifiers (product_id, identifier, identifier_type) VALUES
            (1, 'BP-100-X', 'supplier'), (2, 'OF-SUP-77', 'supplier'), (3, 'SPK-300-X', 'supplier');",
     )
@@ -405,7 +419,10 @@ fn compatible_products_search_binds_after_every_other_filter() {
     // With brand+model+year+engine set, `search` lands on ?6 — the highest-risk
     // spot for an index collision, since `year` consumes two placeholders.
     let all = search_compatible_products(None, None, None, None, None, None).unwrap();
-    assert_eq!(all.len(), 3, "unfiltered compatibility rows");
+    // Every *active* product, not just the three that carry a fitment row: with
+    // no vehicle filter the search is a catalog lookup (see
+    // `catalog_lookup_finds_parts_with_no_fitment_row`).
+    assert_eq!(all.len(), 4, "unfiltered search lists the active catalog");
 
     let by_vehicle = search_compatible_products(Some(1), Some(1), Some(2018), Some(1), None, None).unwrap();
     assert_eq!(by_vehicle.len(), 1);
@@ -422,9 +439,105 @@ fn compatible_products_search_binds_after_every_other_filter() {
             .unwrap();
     assert!(mismatched.is_empty(), "search must actually filter, not be ignored");
 
+    // Search alone, with no vehicle filter, is a catalog lookup — so it reaches
+    // "Oil Filter XL" too, which has no fitment row.
     let search_only = search_compatible_products(None, None, None, None, None, Some("Filter".into())).unwrap();
-    assert_eq!(search_only.len(), 1);
+    assert_eq!(search_only.len(), 2, "got {:?}", search_only.iter().map(|p| &p.product_name).collect::<Vec<_>>());
     assert_eq!(search_only[0].product_name, "Oil Filter");
+    assert_eq!(search_only[1].product_name, "Oil Filter XL");
+}
+
+/// The Part Finder used to `FROM product_vehicle_compatibility pvc JOIN
+/// products p`, so *every* query needed at least one fitment row to exist.
+/// Since `ProductCompatibilityTab` was the only place rows could be created and
+/// it was read-only, a real database held none — the whole feature answered
+/// "No se encontraron partes compatibles" for any input at all.
+#[test]
+fn catalog_lookup_finds_parts_with_no_fitment_row() {
+    db();
+    // Product 4 has no `product_vehicle_compatibility` row at all.
+    let by_sku = search_compatible_products(None, None, None, None, None, Some("OIL-400".into())).unwrap();
+    assert_eq!(by_sku.len(), 1, "a part nobody mapped to a vehicle is still a part");
+    assert_eq!(by_sku[0].product_name, "Oil Filter XL");
+    assert_eq!(by_sku[0].compatibility_count, 0);
+
+    // ...but the same relaxation must not let a retired part back in.
+    let retired = search_compatible_products(None, None, None, None, None, Some("Retired".into())).unwrap();
+    assert!(retired.is_empty(), "inactive products stay hidden");
+
+    // And a vehicle filter still requires a real fitment row.
+    let by_vehicle = search_compatible_products(Some(1), None, None, None, None, None).unwrap();
+    assert_eq!(by_vehicle.len(), 2, "Toyota fits: Brake Pad Set (corolla) + Oil Filter (hilux)");
+    assert!(
+        by_vehicle.iter().all(|p| p.compatibility_count > 0),
+        "a vehicle-filtered search must not surface fitment-less products"
+    );
+}
+
+/// The search box is labelled "Nombre o SKU de la parte", but the clause only
+/// ever matched `p.name`, so typing a SKU returned nothing.
+#[test]
+fn compatible_products_search_matches_sku_as_well_as_name() {
+    db();
+    let by_sku =
+        search_compatible_products(Some(1), Some(1), Some(2018), Some(1), None, Some("BP-100".into())).unwrap();
+    assert_eq!(by_sku.len(), 1, "SKU must be searched, not just the name");
+    assert_eq!(by_sku[0].product_name, "Brake Pad Set");
+
+    // A vehicle filter that contradicts the match still wins, so the added OR
+    // clause did not turn the WHERE into a no-op.
+    let conflicting =
+        search_compatible_products(Some(2), Some(3), Some(2018), Some(1), None, Some("BP-100".into())).unwrap();
+    assert!(conflicting.is_empty(), "the SKU term must not bypass the vehicle filters");
+
+    // Whitespace-only input is not a filter, and must not match everything by
+    // way of an empty LIKE pattern.
+    let blank = search_compatible_products(None, None, None, None, None, Some("   ".into())).unwrap();
+    assert_eq!(blank.len(), 4, "a blank term is no term");
+}
+
+/// "Recomendadas para Este Vehículo" could never return a row, for two
+/// independent reasons.
+#[test]
+fn recommendations_survive_a_non_english_catalog() {
+    db();
+    // The categories in this database are 'Frenos' / 'Filtros'. The old query
+    // allowed only 'Brakes' / 'Filters', so `c.name IN (...)` matched nothing.
+    let recs = get_recommendations_for_vehicle(Some(1), Some(1), Some(2018)).unwrap();
+    assert_eq!(recs.len(), 1, "got {:?}", recs.iter().map(|p| &p.product_name).collect::<Vec<_>>());
+    assert_eq!(recs[0].product_name, "Brake Pad Set");
+    assert_eq!(recs[0].category_name.as_deref(), Some("Frenos"));
+}
+
+/// The old query bound ?1/?2/?3 unconditionally, so `pvc.model_id = NULL` was
+/// never true and the panel stayed empty until all three dropdowns were filled.
+#[test]
+fn recommendations_appear_before_every_dropdown_is_filled() {
+    db();
+    let brand_only = get_recommendations_for_vehicle(Some(1), None, None).unwrap();
+    assert_eq!(brand_only.len(), 2, "brand alone: Corolla + Hilux fitments");
+
+    let model_only = get_recommendations_for_vehicle(None, Some(3), None).unwrap();
+    assert_eq!(model_only.len(), 1, "model alone: Civic");
+    assert_eq!(model_only[0].product_name, "Spark Plug");
+
+    let year_only = get_recommendations_for_vehicle(None, None, Some(2019)).unwrap();
+    assert_eq!(year_only.len(), 3, "2019 is inside 2015-2020, 2018-2024 and 2016-2022");
+
+    // A year outside every recorded range still returns the fitment rows that
+    // leave the year open, and nothing else.
+    let out_of_range = get_recommendations_for_vehicle(None, None, Some(1990)).unwrap();
+    assert!(out_of_range.is_empty());
+
+    // With no filter at all the panel is not requested: the page gates the
+    // call on a brand or model and clears the list otherwise. The command
+    // answers "every part that has fitment data" rather than erroring.
+    assert_eq!(get_recommendations_for_vehicle(None, None, None).unwrap().len(), 3);
+
+    // Recommendations must never offer a part that does not fit.
+    let wrong_brand = get_recommendations_for_vehicle(Some(2), None, None).unwrap();
+    assert_eq!(wrong_brand.len(), 1);
+    assert_eq!(wrong_brand[0].product_name, "Spark Plug");
 }
 
 #[test]

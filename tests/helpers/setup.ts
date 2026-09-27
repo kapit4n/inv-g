@@ -18,7 +18,7 @@ vi.stubGlobal("localStorage", {
   key(index: number) { return Object.keys(this._store)[index] ?? null },
 })
 
-vi.mock("@/lib/tauri", () => ({
+const tauriFixtures = vi.hoisted(() => ({
   getAppVersion: vi.fn().mockResolvedValue("0.1.0"),
   healthCheck: vi.fn().mockResolvedValue("Inventory Gear is running"),
   greet: vi.fn().mockResolvedValue("Hello, test!"),
@@ -77,3 +77,43 @@ vi.mock("@/lib/tauri", () => ({
     { storeId: 2, storeName: "North Branch", storeCode: "WH-002", productCount: 40, totalStockUnits: 310, inventoryValue: 8100 },
   ]),
 }))
+
+/**
+ * Every wrapper in `src/lib/tauri.ts` is mocked suite-wide, so a page test that
+ * touches a command not listed above would otherwise fail at import with
+ * "No X export is defined on the mock" — boilerplate that says nothing about
+ * the page under test.
+ *
+ * So the mock is built from the real module's export list: anything not
+ * explicitly stubbed above gets a bare `vi.fn()` resolving `undefined`, which
+ * keeps a page's "no data" path reachable instead of throwing. Deriving the
+ * shape from the real module also means this mock cannot silently drift out of
+ * sync with `src/lib/tauri.ts` the way a hand-written list would.
+ */
+vi.mock("@/lib/tauri", async () => {
+  const actual = await vi.importActual<Record<string, unknown>>("@/lib/tauri")
+  const mock: Record<string, unknown> = { ...tauriFixtures }
+  for (const command of Object.keys(actual)) {
+    if (!(command in mock)) mock[command] = vi.fn().mockResolvedValue(undefined)
+  }
+  return mock
+})
+
+// Radix overlays (Popover, Select, DropdownMenu) position themselves with Popper,
+// which observes its trigger for size changes and captures pointers to tell a
+// click inside from a click outside. jsdom implements neither, so opening any of
+// them throws. This has bitten every overlay component the first time it was
+// rendered under test.
+if (!globalThis.ResizeObserver) {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+}
+
+if (!Element.prototype.hasPointerCapture) {
+  Element.prototype.hasPointerCapture = () => false
+  Element.prototype.setPointerCapture = () => {}
+  Element.prototype.releasePointerCapture = () => {}
+}

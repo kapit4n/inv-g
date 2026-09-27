@@ -41,4 +41,22 @@ describe("AppSettingsStore", () => {
     useAppSettingsStore.getState().setValue("tax_rate", "18")
     expect(useAppSettingsStore.getState().getValue("tax_rate")).toBe("18")
   })
+
+  /**
+   * `hydrate()` is fire-and-forget, so a save can land before the rows arrive.
+   * `map` over an empty array drops the write, which is how flipping a module
+   * switch could persist to SQLite and change nothing on screen.
+   */
+  it("setValue keeps the write when the row has not hydrated yet", () => {
+    useAppSettingsStore.getState().setValue("enable_purchasing", "false")
+    expect(useAppSettingsStore.getState().getValue("enable_purchasing")).toBe("false")
+  })
+
+  it("setValue appends rather than replacing the rows it already has", async () => {
+    vi.mocked(getAppSettings).mockResolvedValue(mockSettings)
+    await useAppSettingsStore.getState().hydrate()
+    useAppSettingsStore.getState().setValue("enable_purchasing", "false")
+    expect(useAppSettingsStore.getState().settings).toHaveLength(3)
+    expect(useAppSettingsStore.getState().getValue("business_name")).toBe("Autopartes Test")
+  })
 })

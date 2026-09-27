@@ -6,6 +6,7 @@ import { EntityFormPage, EntityInfoCard } from "@/components/entity"
 import { TextField, TextareaField, NumberField, SelectField, CurrencyField } from "@/components/forms"
 import { EntityActionBar } from "@/components/entity"
 import { getProduct, getCategories, getBrands, getManufacturers, getSuppliers, getWarehouses, getStorageLocations, getProductImages, getProductCompatibility, createProduct, updateProduct, createProductImage, deleteProductImage, createProductCompatibility, deleteProductCompatibility } from "@/lib/tauri"
+import { useSoleWarehouseDefault } from "@/hooks"
 import { useNotification } from "@/hooks/use-notification"
 import { useAppSettingsStore, useAuthStore } from "@/stores"
 import { suggestedPrice, effectiveMargin, effectivePrice, isValidMargin } from "@/lib/pricing"
@@ -107,6 +108,10 @@ export function ProductFormPage() {
       setImageUrl(product.imageUrl || "")
     }
   }, [product])
+
+  // Products in a single-store instance live in the only warehouse, so there is
+  // nothing to pick; an existing product keeps whatever it already has.
+  useSoleWarehouseDefault(setWarehouseId, !isEdit || product != null)
 
   const addImageMutation = useMutation({
     mutationFn: createProductImage,
@@ -216,7 +221,7 @@ export function ProductFormPage() {
           <SelectField label={t("inventory.manufacturer")} options={mfrOptions} value={manufacturerId} onChange={(v) => setManufacturerId(v ? Number(v) : undefined)} placeholder={t("common.select")} />
           <SelectField label={t("inventory.supplier")} options={supOptions} value={supplierId} onChange={(v) => setSupplierId(v ? Number(v) : undefined)} placeholder={t("common.select")} />
         </div>
-        <TextareaField label={t("inventory.description")} value={description} onChange={(e) => setDescription(e.target.value)} />
+        <TextareaField label={t("inventory.descriptionField")} value={description} onChange={(e) => setDescription(e.target.value)} />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <CurrencyField label={t("inventory.costPrice")} value={costPrice} onChange={(e) => setCostPrice(Number(e.target.value))} />
           <NumberField

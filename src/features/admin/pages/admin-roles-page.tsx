@@ -76,7 +76,7 @@ export function AdminRolesPage() {
                 <thead>
                   <tr className="border-b bg-muted/50">
                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("admin.roles.name")}</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("admin.roles.description")}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("admin.roles.fieldDescription")}</th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">{t("admin.roles.isSystem")}</th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">{t("admin.roles.usersCount")}</th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">{t("admin.roles.permissions")}</th>

@@ -7,6 +7,8 @@ export interface Command {
   icon: LucideIcon
   shortcut?: string
   keywords?: string[]
+  /** Target of a navigation command, used to hide entries for disabled modules. */
+  path?: string
   action: () => void
 }
 

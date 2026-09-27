@@ -13,7 +13,14 @@ concurrency:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 30 rather than 15. The job now installs the Tauri system dependencies and
+    # builds the tauri crate graph from cold, which on a 2-core runner is several
+    # minutes on its own, on top of npm ci, two full vitest runs, the frontend
+    # build and the Rust tests. The previous 15 minutes was set when the Rust
+    # step failed instantly, so it was never actually a budget for a working
+    # pipeline. If this starts masking a genuine hang, trim it back once cargo
+    # caching is in place.
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -23,6 +30,29 @@ jobs:
         with:
           node-version: 22
           cache: "npm"
+
+      # tauri v2 links against webkit2gtk, whose -sys crates have build scripts
+      # that shell out to pkg-config for glib-2.0, gobject-2.0, gio-2.0 and
+      # webkit2gtk-4.1. `cargo test` therefore fails on a stock ubuntu-latest
+      # runner with "The system library `glib-2.0` required by crate
+      # `glib-sys` was not found" long before any test runs. This is the
+      # dependency set Tauri documents for Debian/Ubuntu; 4.1 is the
+      # webkit2gtk Tauri v2 requires (v2 dropped 4.0), and the tray-icon feature
+      # enabled in src-tauri/Cargo.toml is what needs the ayatana appindicator
+      # package rather than the older libappindicator3.
+      - name: Install Tauri system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
 
       - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -71,9 +101,23 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright
+      # `scripts/screenshots` is a separate npm package (own package.json and
+      # lockfile) and the root project declares no `workspaces`, so the root
+      # `npm ci` above does not install it. Without this step
+      # `npx playwright install` resolves `playwright` from the npx cache and
+      # never populates scripts/screenshots/node_modules, so the config's
+      # `import { defineConfig } from "@playwright/test"` dies with
+      # ERR_MODULE_NOT_FOUND.
+      - name: Install screenshot dependencies
         working-directory: scripts/screenshots
-        run: npx playwright install chromium
+        run: npm ci
+
+      # --with-deps installs the system libraries Chromium needs, which
+      # ubuntu-latest does not ship. Without it the browser can fail to launch
+      # even though Playwright itself installed fine.
+      - name: Install Chromium
+        working-directory: scripts/screenshots
+        run: npx playwright install --with-deps chromium
 
       - name: Generate screenshots
         working-directory: scripts/screenshots

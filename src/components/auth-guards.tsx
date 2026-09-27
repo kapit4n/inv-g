@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from "react-router-dom"
 import { useAuthStore } from "@/stores"
 import { PermissionService } from "@/services/permission.service"
+import { moduleForPath, useModules } from "@/hooks"
 import { useMemo } from "react"
 
 export function AuthenticatedRoute({ children }: { children: React.ReactNode }) {
@@ -56,6 +57,26 @@ export function PermissionRoute({
 
   if (!hasAccess) {
     return fallback ? <>{fallback}</> : <Navigate to="/forbidden" replace />
+  }
+
+  return <>{children}</>
+}
+
+/**
+ * Blocks the optional business modules an administrator has switched off.
+ *
+ * Wraps the authenticated layout rather than each route, so a module keeps
+ * working for its children without every entry being annotated. The check keys
+ * off the path prefix, so it also covers a bookmarked or hand-typed URL: hiding
+ * a sidebar entry alone would not have stopped the page from opening.
+ */
+export function ModuleRoute({ children }: { children: React.ReactNode }) {
+  const { pathname } = useLocation()
+  const module = useMemo(() => moduleForPath(pathname), [pathname])
+  const { isEnabled } = useModules()
+
+  if (module && !isEnabled(module)) {
+    return <Navigate to="/dashboard" replace />
   }
 
   return <>{children}</>

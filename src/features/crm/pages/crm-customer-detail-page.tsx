@@ -405,18 +405,19 @@ export function CrmCustomerDetailPage() {
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
-                      <Label>{t("licensePlate")}</Label>
-                      <Input value={vFormPlate} onChange={(e) => setVFormPlate(e.target.value)} />
+                      <Label htmlFor="v-plate">{t("licensePlate")}</Label>
+                      <Input id="v-plate" value={vFormPlate} onChange={(e) => setVFormPlate(e.target.value)} />
                     </div>
                     <div className="grid gap-2">
-                      <Label>{t("nickname")}</Label>
-                      <Input value={vFormNickname} onChange={(e) => setVFormNickname(e.target.value)} />
+                      <Label htmlFor="v-nickname">{t("nickname")}</Label>
+                      <Input id="v-nickname" value={vFormNickname} onChange={(e) => setVFormNickname(e.target.value)} />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
-                      <Label>{t("brand")}</Label>
+                      <Label htmlFor="v-brand">{t("brand")}</Label>
                       <select
+                        id="v-brand"
                         className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
                         value={vFormBrandId}
                         onChange={(e) => handleBrandChange(e.target.value)}
@@ -428,8 +429,9 @@ export function CrmCustomerDetailPage() {
                       </select>
                     </div>
                     <div className="grid gap-2">
-                      <Label>{t("model")}</Label>
+                      <Label htmlFor="v-model">{t("model")}</Label>
                       <select
+                        id="v-model"
                         className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
                         value={vFormModelId}
                         onChange={(e) => setVFormModelId(e.target.value)}
@@ -443,22 +445,22 @@ export function CrmCustomerDetailPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
-                      <Label>{t("year")}</Label>
-                      <Input type="number" value={vFormYear} onChange={(e) => setVFormYear(e.target.value)} />
+                      <Label htmlFor="v-year">{t("year")}</Label>
+                      <Input id="v-year" type="number" value={vFormYear} onChange={(e) => setVFormYear(e.target.value)} />
                     </div>
                     <div className="grid gap-2">
-                      <Label>{t("color")}</Label>
-                      <Input value={vFormColor} onChange={(e) => setVFormColor(e.target.value)} />
+                      <Label htmlFor="v-color">{t("color")}</Label>
+                      <Input id="v-color" value={vFormColor} onChange={(e) => setVFormColor(e.target.value)} />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
-                      <Label>{t("vin")}</Label>
-                      <Input value={vFormVin} onChange={(e) => setVFormVin(e.target.value)} />
+                      <Label htmlFor="v-vin">{t("vin")}</Label>
+                      <Input id="v-vin" value={vFormVin} onChange={(e) => setVFormVin(e.target.value)} />
                     </div>
                     <div className="grid gap-2">
-                      <Label>{t("mileage")}</Label>
-                      <Input type="number" value={vFormMileage} onChange={(e) => setVFormMileage(e.target.value)} />
+                      <Label htmlFor="v-mileage">{t("mileage")}</Label>
+                      <Input id="v-mileage" type="number" value={vFormMileage} onChange={(e) => setVFormMileage(e.target.value)} />
                     </div>
                   </div>
                 </div>
@@ -525,6 +527,7 @@ export function CrmCustomerDetailPage() {
                   <div className="flex items-center justify-center gap-2 max-w-xs mx-auto">
                     <Input
                       type="number"
+                      aria-label={t("creditLimit")}
                       placeholder={t("creditLimit")}
                       value={creditLimit}
                       onChange={(e) => setCreditLimit(e.target.value)}
@@ -613,8 +616,9 @@ export function CrmCustomerDetailPage() {
                   <CardContent>
                     <div className="grid grid-cols-4 gap-4 items-end">
                       <div className="grid gap-2">
-                        <Label>{t("type")}</Label>
+                        <Label htmlFor="tx-type">{t("type")}</Label>
                         <select
+                          id="tx-type"
                           className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
                           value={txType}
                           onChange={(e) => setTxType(e.target.value)}
@@ -624,12 +628,12 @@ export function CrmCustomerDetailPage() {
                         </select>
                       </div>
                       <div className="grid gap-2">
-                        <Label>{t("amount")}</Label>
-                        <Input type="number" placeholder="0.00" value={txAmount} onChange={(e) => setTxAmount(e.target.value)} />
+                        <Label htmlFor="tx-amount">{t("amount")}</Label>
+                        <Input id="tx-amount" type="number" placeholder="0.00" value={txAmount} onChange={(e) => setTxAmount(e.target.value)} />
                       </div>
                       <div className="grid gap-2">
-                        <Label>{t("notes")}</Label>
-                        <Input placeholder={t("optional")} value={txNotes} onChange={(e) => setTxNotes(e.target.value)} />
+                        <Label htmlFor="tx-notes">{t("notes")}</Label>
+                        <Input id="tx-notes" placeholder={t("optional")} value={txNotes} onChange={(e) => setTxNotes(e.target.value)} />
                       </div>
                       <Button onClick={handleAddTransaction} disabled={txSaving}>
                         {txSaving ? t("loading") : t("save")}
@@ -682,8 +686,9 @@ export function CrmCustomerDetailPage() {
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="grid gap-2">
-                    <Label>{t("type")}</Label>
+                    <Label htmlFor="n-type">{t("type")}</Label>
                     <select
+                      id="n-type"
                       className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
                       value={nFormType}
                       onChange={(e) => setNFormType(e.target.value)}
@@ -696,12 +701,12 @@ export function CrmCustomerDetailPage() {
                     </select>
                   </div>
                   <div className="grid gap-2">
-                    <Label>{t("title")} *</Label>
-                    <Input value={nFormTitle} onChange={(e) => setNFormTitle(e.target.value)} />
+                    <Label htmlFor="n-title">{t("recordTitle")} *</Label>
+                    <Input id="n-title" value={nFormTitle} onChange={(e) => setNFormTitle(e.target.value)} />
                   </div>
                   <div className="grid gap-2">
-                    <Label>{t("content")}</Label>
-                    <Textarea value={nFormContent} onChange={(e) => setNFormContent(e.target.value)} />
+                    <Label htmlFor="n-content">{t("content")}</Label>
+                    <Textarea id="n-content" value={nFormContent} onChange={(e) => setNFormContent(e.target.value)} />
                   </div>
                   <label className="flex items-center gap-2 text-sm">
                     <input type="checkbox" checked={nFormPrivate} onChange={(e) => setNFormPrivate(e.target.checked)} />

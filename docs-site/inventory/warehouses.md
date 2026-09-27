@@ -39,6 +39,26 @@ Storage locations define specific positions within a warehouse (e.g., Shelf A-3,
    - **Warehouse** (select parent warehouse)
 4. Click **Save**
 
+## When There Is Only One Warehouse
+
+If your installation has exactly one warehouse, there is nothing to choose, so the
+app fills it in for you. The warehouse is preselected in:
+
+- **Storage Locations** — the parent warehouse of a new location
+- **Receiving an order** — where the delivered units are booked in
+- **Stock Movements** — where the units move
+- **Purchase Orders** — where a new order is destined
+- **Products** — the primary storage facility of a new product
+
+A warehouse already recorded on the item always wins over the preselection, and a
+choice you make yourself is never overwritten. Once a second warehouse is added, the
+field is left empty again so the choice stays visible.
+
+::: tip
+Report filters are never preselected. Defaulting them would quietly narrow a report
+to one warehouse without saying so.
+:::
+
 ## Assigning Locations to Products
 
 When creating or editing a product:
@@ -58,6 +78,7 @@ When creating or editing a product:
 - Storage locations belong to a specific warehouse
 - Use consistent naming conventions for easy identification
 - Warehouse and location data affects stock reports
+- Preselecting only happens with a single warehouse; with two or more you always pick
 
 ## Related
 

@@ -43,6 +43,22 @@
 | Missing product | Archived or deleted | Check archived products |
 | Duplicate SKU error | SKU already exists | Use unique SKU |
 
+### Page Header Cut Off
+
+| Symptom | Cause | Solution |
+|---------|-------|----------|
+| The page title is sliced by the bottom edge of the top bar, while the description, buttons and table below it look normal | The page area was scrolled by a few pixels it should not have been able to scroll | Scroll the page area back to the top with the mouse wheel or by pressing `Home` |
+| The top bar shows "Panel de Control" on a page inside another section | The page has no title of its own yet | The top bar now names the section the page belongs to; report the page if the name is still wrong |
+
+Both were fixed in the current build, so they only appear on an older install.
+Update the application and reopen the window.
+
+::: tip Updating does not replace your data
+Your database and settings are kept. If the header is still cut off after
+updating, fully close the window and open it again — a window that was already
+open keeps the layout it was built with.
+:::
+
 ## Getting More Help
 
 1. Check the **Help** section in the app

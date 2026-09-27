@@ -23,7 +23,7 @@ import type {
   ExportScope, ImportHistoryRow, ImportMode, ImportPreview, ImportResult, RowPreview,
 } from "@/types/inventory"
 import { useAuthStore, useBusinessStore } from "@/stores"
-import { useBusinessCapabilities, usePermission } from "@/hooks"
+import { useBusinessCapabilities, usePermission, useInvalidateStock } from "@/hooks"
 import { useNotification } from "@/hooks/use-notification"
 import { StoreSelector } from "@/components/store-selector"
 
@@ -33,6 +33,7 @@ export function ImportExportPage() {
   const { t } = useTranslation()
   const notification = useNotification()
   const queryClient = useQueryClient()
+  const invalidateStock = useInvalidateStock()
   const capabilities = useBusinessCapabilities()
   const currentStoreId = useBusinessStore((s) => s.currentStoreId)
   const user = useAuthStore((s) => s.user)
@@ -104,9 +105,10 @@ export function ImportExportPage() {
             inc: res.stockIncreased, dec: res.stockDecreased,
           })
         )
-        queryClient.invalidateQueries({ queryKey: ["inventory-products"] })
-        queryClient.invalidateQueries({ queryKey: ["inventory-movements"] })
-        queryClient.invalidateQueries({ queryKey: ["inventory-dashboard"] })
+        // An import moves stock in bulk. ["inventory-dashboard"] was invalidated
+        // here, but no query uses that key — the real one is
+        // "inventory-dashboard-stats" — so the counts never refreshed.
+        invalidateStock()
         queryClient.invalidateQueries({ queryKey: ["import-history"] })
       } else {
         notification.error(t("inventory.importCancelled"), res.message ?? t("inventory.importCancelledMessage"))

@@ -13,4 +13,14 @@ export { useSelection } from "./use-selection"
 export { usePrint } from "./use-print"
 export { usePrintConfig } from "./use-print-config"
 export { useProductSearch } from "./use-product-search"
-export { useBusinessCapabilities, useCurrentStoreId, useCurrentStore, useIsMultiStore } from "./use-business-capabilities"
+export { useInvalidateStock, STOCK_QUERY_KEYS } from "./use-stock-invalidation"
+export {
+  useBusinessCapabilities,
+  useCurrentStoreId,
+  useCurrentStore,
+  useIsMultiStore,
+  useSoleWarehouseId,
+  useSoleWarehouseDefault,
+} from "./use-business-capabilities"
+export { useModules, useCurrentModule, moduleForPath, MODULE_SETTING_KEYS, MODULE_PATH_PREFIXES } from "./use-modules"
+export type { ModuleKey } from "./use-modules"

@@ -79,6 +79,8 @@ describe("BUG-007: the tab bar cannot be clipped by its own min-content width", 
     // `flex-1` alone leaves `min-width: auto`, so a wide descendant pushes the
     // column out of the `overflow-hidden` row instead of scrolling inside it.
     expect(shell).toMatch(/"flex min-w-0 flex-1 flex-col overflow-hidden[^"]*"/)
-    expect(shell).toMatch(/<main className="min-w-0 flex-1 overflow-auto">/)
+    expect(shell).toMatch(/<main className="[^"]*min-w-0[^"]*"[^>]*>/)
+    // ...and main is what scrolls, so the column keeps its `overflow-hidden`.
+    expect(shell).toMatch(/<main className="[^"]*flex-1[^"]*"[^>]*>/)
   })
 })

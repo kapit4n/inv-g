@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useQuery, useMutation } from "@tanstack/react-query"
 import { EntityListPage } from "@/components/entity"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -9,14 +9,14 @@ import { Badge } from "@/components/ui/badge"
 import { NumberField, SelectField, TextareaField } from "@/components/forms"
 import { getProducts, getInventoryMovements, transferInventoryBetweenStores } from "@/lib/tauri"
 import { useBusinessStore, useAuthStore } from "@/stores"
-import { useBusinessCapabilities } from "@/hooks"
+import { useBusinessCapabilities, useInvalidateStock } from "@/hooks"
 import { useNotification } from "@/hooks/use-notification"
 import { businessErrorMessage } from "@/lib/business-errors"
 
 export function TransfersPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
+  const invalidateStock = useInvalidateStock()
   const notification = useNotification()
   const capabilities = useBusinessCapabilities()
   const stores = useBusinessStore((s) => s.context?.stores ?? [])
@@ -42,8 +42,8 @@ export function TransfersPage() {
   const transferMutation = useMutation({
     mutationFn: transferInventoryBetweenStores,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventory-movements"] })
-      queryClient.invalidateQueries({ queryKey: ["inventory-products"] })
+      // A transfer moves stock between warehouses.
+      invalidateStock()
       notification.success(t("common.success"), t("inventory.transferCreated"))
       setToStoreId(undefined)
       setNotes("")

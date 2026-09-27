@@ -6,6 +6,168 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- **Screenshot generation now installs its own dependencies, and no longer
+  reports success when it produced nothing.** `scripts/screenshots` is a
+  separate npm package that the root `npm ci` does not cover, so CI reached for
+  `npx playwright install` — which downloads browser binaries, not Playwright —
+  and both themes died on `ERR_MODULE_NOT_FOUND` for `@playwright/test`. The
+  job then printed "All screenshots generated… 66 / 66" anyway, because it
+  counted the PNGs already committed to the repository. Generation now installs
+  the sub-package with `npm ci`, and the summary only claims success when every
+  theme exited 0 *and* wrote new files; missing derivative images are reported
+  by name instead of being swallowed.
+
+- **Part Finder never returned a result, and nothing could ever make it.** Four
+  faults stacked up: the `product_vehicle_compatibility` table could not be
+  written to from anywhere in the UI, the search inner-joined that table (so a
+  part with no fitment row was invisible even in a plain catalog lookup), the
+  search matched the product name but not the SKU the placeholder promised, and
+  the recommendations panel bound `NULL` parameters unconditionally while
+  filtering on a hardcoded list of eight *English* category names. The product's
+  **Compatibilidad** tab is now a real editor — brand, model, generation, engine,
+  transmission, year range and notes — so fitments can actually be recorded. A
+  search with no vehicle filter now searches the catalog, and a search *with* one
+  still requires a fitment. See the new "Before you start" and "Troubleshooting"
+  sections in the Part Finder page.
+- **"Activar módulo de compras" in Settings did nothing.** The three module
+  flags (`enable_sales`, `enable_purchasing`, `enable_crm`) were write-only: the
+  admin page saved them to SQLite and nothing read them back, so the section
+  stayed in the sidebar and every purchases URL still opened. All three entry
+  points are now gated — sidebar, command palette, and the routes themselves, so
+  a bookmarked or hand-typed URL is blocked too. The reader fails open: only an
+  explicit *off* hides a module.
+- **"Crear Orden de Compra" from a reorder suggestion opened an empty order.**
+  The suggestion handed the product, quantity and supplier over in React Router's
+  `state`, which the order form never read. The handoff now travels in the query
+  string, so it survives a reload, and the form is seeded with the line item. The
+  form also no longer hardcodes user 1 as the author of every order it saves.
+- **The CRM section was labelled "Título".** `crm.json` declared `title` twice,
+  and `JSON.parse` silently keeps the last one — the label of a note *field* was
+  overwriting the *section* name everywhere it was used. The same fault existed
+  in `admin.json`, `inventory.json` and `customers.json`; the shadowed keys are
+  now distinctly named and `npm run i18n:check` (wired into `npm run verify`)
+  fails the build on any repeated key. (The guard itself needed a fix on the way
+  in: as a module imported by tests it could not carry a shebang, which broke
+  both of its suites at load time on some runners.)
+- **A second "Proveedores" page in the sidebar showed invented data.** The
+  top-level `/suppliers` page was a hardcoded array of five fake suppliers with
+  three literal KPI numbers and no create, edit or delete — the same rows on
+  every install. It has been removed; supplier master data lives in
+  **Inventario → Proveedores** and product↔supplier associations in
+  **Compras → Catálogo de Proveedores**.
+
+- **"Sin Stock" now updates after selling a product out.** The dashboard's
+  *Necesita Atención* list is built from the `inventory-stats` query, and the
+  checkout did not invalidate it, so selling the last unit of a product left the
+  tile showing the pre-sale number until the page was reloaded. The backend was
+  always correct; only the cached count was stale. Every flow that moves stock —
+  checkout, refund, receiving, supplier return, manual adjustment, transfer and
+  import — now invalidates the stock views through one shared helper instead of
+  each keeping its own partial list. Two keys that were being invalidated but
+  match no query (`pos-search`, `inventory-dashboard`) were removed; the import
+  page now refreshes the inventory KPIs it was silently missing.
+- **"Nueva Devolución" lists the order's products and can be saved.** Picking a
+  purchase order seeded the line items from the order-items query *before* that
+  query had run, so the table stayed empty — and since `[].every(quantity === 0)`
+  is true, **Crear devolución** never enabled. The rows are now derived from the
+  query and only the entered quantities and reasons are stored, matching the
+  receiving form. An order with no items now says so rather than showing a blank
+  table.
+
+### Added
+
+- **A single-store instance no longer asks which warehouse to use.** When the
+  instance has exactly one warehouse there is nothing to choose, so it is now
+  preselected in the storage-location form, the receiving form, inventory
+  movements, new purchase orders and new products. A warehouse already stored on
+  the record always wins, a later manual choice is never overwritten, and an
+  instance with several warehouses is left alone so the choice stays visible.
+  Report filters are deliberately untouched: defaulting those would silently
+  narrow what a report covers.
+- **Settings are named instead of echoed.** The settings page labelled every row
+  with its raw key, so the global profit percentage read as "default margin
+  percent" and four categories appeared as bare English words. All 67 settings and
+  those categories now have real names and descriptions in Spanish and English.
+- **Purchase receipts can now be recorded.** A purchase order that is *Sent* or
+  *Partially Received* gets a **Receive Order** page: it shows what is still
+  outstanding on every line, pre-fills it, keeps *Received* and *Damaged* apart
+  so only accepted units reach stock, and closes the order when the last unit
+  arrives. Previously the button navigated to a URL that was not a route and the
+  app silently redirected to the dashboard, so an order could never be finished.
+
+### Fixed
+
+- **Creating a purchase return saves.** *Crear Devolución* stored nothing: the
+  wrapper sent `{ userId, input }` while `create_purchase_return` takes flat
+  arguments, so Tauri rejected the call before it reached the database. Creating a
+  purchase request failed identically, and saving a product compatibility entry
+  invoked a command that does not exist. A new static test compares every `invoke()`
+  in the frontend against the `#[tauri::command]` signatures in the backend and
+  fails when a wrapper calls a command that is not registered or omits a required
+  argument, which is the check the mocked component tests could never provide.
+- **A return against an order with no supplier is explained.** The button is
+  disabled and says why, instead of failing on save.
+- **The receiving form loads.** *Recibir Orden* reported that the order could not be
+  loaded and showed nothing. `get_purchase_order_items` joined the product table for
+  its name and SKU but read the joined values at the wrong offsets, so it failed on
+  every order that had a line — including all orders created through the interface,
+  where `supplier_sku` is empty. Five more queries in the same module had the same
+  fault, among them the receipt page the form opens after a successful delivery and
+  the supplier-product list, which returned a timestamp in place of the product name
+  without reporting any error. All six now name their columns and are read by name,
+  so the query and the mapper cannot drift apart again.
+- **An approved purchase order can be sent to the supplier.** *Enviar a Proveedor*
+  did nothing: the backend's status transition table had no `approved` arm, so the
+  command refused the step and the order stayed *Aprobado* forever. The full
+  lifecycle is now enforced in one place and drawn on the status map.
+- **Purchase order statuses are named consistently.** The pages labelled the
+  final status `received` while the backend writes `completed`, so a finished
+  order showed a raw English word in a translated interface and the status filter
+  offered a value that never occurred. Statuses, their translations and their
+  badge colours now come from one shared list.
+- **Page headers are no longer hidden under the top bar.** On *Inventario →
+  Fabricantes* the title was sliced by the bottom edge of the top bar while the
+  rest of the page rendered normally. The scroll container's only child used
+  `h-full` (`height: 100%`), a percentage resolved against a flex-item height
+  that can disagree with the box being scrolled — so `main` could acquire
+  scrollable overflow on a page that fits, and a scrolled short page clips its
+  first line box. The child is now `min-h-full` and `main` carries `min-h-0`, so
+  a page shorter than the viewport can never scroll.
+- **The top bar no longer labels unmapped pages "Panel de Control".** Its title
+  came from a hand-written list of thirteen routes that had drifted from the
+  sidebar — *Fabricantes* was not on it. Titles are now resolved from the
+  sidebar's navigation config by longest matching path, and an unknown route
+  falls back to its section's name.
+- **Date fields no longer leave the calendar stuck open.** Choosing a date in
+  *Compras → Nueva orden de compra → Entrega Esperada* left the calendar on
+  screen with no way to dismiss it. The field used a native
+  `<input type="date">`, whose calendar is drawn by the webview and can only be
+  *opened* from JavaScript (`showPicker()`), never closed — so no code could have
+  hidden it. `DateField` now owns its calendar, which closes on selecting a day,
+  `Enter`, `Escape`, an outside click, or clicking the field again.
+- **Saving a purchase order now persists.** Creating, editing, approving,
+  deleting, requesting, returning and receiving purchase orders all deadlocked on
+  the database mutex and never completed — the same non-reentrant
+  `std::sync::Mutex` fault as "Abrir Caja", in a module the structural guard had
+  never actually scanned.
+
+### Added
+
+- **`Calendar` component** (`src/components/ui/calendar.tsx`) — a month grid on
+  `date-fns` with locale-aware month and weekday names, following the selected
+  date when it changes from outside.
+- **Date field dismissal tests** — 9 tests asserting the calendar is absent from
+  the document after each way of closing it, plus that the emitted value stays
+  `yyyy-MM-dd` for the API.
+- **Radix overlay polyfills** (`ResizeObserver`, pointer capture) in the test
+  setup, which no test needed until one opened a `Popover` under jsdom.
+
+---
+
 ## [Unreleased] - Prerelease Version Support
 
 ### Fixed

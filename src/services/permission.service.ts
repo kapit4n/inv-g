@@ -22,7 +22,6 @@ export const PermissionService = {
       "/sales": "sales.view",
       "/purchases": "purchases.view",
       "/customers": "customers.view",
-      "/suppliers": "suppliers.view",
       "/vehicles": "vehicles.view",
       "/warehouse": "warehouse.view",
       "/reports": "reports.view",
