@@ -6,6 +6,68 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-27 — CI could not run the Rust tests: Tauri system libraries missing on the runner
+
+**Symptom:** the `quality` job failed in the "Rust Tests" step before running a
+single test, with `exit status: 101` and a cascade of build-script failures from
+`glib-sys`, `gobject-sys`, `gio-sys` and more:
+
+```
+The system library `glib-2.0` required by crate `glib-sys` was not found.
+The PKG_CONFIG_PATH environment variable is not set.
+```
+
+The same `cargo test` passes locally (168 tests), so this looked like a Cargo
+dependency problem rather than an environment one. It was the environment.
+
+**Root cause:** `tauri` v2 links against webkit2gtk, and the `-sys` crates in that
+chain have build scripts that shell out to `pkg-config` looking for `glib-2.0`,
+`gobject-2.0`, `gio-2.0` and `webkit2gtk-4.1`. Those are OS packages, not Rust
+crates, so nothing in `Cargo.toml` can pull them in. The workflow set up Node
+and Rust but never installed them, and `ubuntu-latest` does not ship them.
+
+The job had been red on this step for as long as the step existed; nothing
+previously reported it, because coverage and test output arrive earlier in the
+log than the failure and read like a healthy run.
+
+**Fix:** install Tauri v2's documented Debian/Ubuntu dependency set before the
+Rust toolchain step:
+
+```
+libwebkit2gtk-4.1-dev build-essential curl wget file
+libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+```
+
+`4.1` is deliberate: Tauri v2 dropped webkit2gtk 4.0, so 4.0 is not a valid
+substitute. `libayatana-appindicator3-dev` is deliberate for the same reason — the
+`tray-icon` feature enabled in `src-tauri/Cargo.toml` is what needs it, and the
+older `libappindicator3-dev` is a different package with a different ABI.
+
+The `quality` job timeout also went from 15 to 30 minutes. The step it fixes now
+installs a large set of packages and builds the tauri crate graph from cold,
+several minutes on a 2-core runner, on top of npm ci, two full vitest runs, the
+frontend build and the tests. The old 15 minutes was set while the Rust step
+failed instantly, so it was never a budget for a pipeline that actually builds.
+
+**Affected files:** `.github/workflows/ci.yml`
+
+**Investigation:** the giveaway was the split between local and CI. `cargo test`
+passing locally with the same lockfile rules out a missing or wrong crate and
+points at a native dependency the runner simply does not have; the
+`PKG_CONFIG_PATH environment variable is not set` line in the failure confirmed
+it was pkg-config looking for an OS package rather than a Cargo resolution
+problem. The `-sys` crate names in the error map one-to-one onto the Tauri v2
+prerequisites list.
+
+**Not verified here:** this needs a push or a PR to exercise, since the failure is
+specific to the GitHub-hosted runner. The package names were checked against the
+Ubuntu archive and the workflow parses as valid YAML, but a green Rust Tests step
+is only observable in Actions. `gh` is not installed in this environment.
+
+---
+
+---
+
 ### 2026-09-27 — The Artículos table on a purchase order showed a count, never the products
 
 **Symptom:** opening an Orden de Compra showed an empty items table — at most a
