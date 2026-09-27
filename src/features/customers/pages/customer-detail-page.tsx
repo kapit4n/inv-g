@@ -305,6 +305,7 @@ export function CustomerDetailPage() {
                   <div className="flex items-center justify-center gap-2 max-w-xs mx-auto">
                     <Input
                       type="number"
+                      aria-label={t("customers.creditLimit")}
                       placeholder={t("customers.creditLimit")}
                       value={creditLimit}
                       onChange={(e) => setCreditLimit(e.target.value)}
@@ -393,8 +394,9 @@ export function CustomerDetailPage() {
                   <CardContent>
                     <div className="grid grid-cols-4 gap-4 items-end">
                       <div className="grid gap-2">
-                        <Label>{t("customers.transactionType")}</Label>
+                        <Label htmlFor="cd-tx-type">{t("customers.transactionType")}</Label>
                         <select
+                          id="cd-tx-type"
                           className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
                           value={txType}
                           onChange={(e) => setTxType(e.target.value)}
@@ -404,8 +406,9 @@ export function CustomerDetailPage() {
                         </select>
                       </div>
                       <div className="grid gap-2">
-                        <Label>{t("customers.amount")}</Label>
+                        <Label htmlFor="cd-tx-amount">{t("customers.amount")}</Label>
                         <Input
+                          id="cd-tx-amount"
                           type="number"
                           placeholder="0.00"
                           value={txAmount}
@@ -413,8 +416,9 @@ export function CustomerDetailPage() {
                         />
                       </div>
                       <div className="grid gap-2">
-                        <Label>{t("customers.notes")}</Label>
+                        <Label htmlFor="cd-tx-notes">{t("customers.notes")}</Label>
                         <Input
+                          id="cd-tx-notes"
                           placeholder={t("common.optional")}
                           value={txNotes}
                           onChange={(e) => setTxNotes(e.target.value)}
@@ -441,8 +445,9 @@ export function CustomerDetailPage() {
                 <div className="grid gap-4">
                   <div className="grid grid-cols-3 gap-4">
                     <div className="grid gap-2">
-                      <Label>{t("customers.communicationType")}</Label>
+                      <Label htmlFor="cd-comm-type">{t("customers.communicationType")}</Label>
                       <select
+                        id="cd-comm-type"
                         className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
                         value={commType}
                         onChange={(e) => setCommType(e.target.value)}
@@ -454,8 +459,8 @@ export function CustomerDetailPage() {
                       </select>
                     </div>
                     <div className="grid gap-2">
-                      <Label>{t("customers.subject")}</Label>
-                      <Input value={commSubject} onChange={(e) => setCommSubject(e.target.value)} />
+                      <Label htmlFor="cd-comm-subject">{t("customers.subject")}</Label>
+                      <Input id="cd-comm-subject" value={commSubject} onChange={(e) => setCommSubject(e.target.value)} />
                     </div>
                     <div className="flex items-end">
                       <Button onClick={handleAddCommunication} disabled={commSaving}>
@@ -464,8 +469,8 @@ export function CustomerDetailPage() {
                     </div>
                   </div>
                   <div className="grid gap-2">
-                    <Label>{t("customers.message")}</Label>
-                    <Textarea value={commMessage} onChange={(e) => setCommMessage(e.target.value)} />
+                    <Label htmlFor="cd-comm-message">{t("customers.message")}</Label>
+                    <Textarea id="cd-comm-message" value={commMessage} onChange={(e) => setCommMessage(e.target.value)} />
                   </div>
                 </div>
               </CardContent>

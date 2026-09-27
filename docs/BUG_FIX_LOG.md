@@ -6,6 +6,38 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-27 — The customer detail pages repeated the unbound-label defect
+
+**Symptom:** the credit, vehicle and note forms on both customer detail screens
+announced their fields as unlabelled, and clicking a label did not focus the
+field it names.
+
+**Root cause:** commit `6070403` fixed this in the shared `components/forms/*`
+wrappers, but these two pages do not use them. They compose Radix `Input`,
+`Textarea` and `select` directly, each behind a bare `<Label>` with no `htmlFor`
+and no id on the control. The credit-limit input was worse still: it had no label
+at all, only a `placeholder`.
+
+**Fix:** bound all 20 labels on the two pages with an explicit `id`/`htmlFor`
+pair, and gave the credit-limit input an `aria-label` since it has no visible
+label to point at.
+
+**Affected files:**
+`src/features/crm/pages/crm-customer-detail-page.tsx`,
+`src/features/customers/pages/customer-detail-page.tsx`,
+`tests/unit/components/crm-customer-detail-page.test.tsx`,
+`tests/unit/components/customer-detail-page.test.tsx`
+
+**Still open:** this is the same defect class as the shared wrappers, and the
+page layer has not been swept. Most of the ~100 files under `src/features/**`
+build their forms the same way, so the fix is mechanical but wide. Until it is
+done, the detail pages are the exception rather than the rule. Recorded in
+`docs/testing/coverage-progress.md` under remaining work.
+
+---
+
+---
+
 ### 2026-09-27 — Every customer list issued two identical queries on open
 
 **Symptom:** opening Customers (or CRM → Customers) fetched the list twice. The
