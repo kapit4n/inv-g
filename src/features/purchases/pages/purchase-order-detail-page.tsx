@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { getPurchaseOrder, deletePurchaseOrder, updatePurchaseOrderStatus } from "@/lib/tauri"
+import { getPurchaseOrder, getPurchaseOrderItems, deletePurchaseOrder, updatePurchaseOrderStatus } from "@/lib/tauri"
+import { useQuery } from "@tanstack/react-query"
 import { useNotification } from "@/hooks/use-notification"
 import type { PurchaseOrder } from "@/types"
 import { purchaseOrderStatusLabel, purchaseOrderStatusVariant } from "../purchase-order-status"
@@ -32,6 +33,15 @@ export function PurchaseOrderDetailPage() {
   useEffect(() => {
     fetchOrder()
   }, [id])
+
+  // The line items live behind their own endpoint, so the totals on the order
+  // and the rows in the table are two separate reads. Keyed on the id rather
+  // than the order, so a refetch of the order does not refetch the items.
+  const { data: items = [], isLoading: itemsLoading } = useQuery({
+    queryKey: ["purchase-order-items", id],
+    queryFn: () => getPurchaseOrderItems(Number(id)),
+    enabled: !!id,
+  })
 
   const handleStatusUpdate = async (newStatus: string) => {
     if (!id) return
@@ -252,20 +262,43 @@ export function PurchaseOrderDetailPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {/* Items are not eagerly fetched here; they are part of a dedicated endpoint.
-                        A real implementation would call getPurchaseOrderItems and render them. */}
-                    {order.itemCount && order.itemCount > 0 ? (
+                    {itemsLoading ? (
                       <tr>
                         <td colSpan={7} className="p-4 text-center text-muted-foreground">
-                          {order.itemCount} {t("itemsCount")}
+                          {t("common.loading")}...
                         </td>
                       </tr>
-                    ) : (
+                    ) : items.length === 0 ? (
                       <tr>
                         <td colSpan={7} className="p-4 text-center text-muted-foreground">
                           {t("noItems")}
                         </td>
                       </tr>
+                    ) : (
+                      items.map((item) => (
+                        <tr key={item.id} className="border-b last:border-0 hover:bg-muted/30">
+                          <td className="p-4">
+                            {/* The backend LEFT JOINs products, so a deleted
+                                product leaves the name and SKU null. */}
+                            <span className="font-medium">{item.productName || `#${item.productId}`}</span>
+                            {(item.productSku || item.supplierSku) && (
+                              <span className="block text-xs text-muted-foreground">
+                                {item.productSku || t("supplierSku") + ": " + item.supplierSku}
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-4 text-right">{item.quantity}</td>
+                          <td className="p-4 text-right">${item.unitCost.toFixed(2)}</td>
+                          <td className="p-4 text-right">
+                            {item.discount > 0 ? `$${item.discount.toFixed(2)}` : "-"}
+                          </td>
+                          <td className="p-4 text-right">${item.tax.toFixed(2)}</td>
+                          <td className="p-4 text-right font-medium">${item.total.toFixed(2)}</td>
+                          <td className="p-4 text-right">
+                            {item.receivedQuantity} / {item.quantity}
+                          </td>
+                        </tr>
+                      ))
                     )}
                   </tbody>
                 </table>

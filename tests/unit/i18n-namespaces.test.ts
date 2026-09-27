@@ -23,7 +23,7 @@ import esPrint from "@/i18n/locales/es/print.json"
 import esPartFinder from "@/i18n/locales/es/part-finder.json"
 
 /**
- * BUG-020: the `business` namespace was bundled in both locales but never listed
+ * Regression: the `business` namespace was bundled in both locales but never listed
  * in `setupI18n`'s `ns` array. i18next therefore had no store to resolve
  * `business.errors.*` from and returned the key verbatim, so the transfers page
  * greeted a shopkeeper who tried to move stock between the same store with the

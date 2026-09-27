@@ -6,6 +6,60 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-27 — The Artículos table on a purchase order showed a count, never the products
+
+**Symptom:** opening an Orden de Compra showed an empty items table — at most a
+row reading "3 Items" — while the subtotal, tax and total underneath were all
+correct. The totals are stored on the order record itself, so the screen looked
+plausible; you simply could not see what was being ordered, and could not check
+the order against the products on it.
+
+**Root cause:** the line items are not part of the order row. They live behind
+their own endpoint, `get_purchase_order_items`, and the page never called it. The
+table body was a placeholder that rendered `order.itemCount`:
+
+```tsx
+{/* Items are not eagerly fetched here; they are part of a dedicated endpoint.
+    A real implementation would call getPurchaseOrderItems and render them. */}
+{order.itemCount && order.itemCount > 0 ? (
+  <tr><td colSpan={7}>{order.itemCount} {t("itemsCount")}</td></tr>
+) : ( ... )}
+```
+
+So the count came from the order and the rows would have come from the endpoint,
+and only the count was ever rendered. `getPurchaseOrderItems` was already
+declared in `src/lib/tauri.ts` and registered in `lib.rs`, and was already used
+by the receipt detail page — it was simply never wired into this one. The count
+also cannot stand in for the rows: an order can carry an `itemCount` and no
+lines, so the placeholder was wrong in both directions.
+
+**Fix:** fetch the items with `useQuery`, keyed on the order id, following the
+pattern the receipt detail page already uses for the same data, and render a row
+per line. Two details the backend forces:
+
+- `get_po_items_inner` LEFT JOINs `products`, so a product deleted after the
+  order was placed comes back with a null name and SKU. The row falls back to
+  `#<productId>` so the line is still identifiable.
+- A line's `total` is authoritative; it is not recomputed from quantity and unit
+  cost, so it is rendered as stored.
+
+The received column shows `receivedQuantity / quantity` rather than the received
+count alone, because a line received in full and a line not yet received look
+identical otherwise.
+
+**Affected files:** `src/features/purchases/pages/purchase-order-detail-page.tsx`,
+`tests/unit/purchases/purchase-order-detail-page.test.tsx`
+
+**Investigation:** the placeholder comment in the table body named the endpoint
+that was never called, which is what identified both the cause and the existing
+sibling implementation to copy. The regression test was confirmed to fail 6 of 7
+cases with the placeholder restored and to pass 7 of 7 with the fix; the one that
+passes either way is the totals case, since the totals were never the problem.
+
+---
+
+---
+
 ### 2026-09-27 — The customer detail pages repeated the unbound-label defect
 
 **Symptom:** the credit, vehicle and note forms on both customer detail screens
