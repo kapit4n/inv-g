@@ -47,6 +47,8 @@ useEffect(() => {
 got 2 times" on both screens. Because the two are near-copies the guard had to be
 applied to both; a shared test asserts the same behaviour for each.
 
+**Commit:** `6070403`
+
 ---
 
 ### 2026-09-27 — No form label in the app was associated with its input
@@ -77,6 +79,8 @@ validation messages are announced too.
 "Found a label with the text of: Cost Price, however no form control was found
 associated to that label". The raw `fieldId` definitions showed the two gaps.
 
+**Commit:** `6070403`
+
 ---
 
 ### 2026-09-27 — Shared action bar showed Spanish buttons to English users
@@ -99,6 +103,8 @@ the app. It had no `useTranslation` import at all.
 
 **Investigation:** surfaced when a test looked for a button named "Save" and
 found none, while the DOM contained "Guardar".
+
+**Commit:** `6070403`
 
 ---
 
@@ -128,6 +134,8 @@ un-substituted template, which ruled out the component and pointed at the config
 and the locale files. A scan of every locale string for single-brace
 placeholders found exactly 12 (6 keys × 2 locales) and no others.
 
+**Commit:** `6070403`
+
 ---
 
 ### 2026-09-27 — `npm run test:coverage` then `npm run lint` failed, and the report could be committed
@@ -148,7 +156,7 @@ is why this never showed up there.
 
 **Affected files:** `.gitignore`, `eslint.config.js`
 
----
+**Commit:** `6070403`
 
 ---
 
@@ -209,7 +217,7 @@ to be registered.
 `tests/unit/i18n-namespaces.test.ts`,
 `tests/unit/lib/validation-business-errors.test.ts`.
 
-**Commit:** pending
+**Commit:** `6070403`
 
 ---
 
