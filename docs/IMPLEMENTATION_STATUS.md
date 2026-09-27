@@ -134,7 +134,15 @@ Feature marker: **in-progress from 2026-09-18.**
 - [x] Tests: Rust (87), Vitest (431), command contracts, business-gating
 - [x] Docs: `database-profiles.md`, progress file, docs-site page, CHANGELOG
 - [x] `npm run verify` green
+- [x] Store management (create / edit / activate / deactivate / delete) in Settings
+- [x] Store rules: last active store protected, stores with history only deactivated
+- [x] Default store designation + bootstrap ("Tienda Principal" when no stores exist)
+- [x] Schema v16: `warehouses.is_default` with a single-default unique index
+- [x] System currency configuration (BOB/Boliviano supported, display only)
+- [x] Centralised currency formatter honours the configured currency everywhere
+- [x] Docs: `docs-site/settings/index.md` (store modes, selector, currency)
 - [ ] Live app check: run against single-store / multi-store / empty DBs
+- [ ] Automated tests for the new store commands and currency formatter
 - [ ] Final implementation report (`docs/IMPLEMENTATION_REPORT.md`)
 
 ## Per-Product Pricing & Gains Milestone (2026-09-24)

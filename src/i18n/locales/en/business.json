@@ -1,6 +1,7 @@
 {
   "selectStore": "Select store",
   "selectStorePlaceholder": "Select store...",
+  "storeLabel": "Store",
   "errors": {
     "multiStoreRequired": "This feature requires a multi-store database profile.",
     "storeRequired": "Select a store. In a multi-store profile every sale must be assigned to a store.",

@@ -13,7 +13,7 @@ import type {
 } from "@/types"
 import type {
   InventoryCategory, Brand, Manufacturer, InventorySupplier,
-  Warehouse, StorageLocation, InventoryProduct, ProductImage,
+  Warehouse, StoreDependency, StorageLocation, InventoryProduct, ProductImage,
   ProductCompatibility, InventoryMovement, DashboardStats, InventoryPaginatedResult,
   ImportPreview, ImportResult, ImportHistoryRow, ExportResult, ExportScope, ImportMode,
 } from "@/types/inventory"
@@ -224,7 +224,8 @@ export async function getWarehouses(): Promise<Warehouse[]> {
 
 export async function createWarehouse(data: {
   name: string; code: string; address?: string; city?: string;
-  stateProvince?: string; country?: string; manager?: string; phone?: string
+  stateProvince?: string; country?: string; manager?: string; phone?: string;
+  isActive?: boolean
 }): Promise<Warehouse> {
   return invoke<Warehouse>("create_warehouse", data)
 }
@@ -234,6 +235,33 @@ export async function updateWarehouse(data: {
   stateProvince?: string; country?: string; manager?: string; phone?: string
 }): Promise<Warehouse> {
   return invoke<Warehouse>("update_warehouse", data)
+}
+
+/**
+ * Activates or deactivates a store. The backend refuses to deactivate the last
+ * active one with ERROR_LAST_ACTIVE_STORE.
+ */
+export async function setWarehouseActive(id: number, isActive: boolean): Promise<Warehouse> {
+  return invoke<Warehouse>("set_warehouse_active", { id, isActive })
+}
+
+/** Marks the store the app falls back to. The backend keeps this unique. */
+export async function setDefaultWarehouse(id: number): Promise<Warehouse> {
+  return invoke<Warehouse>("set_default_warehouse", { id })
+}
+
+/**
+ * Deletes a store. The backend refuses with ERROR_STORE_HAS_DEPENDENCIES when
+ * any business record still points at it, and with ERROR_LAST_ACTIVE_STORE when
+ * it is the only active one.
+ */
+export async function deleteWarehouse(id: number): Promise<void> {
+  return invoke<void>("delete_warehouse", { id })
+}
+
+/** The record types and counts that block deleting a store. */
+export async function getStoreDependencies(id: number): Promise<StoreDependency[]> {
+  return invoke<StoreDependency[]>("get_store_dependencies", { id })
 }
 
 // ── Storage Locations ──

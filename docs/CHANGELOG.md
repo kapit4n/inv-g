@@ -8,7 +8,38 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
-### Fixed
+### Added
+
+- **Store (almacén) management in Settings.** Create, edit, activate, deactivate
+  and delete stores from **Settings → Tiendas y almacenes**, gated by the existing
+  *Gestionar Almacenes* permission. The store concept already existed as the
+  `warehouses` table, so this completes it rather than adding a second one: there
+  was no way to change `is_active` and no delete command at all.
+- **Store rules, enforced on the backend.** The last active store can be neither
+  deactivated nor deleted, and a store that still has products, sales, purchase
+  orders, stock movements or storage locations is never physically deleted — the
+  confirmation dialog lists what blocks it and the user deactivates instead.
+- **Default store.** A store can be designated as the one the app falls back to,
+  held unique by a partial index. A database with no stores — including the
+  `empty` profile, which seeds none — gets **Tienda Principal** created and
+  activated on startup.
+- **System currency configuration.** Pick the currency in Settings;
+  **Boliviano (BOB / Bs)** is supported alongside USD, EUR, MXN, COP, ARS, CLP,
+  PEN, UYU, PYG, GBP, CHF, JPY and BRL. It changes display only: no stored price
+  is converted.
+
+### Changed
+
+- **The currency formatter is now centralised.** `formatCurrency` reads the
+  configured currency instead of hardcoding USD, so point of sale, sales,
+  products, inventory, the dashboard, payments and reports all follow the
+  setting. The symbol is rendered with `narrowSymbol` so the app shows `Bs`
+  rather than the `BOB` code in an English locale.
+- **Schema v16** adds `warehouses.is_default` and a single-default unique index.
+  The additive migration window was widened from two versions to three so
+  databases on v13 keep their data instead of falling through to the older
+  path that drops tables.
+
 
 - **Screenshot generation now installs its own dependencies, and no longer
   reports success when it produced nothing.** `scripts/screenshots` is a

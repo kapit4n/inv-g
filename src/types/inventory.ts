@@ -65,8 +65,16 @@ export interface Warehouse {
   manager: string | null
   phone: string | null
   isActive: boolean
+  /** The store the app falls back to when no other can be resolved. */
+  isDefault: boolean
   createdAt: string
   updatedAt: string
+}
+
+/** A record type and count that blocks physically deleting a store. */
+export interface StoreDependency {
+  entity: string
+  count: number
 }
 
 export interface StorageLocation {

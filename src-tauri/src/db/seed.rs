@@ -223,6 +223,13 @@ const SEED_WAREHOUSES: &[(&str, &str, &str, &str, &str)] = &[
     ("Almacén Sur", "WH-003", "Av. Sur 200", "Santa Cruz", "Bolivia"),
 ];
 
+/// Used by `ensure_default_store` when the database has no store at all (the
+/// `empty` profile). The code is fixed so re-creating it after a delete cannot
+/// collide with a user-chosen code, and the UNIQUE constraint on `code` is what
+/// stops a second one being inserted.
+const DEFAULT_STORE_NAME: &str = "Tienda Principal";
+const DEFAULT_STORE_CODE: &str = "TIENDA-PRINCIPAL";
+
 const SEED_STORAGE_LOCATIONS: &[(&str, &str, &str, &str, &str, i32)] = &[
     ("A", "01", "A", "01", "WH-001-A-01-A-01", 1),
     ("A", "01", "B", "01", "WH-001-A-01-B-01", 1),
@@ -314,6 +321,61 @@ pub fn seed_database_with_profile(conn: &Connection, profile: &str) -> Result<()
     seed_device_settings(conn)?;
     seed_license_record(conn)?;
     seed_system_update_record(conn)?;
+    ensure_default_store(conn)?;
+
+    Ok(())
+}
+
+/// Guarantees the app can always resolve a store.
+///
+/// The `empty` profile deliberately seeds no warehouses, and a user can
+/// deactivate stores, so "at least one active store" is an invariant the seeder
+/// and the delete/deactivate guards both depend on. This runs on every startup
+/// and is deliberately non-destructive:
+///
+/// * no stores at all -> create "Tienda Principal" and make it the default;
+/// * stores exist but none active -> reactivate the default one, then the
+///   lowest id, rather than inventing a new store;
+/// * stores exist but none flagged default -> flag the existing one.
+///
+/// Existing data is never dropped and a deactivated store that still has history
+/// is never silently reactivated as a side effect of a different repair.
+fn ensure_default_store(conn: &Connection) -> Result<()> {
+    let count: i64 = conn.query_row("SELECT COUNT(*) FROM warehouses", [], |row| row.get(0))?;
+    if count == 0 {
+        conn.execute(
+            "INSERT INTO warehouses (name, code, city, country, is_active, is_default) VALUES (?1, ?2, ?3, ?4, 1, 1)",
+            rusqlite::params![DEFAULT_STORE_NAME, DEFAULT_STORE_CODE, "", "BO"],
+        )?;
+        return Ok(());
+    }
+
+    let active: i64 =
+        conn.query_row("SELECT COUNT(*) FROM warehouses WHERE is_active = 1", [], |row| row.get(0))?;
+    if active == 0 {
+        // Reactivate an existing store, preferring the flagged default, so
+        // historical data stays attached to the store it belonged to.
+        conn.execute(
+            "UPDATE warehouses SET is_active = 1
+              WHERE id = (SELECT id FROM warehouses
+                           ORDER BY is_default DESC, id ASC LIMIT 1)",
+            [],
+        )?;
+    }
+
+    let default: i64 =
+        conn.query_row("SELECT COUNT(*) FROM warehouses WHERE is_default = 1", [], |row| row.get(0))?;
+    if default == 0 {
+        // The partial unique index permits at most one default; clear first so a
+        // database that somehow holds two cannot fail this statement.
+        conn.execute("UPDATE warehouses SET is_default = 0", [])?;
+        conn.execute(
+            "UPDATE warehouses SET is_default = 1
+              WHERE id = (SELECT id FROM warehouses
+                           ORDER BY is_active DESC, is_default DESC, id ASC LIMIT 1)",
+            [],
+        )?;
+    }
 
     Ok(())
 }

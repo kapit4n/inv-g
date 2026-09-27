@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { getAppSettings } from "@/lib/tauri"
+import { CURRENCY_SETTING_KEY, setActiveCurrency } from "@/lib/currency"
 import type { AdminAppSetting } from "@/types"
 
 interface AppSettingsStore {
@@ -20,6 +21,11 @@ export const useAppSettingsStore = create<AppSettingsStore>()((set, get) => ({
     set({ loading: true })
     try {
       const settings = await getAppSettings()
+      // Every `formatCurrency` call site reads the currency from here, so the
+      // persisted value has to be pushed into the module on load or the app
+      // renders USD until something else happens to set it.
+      const currency = settings.find((s) => s.key === CURRENCY_SETTING_KEY)?.value
+      if (currency) setActiveCurrency(currency)
       set({ settings, loaded: true })
     } finally {
       set({ loading: false })
@@ -41,7 +47,8 @@ export const useAppSettingsStore = create<AppSettingsStore>()((set, get) => ({
    * The row is only a stand-in for a value the backend has already persisted;
    * `hydrate()` replaces the whole array with the real rows once it resolves.
    */
-  setValue: (key, value) =>
+  setValue: (key, value) => {
+    if (key === CURRENCY_SETTING_KEY) setActiveCurrency(value)
     set((state) => {
       const existing = state.settings.find((s) => s.key === key)
       if (existing) {
@@ -64,5 +71,6 @@ export const useAppSettingsStore = create<AppSettingsStore>()((set, get) => ({
           },
         ],
       }
-    }),
+    })
+  },
 }))
