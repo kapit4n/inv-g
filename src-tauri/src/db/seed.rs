@@ -301,6 +301,7 @@ pub fn seed_database_with_profile(conn: &Connection, profile: &str) -> Result<()
         seed_permissions(conn)?;
         seed_roles(conn)?;
         seed_users(conn)?;
+        seed_quick_login_roles(conn)?;
         seed_settings(conn)?;
 
         if profile != crate::config::PROFILE_EMPTY {
@@ -621,20 +622,164 @@ fn seed_roles(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
+/// Seeds the operator's configured users when an installer config is present,
+/// and the six built-in demo accounts otherwise.
+///
+/// The installer config wins outright rather than being merged with
+/// `DEFAULT_USERS`. An operator who configures exactly three owners and then
+/// finds a fourth `viewer` account with a published password did not get what
+/// they asked for, and the demo accounts all share the password `123456`.
+///
+/// `password_change_required` is set explicitly rather than left to its column
+/// default of 0: a pre-configured password is a shared password until the person
+/// it belongs to replaces it, and the column was previously written by the admin
+/// reset path and read by nothing.
 fn seed_users(conn: &Connection) -> Result<()> {
-    let default_password = hash("123456", DEFAULT_COST).expect("Failed to hash password");
+    match crate::installer_config::load() {
+        Ok(Some(config)) => {
+            for user in &config.users {
+                insert_user(
+                    conn,
+                    &user.username,
+                    &user.email,
+                    &user.full_name,
+                    &user.password,
+                    &user.role,
+                    user.password_change_required,
+                    user.active,
+                    user.phone.as_deref(),
+                )?;
+            }
+        }
+        Ok(None) => {
+            // No installer config. These six accounts all share the password
+            // `123456` and are now flagged to change it, but they are still
+            // created, and that is worth saying out loud: a build cut without
+            // `npm run installer-config:validate -- add` produces an installer
+            // that ships known credentials to whoever receives it.
+            log::warn!(
+                "No se encontró {}. Se crearán las {} cuentas de prueba con la contraseña 123456. \
+                 Configura installer-config.json antes de generar un instalador para un cliente.",
+                crate::installer_config::CONFIG_FILE_NAME,
+                DEFAULT_USERS.len()
+            );
 
-    for (username, email, full_name, role_name) in DEFAULT_USERS {
-        let role_id: Option<i64> = conn.query_row(
-            "SELECT id FROM roles WHERE name = ?1",
-            rusqlite::params![role_name],
-            |row| row.get(0),
-        ).ok();
+            let default_password = hash("123456", DEFAULT_COST).expect("Failed to hash password");
 
-        conn.execute(
-            "INSERT OR IGNORE INTO users (username, email, password_hash, full_name, role_id) VALUES (?1, ?2, ?3, ?4, ?5)",
-            rusqlite::params![username, email, default_password, full_name, role_id],
+            for (username, email, full_name, role_name) in DEFAULT_USERS {
+                insert_user(
+                    conn,
+                    username,
+                    email,
+                    full_name,
+                    &default_password,
+                    role_name,
+                    // The demo accounts all share one published password, so they
+                    // are flagged too. It was never flagged before this column
+                    // became readable, which is why `123456` has been the way in.
+                    true,
+                    true,
+                    None,
+                )?;
+            }
+        }
+        Err(err) => {
+            // Fatal. A malformed installer config means the operator asked for
+            // users who will not be there; falling back to the demo accounts would
+            // hide that behind a working-looking login screen.
+            return Err(rusqlite::Error::InvalidParameterName(err.to_string()));
+        }
+    }
+    Ok(())
+}
+
+/// Inserts one user, ignoring the insert if the username or email is taken.
+///
+/// `password_hash` may already be a bcrypt hash; hashing a hash would lock the
+/// account out permanently.
+fn insert_user(
+    conn: &Connection,
+    username: &str,
+    email: &str,
+    full_name: &str,
+    password: &str,
+    role_name: &str,
+    password_change_required: bool,
+    active: bool,
+    phone: Option<&str>,
+) -> Result<()> {
+    let role_id: Option<i64> = conn.query_row(
+        "SELECT id FROM roles WHERE name = ?1",
+        rusqlite::params![role_name],
+        |row| row.get(0),
+    ).ok();
+
+    if role_id.is_none() {
+        // A role named in the config that does not exist would create a user with
+        // no role: no permissions, and invisible to quick login. Better to fail.
+        return Err(rusqlite::Error::InvalidParameterName(format!(
+            "El rol '{role_name}' del usuario '{username}' no existe. Roles disponibles: owner, administrator, cashier, warehouse, purchasing, viewer."
+        )));
+    }
+
+    let password_hash = if password.starts_with("$2") {
+        password.to_string()
+    } else {
+        hash(password, DEFAULT_COST).map_err(|e| {
+            rusqlite::Error::InvalidParameterName(format!(
+                "No se pudo cifrar la contraseña de '{username}': {e}"
+            ))
+        })?
+    };
+
+    conn.execute(
+        "INSERT OR IGNORE INTO users
+            (username, email, password_hash, full_name, role_id, phone,
+             is_active, password_change_required, password_expires_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, datetime('now', '+90 days'))",
+        rusqlite::params![
+            username,
+            email,
+            password_hash,
+            full_name,
+            role_id,
+            phone,
+            if active { 1 } else { 0 },
+            if password_change_required { 1 } else { 0 },
+        ],
+    )?;
+    Ok(())
+}
+
+/// Applies the configured quick-login roles.
+///
+/// Only ever turns a role on, and only during the seed that creates the users:
+/// this runs on first launch, so a later edit to the config cannot quietly
+/// re-open a way into an installation that an administrator has since closed.
+/// Turning a role off is an administrative action, not a config re-read.
+fn seed_quick_login_roles(conn: &Connection) -> Result<()> {
+    let config = match crate::installer_config::load() {
+        Ok(Some(config)) => config,
+        Ok(None) => return Ok(()),
+        Err(err) => return Err(rusqlite::Error::InvalidParameterName(err.to_string())),
+    };
+
+    for role in &config.quick_login_roles {
+        let name = role.trim();
+        if name.is_empty() {
+            continue;
+        }
+        let changed = conn.execute(
+            "UPDATE roles SET quick_login_enabled = 1, updated_at = datetime('now')
+             WHERE name = ?1 AND is_active = 1",
+            rusqlite::params![name],
         )?;
+
+        if changed == 0 {
+            return Err(rusqlite::Error::InvalidParameterName(format!(
+                "El rol '{name}' no existe o está inactivo, así que no se puede habilitar el acceso rápido."
+            )));
+        }
     }
     Ok(())
 }

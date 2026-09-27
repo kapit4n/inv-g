@@ -2,10 +2,11 @@ import { Navigate, useLocation } from "react-router-dom"
 import { useAuthStore } from "@/stores"
 import { PermissionService } from "@/services/permission.service"
 import { moduleForPath, useModules } from "@/hooks"
+import { ForcePasswordChange } from "@/components/force-password-change"
 import { useMemo } from "react"
 
 export function AuthenticatedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, initialized, isLoading } = useAuthStore()
+  const { isAuthenticated, initialized, isLoading, mustChangePassword } = useAuthStore()
 
   if (isLoading || !initialized) {
     return (
@@ -20,6 +21,16 @@ export function AuthenticatedRoute({ children }: { children: React.ReactNode }) 
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
+  }
+
+  // Enforced here rather than per route, because this is the one component every
+  // authenticated page passes through. A check added to individual screens is one
+  // someone can forget, and a forgotten one is a way into the app with a
+  // provisioned password. Rendering the form instead of `children` means no
+  // outlet below is mounted at all, so there is nothing for a bookmarked URL or a
+  // stale tab to have already rendered.
+  if (mustChangePassword) {
+    return <ForcePasswordChange />
   }
 
   return <>{children}</>

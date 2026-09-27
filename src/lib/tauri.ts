@@ -104,6 +104,29 @@ export async function loginByRole(roleName: string): Promise<LoginResponse> {
   return invoke<LoginResponse>("login_by_role", { roleName })
 }
 
+/**
+ * Replaces the signed-in user's password and clears the forced-change flag.
+ *
+ * `currentPassword` is required by the backend, not merely sent: a valid session
+ * token on its own must not be enough to take over an account.
+ */
+export async function changePassword(
+  token: string,
+  currentPassword: string,
+  newPassword: string
+): Promise<void> {
+  return invoke<void>("change_password", { token, currentPassword, newPassword })
+}
+
+/** Roles that allow passwordless quick login, for the buttons on the login screen. */
+export async function getQuickLoginRoles(): Promise<string[]> {
+  return invoke<string[]>("get_quick_login_roles")
+}
+
+export async function setRoleQuickLogin(roleName: string, enabled: boolean): Promise<void> {
+  return invoke<void>("set_role_quick_login", { roleName, enabled })
+}
+
 export async function logout(token: string): Promise<void> {
   return invoke<void>("logout", { token })
 }

@@ -59,7 +59,10 @@
       "nsis": {
         "installMode": "currentUser",
         "compression": "lzma",
-        "languages": ["Spanish", "English"],
+        "languages": [
+          "Spanish",
+          "English"
+        ],
         "displayLanguageSelector": true,
         "startMenuFolder": "Inventory Gear",
         "installerIcon": "icons/icon.ico"
@@ -68,6 +71,9 @@
     "macOS": {
       "frameworks": [],
       "minimumSystemVersion": "10.15"
-    }
+    },
+    "resources": [
+      "../installer-config.json"
+    ]
   }
 }

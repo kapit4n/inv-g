@@ -156,3 +156,28 @@ Feature marker: **in-progress from 2026-09-18.**
 - [x] Tests: Rust pricing/import (10 each), Vitest pricing domain + Product 360 tabs
 - [x] Docs: `docs-site/inventory/products.md`, `import-export.md`, CHANGELOG, ROADMAP, `MILESTONE_15.md`
 - [x] `npm test` green (452), `cargo test --lib` 118 passed (2 pre-existing config failures)
+
+## Pre-Configured Users & First-Login Password Milestone (2026-09-27)
+
+Feature marker: **implemented, not yet run in the app.**
+
+### Status
+- [x] `installer-config.json` read once at first launch, bundled beside the executable
+- [x] Config editor CLI (`scripts/installer-config.mjs`, `npm run installer-config:*`)
+- [x] Seed N configured users; `role` defaults to `owner`, `passwordChangeRequired` on
+- [x] Config validation shared with the backend (length, uniqueness, known roles) and fails the seed
+- [x] Schema v17: `roles.quick_login_enabled` (default 0) + additive migration
+- [x] Additive migration window widened to four versions so v13 is not dropped
+- [x] `password_change_required` surfaced by login, quick login and `get_current_user`
+- [x] `change_password` command (verifies current password, ends other sessions)
+- [x] Forced change-password screen rendered in place of the app by `AuthenticatedRoute`
+- [x] `login_by_role` gated on the per-role toggle; `owner` refused
+- [x] `get_quick_login_roles` / `set_role_quick_login`; login screen shows enabled roles only
+- [x] Fixed the `admin` vs `administrator` role-name mismatch on the quick-login button
+- [x] Warning logged when no config is present and the demo accounts are seeded
+- [x] Docs: `docs/windows-installer.md`, CHANGELOG
+- [x] Verified: `cargo check`, `tsc -b`, lint, `i18n:check`, production build, and a
+      throwaway SQLite harness covering v16→v17, v13→v17, config seeding and the guards
+- [ ] Automated tests for config validation, the seed and the forced-change flow
+- [ ] Live app check: build the installer and confirm a configured user is forced to change
+- [ ] Decide whether `installer-config.json` stays in version control (plaintext passwords)

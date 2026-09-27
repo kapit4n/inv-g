@@ -2,6 +2,7 @@ mod commands;
 mod config;
 mod db;
 mod error;
+mod installer_config;
 mod pricing;
 mod startup;
 
@@ -73,6 +74,9 @@ pub fn run() {
             commands::auth::check_session,
             commands::auth::get_user_permissions_list,
             commands::auth::login_by_role,
+            commands::auth::change_password,
+            commands::auth::get_quick_login_roles,
+            commands::auth::set_role_quick_login,
             commands::settings::get_settings,
             commands::settings::get_setting,
             commands::settings::update_setting,

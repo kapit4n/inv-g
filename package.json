@@ -53,6 +53,12 @@
     "icons:generate": "node scripts/icons/generate-icons.mjs",
     "version:check": "node scripts/version.mjs check",
     "version:sync": "node scripts/version.mjs sync",
+    "installer-config:init": "node scripts/installer-config.mjs init",
+    "installer-config:add": "node scripts/installer-config.mjs add",
+    "installer-config:remove": "node scripts/installer-config.mjs remove",
+    "installer-config:quick-login": "node scripts/installer-config.mjs quick-login",
+    "installer-config:list": "node scripts/installer-config.mjs list",
+    "installer-config:validate": "node scripts/installer-config.mjs validate",
     "version:tag": "node scripts/version.mjs tag",
     "version:set": "node scripts/version.mjs set"
   },

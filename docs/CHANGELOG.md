@@ -9,6 +9,37 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **Pre-configured users per installation, set before a release is cut.**
+  `installer-config.json` lists the accounts an installer ships with, and is read
+  once on the machine's first launch to seed the `users` table. Every user
+  defaults to the `owner` role and to `passwordChangeRequired`. Previously the
+  only accounts that could exist were six hardcoded demo users sharing the
+  password `123456`, with no way to choose who was in them.
+  `scripts/installer-config.mjs` (`npm run installer-config:add`, `:list`,
+  `:validate`, ...) is the editor, and it applies the same rules as the backend so
+  a bad configuration fails at the terminal rather than on a customer's first
+  launch. A malformed config, an unknown role name or a short password now fails
+  the seed outright instead of quietly creating fewer users than were asked for.
+- **A forced password change on first login.** `users.password_change_required`
+  has existed since the users table was created and was written by the admin reset
+  path -- but nothing ever read it, so it had no effect. It is now returned by
+  `login`, `login_by_role` and `get_current_user`, and `AuthenticatedRoute`
+  renders a change-password form *in place of* the app while it is set, so there
+  is no route, deep link or back button that reaches the rest of the app. The
+  session is re-read on startup, so it applies on later launches too. There was
+  no self-service password change at all before this; `change_password` is new and
+  requires the current password even though the session is already valid, signs
+  out the account's other sessions, and clears the failed-attempt counter.
+- **Quick login can be enabled or disabled per role.** The `login_by_role`
+  command signed a user in from their role alone with no password, and it was
+  registered in production with no way to turn it off. `roles.quick_login_enabled`
+  (schema v17, default `0`) is now checked inside the command, so every role is
+  denied until it is switched on deliberately, and the login screen shows only the
+  roles the backend will accept. `owner` is refused outright. The audit action is
+  renamed from `login_test` to `quick_login`, since it is a real feature now.
+- `set_role_quick_login` for changing the toggles after installation, without
+  rebuilding an installer.
+
 
 - **Store (almacén) management in Settings.** Create, edit, activate, deactivate
   and delete stores from **Settings → Tiendas y almacenes**, gated by the existing
@@ -224,6 +255,23 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   setup, which no test needed until one opened a `Popover` under jsdom.
 
 ---
+
+
+### Fixed
+
+- **The administrator quick-login button could never work.** The login screen
+  listed the role as `admin`, but the seeded role is `administrator` and SQLite
+  string comparison is exact, so the button always failed with "Role 'admin' not
+  found". The `purchasing` role had no button at all.
+- **The additive migration window was one version too narrow.** Bumping
+  `SCHEMA_VERSION` slides the threshold, so the first column added after the
+  window was last widened would have pushed v13 databases onto the legacy path
+  that starts with `DROP TABLE` and silently lost their products and pricing. The
+  window is now four versions wide, with a comment saying to widen it on every
+  bump rather than shrink it to the steps just written.
+- **Startup now warns when no `installer-config.json` is found**, naming the
+  consequence: the six `123456` demo accounts are about to be created. The only
+  previous signal was a login screen offering known credentials.
 
 ## [Unreleased] - Prerelease Version Support
 

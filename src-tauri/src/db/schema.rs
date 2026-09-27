@@ -1,6 +1,6 @@
 use rusqlite::{Connection, Result};
 
-const SCHEMA_VERSION: i32 = 16;
+const SCHEMA_VERSION: i32 = 17;
 
 fn get_user_version(conn: &Connection) -> Result<i32> {
     let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
@@ -20,12 +20,18 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
     }
 
     // Additive migration for the immediately-previous schema versions
-    // (13, 14 and 15). This preserves existing business data instead of dropping
-    // the world; the legacy path further down begins with DROP TABLE, so a
-    // database that falls through to it loses products and their pricing. Each
+    // (13, 14, 15 and 16). This preserves existing business data instead of
+    // dropping the world; the legacy path further down begins with DROP TABLE, so
+    // a database that falls through to it loses products and their pricing. Each
     // step below is guarded by `current_version <= N` and applied in order, so a
     // single pass takes v13 straight to the current version.
-    if current_version >= SCHEMA_VERSION - 3 {
+    //
+    // The window is deliberately four versions wide, one wider than the three
+    // steps above it. Bumping SCHEMA_VERSION slides this threshold, so a window
+    // of three would have silently pushed v13 customers onto the DROP TABLE path
+    // the first time a column was added. Widen the window whenever the version is
+    // bumped; do not shrink it to "just the steps we wrote".
+    if current_version >= SCHEMA_VERSION - 4 {
         conn.execute_batch("PRAGMA foreign_keys=OFF;")?;
 
         // v13 -> v14: per-product pricing columns. Every existing product gets
@@ -79,6 +85,21 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
                  UPDATE warehouses SET is_default = 1 WHERE id = (SELECT MIN(id) FROM warehouses);
                  CREATE UNIQUE INDEX IF NOT EXISTS uq_warehouses_single_default
                      ON warehouses(is_default) WHERE is_default = 1;",
+            )?;
+        }
+
+        // v16 -> v17: per-role quick login.
+        //
+        // Quick login (`login_by_role`) signs a user in from their role alone, with
+        // no password, so it has to be off unless somebody deliberately turns it
+        // on. It lives on `roles` rather than in application settings so the gate
+        // is a single indexed lookup inside the login query and cannot drift out of
+        // step with the UI. DEFAULT 0 means every role is off: a database upgraded
+        // from 16 gains no new way in, and a fresh install starts with quick login
+        // disabled until the installer config or an administrator enables it.
+        if current_version <= 16 {
+            conn.execute_batch(
+                "ALTER TABLE roles ADD COLUMN quick_login_enabled INTEGER NOT NULL DEFAULT 0;",
             )?;
         }
 
@@ -173,6 +194,7 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             description TEXT,
             is_system INTEGER NOT NULL DEFAULT 0,
             is_active INTEGER NOT NULL DEFAULT 1,
+            quick_login_enabled INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             updated_at TEXT NOT NULL DEFAULT (datetime('now'))
         );

@@ -6,6 +6,12 @@ export interface User {
   roleId?: number
   roleName?: string
   isActive: boolean
+  /**
+   * True while the account still carries its provisioned password. The app is
+   * held on the change-password screen until this clears, so it has to be treated
+   * as authoritative on every session, not only on a fresh login.
+   */
+  passwordChangeRequired: boolean
   lastLoginAt?: string
   createdAt: string
 }
