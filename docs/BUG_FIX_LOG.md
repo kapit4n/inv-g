@@ -102,7 +102,7 @@ part of this change.
 **Affected files:** `.github/workflows/ci.yml`,
 `scripts/screenshots/generate_all.ts`
 
-**Commit:** _(see ROADMAP.md)_
+**Commit:** `6474409`
 
 ---
 
