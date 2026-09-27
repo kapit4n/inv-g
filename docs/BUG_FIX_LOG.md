@@ -6,6 +6,80 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-27 — The installer workflow rejected a version that was correct
+
+**Symptom:** the Windows installer job failed at "Verify version sync" on a
+release where every version file genuinely agreed:
+
+```
+src-tauri/Cargo.lock: inventory-gear version "undefined" != package.json "1.0.0-alpha.3"
+(cargo rewrites this on the next build, which would dirty the tree)
+Fix with: npm run version:sync
+```
+
+`"undefined"` is the tell. A real drift reports the version it disagrees with,
+the way the sibling checks report theirs. This reported nothing at all, and
+`npm run version:check` passes on the same commit locally.
+
+**Root cause:** `scripts/version.mjs` read `Cargo.lock` with a pattern that
+spells the newline literally:
+
+```js
+const cargoLockVersion = cargoLock.match(/name = "inventory-gear"\nversion = "([^"]+)"/)?.[1]
+```
+
+`core.autocrlf=true` is the Git for Windows default, and `windows-latest` uses
+it, so the checkout arrives with CRLF endings. The pattern cannot match a CRLF
+file, `?.[1]` yields `undefined`, and the comparison against package.json fails.
+There was no `.gitattributes` in the repository, so nothing normalised the
+checkout — and the divergence was invisible in a diff, because git converts
+back on the way in.
+
+`Cargo.toml` was never affected: its pattern anchors on `^version` and closes
+before the ``. Only `Cargo.lock` was, because only its pattern spans a
+newline.
+
+**Worse, `version:sync` could not fix it.** `propagate` rewrites the lockfile
+with the same `
+`-spelling pattern, so on a CRLF checkout the `replace` matched
+nothing and exited 0, printing that the version had been propagated while leaving
+the file exactly as it was. A contributor on Windows following the error
+message's own advice would have watched it report success and change nothing.
+
+**Fix:** two parts, because either alone is insufficient.
+
+- `.gitattributes` pins `eol=lf` for text files, so the checkout is LF on every
+  platform. The version files are listed explicitly because breaking them breaks
+  the release gate rather than a single build, and `*.xlsx` is marked binary so
+  a committed spreadsheet is not left to git's heuristic. This also protects the
+  repository's 8 shell scripts, which fail outright on Linux with a CRLF shebang.
+- `read()` in `version.mjs` normalises CRLF to LF. This is the part that
+  actually fixes existing clones: adding `.gitattributes` does not retroactively
+  renormalise a working tree, since git applies the new rules to files as they
+  are next checked out. A Windows clone already holding CRLF stays CRLF until it
+  is re-checked-out or `git add --renormalize`d, and `version:sync` now also
+  leaves the files with the LF endings the attributes ask for.
+
+**Affected files:** `scripts/version.mjs`, `.gitattributes`,
+`tests/integration/version-semver.test.ts`
+
+**Investigation:** reproduced exactly by converting the working-tree
+`Cargo.lock` to CRLF and re-running the script, which produced the identical
+`"undefined"` message. The existing version tests all passed throughout, because
+they run on a Linux checkout with LF, which is the point: nothing in the suite
+ever produced the file the failing runner had. The fix is guarded by 7 tests
+that build a CRLF sandbox, including one asserting that `check` still reports the
+*real* drifting version rather than `"undefined"` — otherwise the normalisation
+would have traded a loud failure for a silent pass, and 6 of the 7 fail against
+the old script.
+
+**Not verified here:** like the previous entry, this needs the Windows runner to
+confirm. `gh` is not installed in this environment.
+
+---
+
+---
+
 ### 2026-09-27 — CI could not run the Rust tests: Tauri system libraries missing on the runner
 
 **Symptom:** the `quality` job failed in the "Rust Tests" step before running a

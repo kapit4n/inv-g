@@ -97,6 +97,15 @@ function sandboxText(path: string) {
   return readFileSync(join(sandbox, path), "utf8")
 }
 
+/**
+ * Rewrites a sandbox file with CRLF endings, the way `core.autocrlf=true` leaves
+ * every text file on a Windows checkout.
+ */
+function crlf(path: string) {
+  const abs = join(sandbox, path)
+  writeFileSync(abs, readFileSync(abs, "utf8").replace(/\r?\n/g, "\r\n"))
+}
+
 beforeEach(() => {
   makeSandbox()
 })
@@ -276,6 +285,109 @@ describe("version:sync", () => {
     expect(run("sync").code).toBe(0)
     expect(run("check").code).toBe(0)
     expect(sandboxText("src-tauri/Cargo.toml")).toContain('version = "2.0.0-rc.1"')
+  })
+})
+
+/**
+ * The version script matched Cargo.lock with `\n` in the pattern, so on a Windows
+ * checkout — `core.autocrlf=true`, the Git for Windows default, and what the
+ * windows-latest runner uses — the match failed and the lockfile version read as
+ * "undefined". The installer workflow failed on a version that was correct, and
+ * only on the runner: the same commit checked clean on Linux and macOS.
+ */
+describe("CRLF checkouts", () => {
+  const VERSION_FILES = [
+    "package.json",
+    "package-lock.json",
+    "src-tauri/Cargo.toml",
+    "src-tauri/Cargo.lock",
+    "src-tauri/tauri.conf.json",
+  ] as const
+
+  it("passes version:check on a CRLF Cargo.lock", () => {
+    crlf("src-tauri/Cargo.lock")
+    const { code, stderr } = run("check")
+
+    expect(stderr).not.toContain("undefined")
+    expect(code).toBe(0)
+  })
+
+  it("passes version:check when every version file has CRLF endings", () => {
+    for (const f of VERSION_FILES) crlf(f)
+    const { code, stderr } = run("check")
+
+    expect(stderr).not.toContain("undefined")
+    expect(code).toBe(0)
+  })
+
+  it("still catches a Cargo.lock left behind by a version bump", () => {
+    // Normalising the line endings must not blind the check: drift in a CRLF
+    // lockfile has to be reported as the version it disagrees with, not as
+    // "undefined", or the fix would trade a loud failure for a silent pass.
+    const pkg = sandboxFile("package.json")
+    pkg.version = "9.9.9-rc.1"
+    writeFileSync(join(sandbox, "package.json"), JSON.stringify(pkg, null, 2) + "\n")
+    crlf("src-tauri/Cargo.lock")
+
+    const { code, stderr } = run("check")
+
+    expect(code).toBe(1)
+    expect(stderr).toContain("src-tauri/Cargo.lock")
+    expect(stderr).toContain('"1.0.0-alpha.3" != package.json "9.9.9-rc.1"')
+    expect(stderr).not.toContain("undefined")
+  })
+
+  it("still catches a hand-edited CRLF Cargo.toml", () => {
+    const toml = sandboxText("src-tauri/Cargo.toml").replace(/^version\s*=\s*"[^"]+"/m, 'version = "0.0.1"')
+    writeFileSync(join(sandbox, "src-tauri/Cargo.toml"), toml.replace(/\n/g, "\r\n"))
+
+    const { code, stderr } = run("check")
+
+    expect(code).toBe(1)
+    expect(stderr).toContain("src-tauri/Cargo.toml")
+  })
+
+  it("sync rewrites a CRLF Cargo.lock instead of silently doing nothing", () => {
+    // The old `replace` assumed LF, so on a CRLF checkout it matched nothing and
+    // still exited 0, printing that the version had been propagated.
+    crlf("src-tauri/Cargo.lock")
+    const { code } = run("sync")
+
+    expect(code).toBe(0)
+    expect(sandboxText("src-tauri/Cargo.lock")).toContain(
+      `name = "inventory-gear"\nversion = "${sandboxFile("package.json").version}"`
+    )
+  })
+
+  it("sync leaves the files it writes with the LF endings .gitattributes requires", () => {
+    for (const f of VERSION_FILES) crlf(f)
+    run("sync")
+
+    // tauri.conf.json is excluded on purpose: it points at package.json and must
+    // never be rewritten, so sync is not allowed to normalise it either.
+    for (const f of VERSION_FILES.filter((f) => f !== "src-tauri/tauri.conf.json")) {
+      const text = sandboxText(f)
+      expect(text.includes("\r\n"), `${f} kept CRLF`).toBe(false)
+      expect(text.endsWith("\n"), `${f} lost its trailing newline`).toBe(true)
+    }
+  })
+
+  it("sync does not touch tauri.conf.json, not even to normalise it", () => {
+    crlf("src-tauri/tauri.conf.json")
+    const before = sandboxText("src-tauri/tauri.conf.json")
+    run("sync")
+
+    expect(sandboxText("src-tauri/tauri.conf.json")).toBe(before)
+  })
+
+  it("round-trips: set, then check, on a fully CRLF sandbox", () => {
+    for (const f of VERSION_FILES) crlf(f)
+    expect(run("set", "2.0.0-beta.1").code).toBe(0)
+
+    const { code, stderr } = run("check")
+
+    expect(stderr).toBe("")
+    expect(code).toBe(0)
   })
 })
 

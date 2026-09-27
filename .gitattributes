@@ -1,0 +1,32 @@
+# Normalise line endings on checkout.
+#
+# Without this file, `core.autocrlf=true` — the Git for Windows default, and what
+# the windows-latest runner uses — rewrites every text file to CRLF in the working
+# tree. That is invisible in a diff, because git normalises on the way back in, but
+# it is not invisible to tooling: `npm run version:check` failed in the installer
+# workflow with
+#
+#   src-tauri/Cargo.lock: inventory-gear version "undefined" != package.json "1.0.0-alpha.3"
+#
+# because the version script matched `name = "inventory-gear"\nversion = "..."`, a
+# pattern that cannot match a CRLF file. The same commit checked clean on Linux and
+# macOS, so the drift existed only on the machine that gates releases.
+#
+# `text=auto` lets git work out what is binary, so the screenshots and other assets
+# are left alone; `eol=lf` then pins the endings for everything it calls text. This
+# also matters for the 8 shell scripts in the repo: a CRLF shebang makes them fail
+# outright on Linux with "bad interpreter", and those are run from CI.
+* text=auto eol=lf
+
+# The version files are compared and rewritten byte-wise, so they must never pick
+# up the platform's endings. Redundant with the rule above in practice, but stated
+# because breaking them breaks the release gate rather than a single build.
+package.json            text eol=lf
+package-lock.json       text eol=lf
+src-tauri/Cargo.toml    text eol=lf
+src-tauri/Cargo.lock    text eol=lf
+src-tauri/tauri.conf.json text eol=lf
+
+# Spreadsheets are zip archives. `text=auto` already detects them as binary, but
+# there is no reason to leave that to a heuristic on a file we commit.
+*.xlsx binary

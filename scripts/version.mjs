@@ -34,7 +34,25 @@ import { join, dirname } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..")
-const read = (p) => readFileSync(join(ROOT, p), "utf8")
+
+/**
+ * Reads a project file with CRLF normalised to LF.
+ *
+ * `core.autocrlf=true` — the Git for Windows default, and what windows-latest uses
+ * — rewrites text files to CRLF on checkout. The Cargo.lock patterns below match
+ * `\n` literally, so on such a checkout they silently failed to match and the
+ * lockfile version read as "undefined" in the installer workflow, while the same
+ * commit checked clean on Linux and macOS. `version:sync` was worse: the same
+ * assumption made its `replace` a no-op, so it reported success and left the
+ * version it claimed to have written untouched.
+ *
+ * Normalising here makes both commands behave identically on every platform, and
+ * leaves the files with the LF endings `.gitattributes` asks for. Adding
+ * `.gitattributes` does not rescue an existing clone on its own — git applies the
+ * new rules to files as they are next checked out, so a Windows working tree that
+ * is already CRLF stays CRLF until it is re-checked-out or `git add --renormalize`d.
+ */
+const read = (p) => readFileSync(join(ROOT, p), "utf8").replace(/\r\n/g, "\n")
 const write = (p, contents) => writeFileSync(join(ROOT, p), contents)
 
 /**
