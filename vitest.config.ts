@@ -12,6 +12,21 @@ export default defineConfig({
     globals: true,
     environment: "jsdom",
     setupFiles: ["./tests/helpers/setup.ts"],
+    // 20s, not the 5s default. The integration suites drive the real thing:
+    // `version-semver.test.ts` spawns a fresh `node` per case (27 of them, each
+    // copying a tree into a temp sandbox) and `tauri-command-argument-contract`
+    // walks `src-tauri/src`. That CPU-heavy work runs in parallel with every
+    // other worker, so on a loaded machine an ordinary `render` + `waitFor` unit
+    // test that takes 0.3s unloaded can take 13s and get killed by the default
+    // while nothing is actually wrong. The failures land on innocent bystanders
+    // -- `command-palette` and `product-compatibility-tab` were both red for
+    // this and pass in isolation.
+    //
+    // A timeout this generous cannot hide a genuine hang: a hung test blocks
+    // forever regardless, and the process-spawning cases still fail fast on
+    // their own errors.
+    testTimeout: 20000,
+    hookTimeout: 20000,
     include: [
       "tests/unit/**/*.test.{ts,tsx}",
       "tests/integration/**/*.test.{ts,tsx}",

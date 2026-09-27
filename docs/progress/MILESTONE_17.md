@@ -1,8 +1,8 @@
 # Milestone 17 — Windows Installer & 1.0.0 Release Packaging
 
 **Date:** 2026-09-25
-**Status:** ✅ Complete (`bf64f43`)
-**Docs:** [`docs/windows-installer.md`](../windows-installer.md)
+**Status:** ✅ Complete (`bf64f43`; release-pipeline fix `43f6f37`; prerelease-version fix `de4322e`)
+**Docs:** [`docs/windows-installer.md`](../windows-installer.md), [`docs/release-management.md`](../release-management.md)
 **Scope:** Produce a reproducible, production-safe Windows installer for the
 first formal release, and fix the defects that only appear once the app is
 packaged rather than run from source.
@@ -114,22 +114,40 @@ This milestone makes the app installable and install-safe.
 
 ## Known issues / follow-ups
 
-1. **The icon is placeholder artwork.** The generator produces correct
+0. **The release pipeline could reach the release step without a tag**
+   (`43f6f37`). `workflow_dispatch` carried a `publish` input defaulting to
+   `true`, so a manual run on `main` failed with
+   `400 {"message":"Missing tag_name parameter"}` and no release was ever
+   created. The release step now requires `github.ref_type == 'tag'`, passes
+   `tag_name` explicitly, and the pipeline fails when the tag and `package.json`
+   disagree. Locked in by `tests/integration/release-workflow.test.ts`. The full
+   process is documented in `docs/release-management.md`.
+1. **Only stable versions could be released** (`de4322e`).
+   `scripts/version.mjs` validated versions with `/^\d+\.\d+\.\d+$/`, so
+   `1.0.0-alpha.1` could not be set or tagged, and the release tag check
+   duplicated that assumption in shell. Validation now follows SemVer 2.0.0,
+   `version:set`/`version:sync` also update `package-lock.json` and
+   `Cargo.lock`, and a new `version:tag` command owns the tag comparison that
+   the workflow now calls. Covered by `tests/integration/version-semver.test.ts`
+   (65 tests); the versioning tools previously had none. The same check exposed
+   a stale `package-lock.json` at `0.1.0`, now corrected. Full write-up in
+   `docs/BUG_FIX_LOG.md`.
+2. **The icon is placeholder artwork.** The generator produces correct
    sizes/formats, but the final Inventory Gear logo does not exist yet. Re-run
    `npm run icons:generate` with the real art.
-2. **The installer is unsigned.** SmartScreen will warn on first run. Signing
+3. **The installer is unsigned.** SmartScreen will warn on first run. Signing
    is Windows-only and needs a certificate; the config hook and instructions are
    in `docs/windows-installer.md#code-signing`.
-3. **The `.exe` has not been run on Windows.** CI proves the installer *builds*
+4. **The `.exe` has not been run on Windows.** CI proves the installer *builds*
    and that a real `.exe` exists, but the clean-machine install / upgrade /
    uninstall walkthrough in the release checklist still has to be executed by a
    human on Windows.
-4. **Seeded accounts share the password `123456`.** Deliberate — demo data only,
+5. **Seeded accounts share the password `123456`.** Deliberate — demo data only,
    and seeding is guarded so it cannot overwrite real data. Must be addressed
    before a real store deployment.
-5. **No auto-updater.** Updates are manual via a new installer. Out of scope for
+6. **No auto-updater.** Updates are manual via a new installer. Out of scope for
    1.0.0.
-6. **Unused `shell` plugin (pre-existing finding, not changed).** The plugin is
+7. **Unused `shell` plugin (pre-existing finding, not changed).** The plugin is
    registered in `lib.rs` and the `default` capability grants
    `shell:allow-open`, but no file in `src/` or `tests/` imports
    `@tauri-apps/plugin-shell`. That permission is *not* arbitrary command

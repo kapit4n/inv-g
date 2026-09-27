@@ -37,7 +37,8 @@ non-Windows host instead of pretending to succeed.
 
 | Method | Command | Notes |
 | --- | --- | --- |
-| GitHub Actions (recommended) | push a `v*` tag, or run the workflow manually | Builds on `windows-latest` |
+| GitHub Actions (recommended) | `git push origin v1.0.0` | Builds on `windows-latest`, opens a draft release |
+| GitHub Actions (build only) | Actions → *Windows Installer* → *Run workflow* | Same build, no release — the installer lands in the run's *Artifacts* |
 | Local Windows | `npm run tauri:build:windows` | Requires Rust + Visual Studio Build Tools + WebView2 |
 | Local dev (not an installer) | `npm run tauri:build` | Builds the plain executable, no installer |
 
@@ -49,10 +50,16 @@ non-Windows host instead of pretending to succeed.
 
 1. Commit your changes.
 2. Trigger the workflow:
-   - **Manual:** GitHub → *Actions* → *Windows Installer* → *Run workflow*
-   - **Release:** `git tag v1.0.0 && git push origin v1.0.0`
+   - **Release:** `git tag v1.0.0 && git push origin v1.0.0` — only a tag creates a
+     release
+   - **Build only:** GitHub → *Actions* → *Windows Installer* → *Run workflow* —
+     builds and uploads the artifact, creates no release
 3. Download `InventoryGear-<version>-windows-installer` from the run's
    *Artifacts*, or grab the `.exe` from the draft GitHub Release.
+
+The tag must match the app version or the run fails on purpose. The full release
+process, including how to recover from a failed run, is in
+[Release Management](./release-management.md).
 
 The workflow runs the full quality gate first (typecheck, lint, Vitest, cargo
 test) and **fails the build if the NSIS bundle directory or the `.exe` is
@@ -300,4 +307,5 @@ user. Before shipping, on a clean Windows VM or spare machine:
 - `scripts/version.mjs` — version single-source-of-truth enforcement
 - `scripts/icons/generate-icons.mjs` — icon generator
 - `.github/workflows/windows-installer.yml` — the build pipeline
+- `docs/release-management.md` — tags, releases, and recovery
 - `docs/DEPLOYMENT.md` — general deployment notes

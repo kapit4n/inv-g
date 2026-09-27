@@ -157,6 +157,45 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased] - Prerelease Version Support
+
+### Fixed
+
+- **Prerelease Semantic Versions could not be set or released.** The version
+  tools accepted only `MAJOR.MINOR.PATCH`, so `1.0.0-alpha.1`,
+  `1.0.0-beta.1` and `1.0.0-rc.1` were rejected and could never be tagged.
+  Validation now implements Semantic Versioning 2.0.0, including prerelease
+  identifiers and build metadata, while still rejecting `1`, `1.0`,
+  `1.0.0.1`, `1.0-alpha` and leading-zero identifiers.
+
+### Added
+
+- **`npm run version:tag`** - validates a release tag against `package.json`
+  and exits non-zero on a mismatch, so the release gate and `version:set` can
+  never disagree about what a version is. The leading `v` is optional, making
+  `v1.0.0-rc.1` and `1.0.0-rc.1` the same release.
+- **`tests/integration/version-semver.test.ts`** - 65 tests covering accepted
+  and rejected versions, propagation to every version location, drift
+  detection, and tag matching. The versioning tools previously had no tests at
+  all, which is how a two-character regex could reject every prerelease
+  unnoticed.
+
+### Changed
+
+- **`version:set` and `version:sync` now update four derived files** —
+  `package-lock.json` (both version fields) and `src-tauri/Cargo.lock` join
+  `Cargo.toml`, and `version:check` verifies all of them.
+- **The release workflow delegates tag checking to `npm run version:tag`**
+  instead of an inline shell comparison that only handled stable versions.
+
+### Fixed (drift)
+
+- **`package-lock.json` was stale at `0.1.0`** while `package.json` said
+  `1.0.0`. The old `version:check` did not read the lockfile, so the
+  inconsistency went undetected; it is now corrected and covered by a test.
+
+---
+
 ## [1.0.0] - Windows Installer & Release Packaging
 
 > Shipped in `bf64f43` — see `docs/progress/MILESTONE_17.md`.
@@ -195,6 +234,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **GitHub Releases can no longer be created from a branch.** A manual run of the
+  *Windows Installer* workflow carried a `publish` input that defaulted to true, so
+  a run dispatched from `main` reached the release step with no tag and
+  `softprops/action-gh-release` fell back to `github.ref` — failing with
+  `400 {"message":"Missing tag_name parameter"}` and *"Unexpected error fetching
+  GitHub release for tag refs/heads/main"*. The workflow was never triggered by a
+  `main` push; the manual path was the culprit. The release step now requires
+  `github.ref_type == 'tag'`, passes `tag_name: ${{ github.ref_name }}` explicitly
+  and authenticates with `secrets.GITHUB_TOKEN`; the `publish` input is gone, so a
+  manual run builds the installer and stops. The pipeline also fails when the tag
+  and `package.json` disagree rather than publishing a mislabelled installer, and
+  now logs what the bundler produced. Documented in
+  `docs/release-management.md`.
 - **`run_seeds` shipped to production** - a Tauri command that shells out to
   `npx`, reachable from a top-bar menu item, could only ever fail on a user
   machine ("Is Node.js installed?"). It is now refused outside debug builds.

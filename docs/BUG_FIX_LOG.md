@@ -408,6 +408,177 @@ have rendered a sidebar item pointing at a dead route.
 
 **Commit:** `1434149`
 
+
+---
+
+### 2026-09-26 — Prerelease versions rejected by the version tools
+
+**Symptom:** `npm run version:set 1.0.0-alpha.1` failed with
+`"1.0.0-alpha.1" is not a valid version`, and `npm run version:check` reported
+the tree as out of sync. Because `version:set` was the only supported way to
+change the version, an alpha/beta/rc build could not be prepared, tagged, or
+released at all.
+
+**Root cause: an over-narrow validation regex in `scripts/version.mjs`.**
+
+The script validated versions with a hand-written pattern:
+
+```js
+/^\d+\.\d+\.\d+$/
+```
+
+That matches `1.0.0` and nothing else — no `-alpha.1`, no `+build.5`. The same
+restriction was duplicated in two other places: the release workflow compared
+the tag with an inline `${GITHUB_REF_NAME#v}` shell check that assumed a stable
+version, and `tests/integration/release-workflow.test.ts` asserted
+`expect(pkg.version).toMatch(/^\d+\.\d+\.\d+$/)`, which pinned the *project* to a
+stable version and would have failed any prerelease.
+
+The versioning tools had **no tests of their own**, so nothing caught the
+mismatch between "versions are `MAJOR.MINOR.PATCH`" and SemVer 2.0.0.
+
+A second, unrelated drift surfaced while writing the tests: the new `check`
+read `package-lock.json` for the first time and immediately failed, because
+both of its version fields were still `0.1.0` while `package.json` said
+`1.0.0`. The old check never looked at the lockfile, so the mismatch was
+invisible.
+
+**Investigation notes:**
+
+- Confirmed the Tauri side was never the problem: `tauri.conf.json` points at
+  `package.json`, and `npx tauri info` succeeds with a prerelease, because
+  Tauri parses it with `semver::Version::from_str`.
+- Confirmed Cargo accepts it: `cargo metadata` reports
+  `inventory-gear 1.0.0-alpha.2` and `cargo check` leaves `Cargo.lock` clean.
+- Verified the new tests fail when the old regex is restored, so they genuinely
+  cover the regression rather than just passing.
+
+**Fix:**
+
+- `scripts/version.mjs` now validates against the official SemVer 2.0.0
+  pattern, so prerelease identifiers and build metadata are accepted while
+  `1`, `1.0`, `1.0.0.1`, `1.0-alpha` and leading-zero identifiers stay
+  rejected. Validation is not loosened beyond that.
+- `set` and `sync` propagate the version to `package.json`,
+  `package-lock.json` (root and `packages[""]`), `src-tauri/Cargo.toml` and
+  `src-tauri/Cargo.lock`; `check` verifies all of them.
+- Added `version:tag`, which normalises an optional leading `v` and exits
+  non-zero on a mismatch. The release workflow now calls it instead of doing
+  its own comparison, so the tag gate and `version:set` share one definition.
+- Added `tests/integration/version-semver.test.ts` (65 tests) and relaxed the
+  release-workflow assertion to accept any SemVer.
+- Corrected the stale `package-lock.json` versions from `0.1.0` to `1.0.0`.
+
+**Files:** `scripts/version.mjs`, `package.json`, `package-lock.json`,
+`src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`,
+`.github/workflows/windows-installer.yml`,
+`tests/integration/version-semver.test.ts`,
+`tests/integration/release-workflow.test.ts`, `docs/release-management.md`,
+`docs/CHANGELOG.md`.
+
+**Commit:** `de4322e`
+
+---
+
+### 2026-09-26 — GitHub Release failed with `400 Missing tag_name parameter`
+
+**Symptom:** the *Windows Installer* workflow run ended red on the release step:
+
+```text
+Run softprops/action-gh-release@v2
+GitHub release failed with status: 400
+{"message":"Missing tag_name parameter","status":"400"}
+Unexpected error fetching GitHub release for tag refs/heads/main
+```
+
+The build, the tests and the artifact upload all succeeded; only the final step
+failed, so the installer existed and was downloadable from the run's *Artifacts*
+while the release itself was never created.
+
+**Root cause: the manual trigger, not the push trigger.**
+
+The report blamed "pushing to `main`", and that was the natural reading — but it
+was wrong, and worth recording why. `windows-installer.yml` has only ever been
+triggered by tags since it was added in `bf64f43`:
+
+```yaml
+on:
+  push:
+    tags: ["v*"]
+```
+
+`git push origin main` runs `ci.yml` and nothing else. The actual path to the
+release step was the second trigger:
+
+```yaml
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: ...
+        default: true        # ← on unless explicitly turned off
+...
+- name: Release
+  if: startsWith(github.ref, 'refs/tags/v') || inputs.publish
+  uses: softprops/action-gh-release@v2
+```
+
+A manual run (*Actions → Run workflow*) against `main` sets `github.ref` to
+`refs/heads/main` and leaves `inputs.publish` at its `true` default, so
+`|| inputs.publish` evaluated true and the step ran **with no tag**.
+`softprops/action-gh-release` falls back to `github.ref` when `tag_name` is not
+supplied, submitted `refs/heads/main` as a tag name, and the API answered
+`Missing tag_name parameter`. The `startsWith(github.ref, 'refs/tags/v')` half of
+the condition could never be true for a branch, so in practice the whole
+condition was just "run a release, or not, depending on a checkbox".
+
+Two further gaps were latent behind it:
+
+- **No version guard.** The tag was never compared with `package.json`, so
+  `git tag v9.9.9` on a `1.0.0` tree would have published a release labelled
+  `9.9.9` containing an installer that reports itself as `1.0.0`.
+- **Duplicated asset path.** The normalized installer path was written out
+  independently in the artifact upload and in the release step, so a change to
+  one could silently leave the other pointing at nothing.
+
+**Investigation notes:** `git log --follow .github/workflows/windows-installer.yml`
+confirmed the tag trigger was present from the initial commit; the failing
+`ref=refs/heads/main` in the error is the giveaway that the run was a
+`workflow_dispatch`, since a tag run would have reported `refs/tags/...`.
+
+**Fix:**
+
+- The release step now requires `github.ref_type == 'tag'`. A manual run builds
+  and uploads the installer and stops there.
+- `tag_name: ${{ github.ref_name }}` is passed explicitly, so the action never has
+  to infer a tag. `github.ref_name` is `v1.0.0`; `github.ref` is not.
+- The `publish` input is removed — the switch that could turn a branch run into a
+  release no longer exists.
+- `GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}` is set explicitly, so the step does
+  not depend on the action's implicit default.
+- Added a **tag/version guard** that fails the run when the tag and
+  `package.json` disagree, before anything is built.
+- The asset path is defined once as `INSTALLER_ASSET` and consumed by both the
+  upload and the release; a new *List generated installers* step prints the
+  bundle contents so a missing or renamed installer is visible in the log instead
+  of only as a later upload error. The normalizer now also fails explicitly when
+  the bundle directory or `.exe` is absent.
+- `tests/integration/release-workflow.test.ts` (14 tests) locks the invariants in:
+  no branch trigger, tag-only release, explicit `tag_name`, `contents: write`,
+  built-in token only, generated notes, `fail_on_unmatched_files`, single asset
+  path, the version guard, and that `ci.yml` can never publish. Each assertion was
+  confirmed to fail when the corresponding defect is reintroduced.
+
+`draft: true` is kept deliberately — the release is reviewed and published by a
+human, which is the behaviour `docs/windows-installer.md` already documented.
+
+**Affected files:** `.github/workflows/windows-installer.yml`,
+`tests/integration/release-workflow.test.ts` (new), `docs/release-management.md`
+(new), `docs/windows-installer.md`, `docs/CHANGELOG.md`, `docs/BUG_FIX_LOG.md`,
+`docs/progress/MILESTONE_17.md`, `docs/ROADMAP.md`
+
+**Commit:** `43f6f37`
+
 ---
 
 ### 2026-09-26 — "Sin Stock" never updated after selling a product out
