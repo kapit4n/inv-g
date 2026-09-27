@@ -6,6 +6,106 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-27 — CI generated zero screenshots and then reported that it had generated 132
+
+**Symptom:** the `screenshots` job on a pull request printed, for both themes:
+
+```
+❌ light screenshot generation failed: Command failed:
+  npx playwright test --config playwright.config.ts --project=light
+Error: Cannot find package '@playwright/test' imported from
+  /home/runner/work/inv-g/inv-g/scripts/screenshots/playwright.config.ts
+  ... code: 'ERR_MODULE_NOT_FOUND'
+```
+
+— and then finished with:
+
+```
+📸 All screenshots generated in /home/runner/work/inv-g/inv-g/docs/screenshots
+   Light theme: 66 screenshots
+   Dark theme: 66 screenshots
+```
+
+Nothing was generated. The 66 and 66 are the PNGs already committed to the
+repository.
+
+**Three defects, and the second one is why this survived.**
+
+**1. The sub-package was never installed.** `scripts/screenshots` is a separate
+npm package — its own `package.json`, its own `package-lock.json`, its own
+`node_modules` — and the root `package.json` declares no `workspaces`. So the
+workflow's root `npm ci` does not touch it:
+
+```yaml
+- run: npm ci                                        # root only
+- working-directory: scripts/screenshots
+  run: npx playwright install chromium               # <- the mistake
+- working-directory: scripts/screenshots
+  run: npx tsx generate_all.ts
+```
+
+`npx playwright install` does not install Playwright. With nothing in the local
+`node_modules`, `npx` fetches the `playwright` CLI into its own cache — visible
+in the original trace as
+`/home/runner/.npm/_npx/e41f203b7505f1fb/node_modules/playwright/...` — and
+downloads the Chromium *binaries*. `@playwright/test` is never installed, so
+the very first line of `playwright.config.ts` throws `ERR_MODULE_NOT_FOUND` and
+both suites die before running a single test.
+
+Fixed by adding `npm ci` in `scripts/screenshots` before the browser install.
+Also switched the browser step to `npx playwright install --with-deps chromium`:
+`ubuntu-latest` does not ship the shared libraries Chromium links against, so
+without `--with-deps` the next failure is a browser that will not launch.
+
+**2. The generator reported success over a total failure.** `runSuite` did set
+`process.exitCode = 1`, but `main()` ignored the result and then printed the
+banner unconditionally, counting files like this:
+
+```ts
+const lightCount = execSync(`ls ${LIGHT_DIR}/*.png 2>/dev/null | wc -l`, ...)
+```
+
+`docs/screenshots/light` holds 66 **committed** PNGs, so that count is 66
+whether the run produced everything, nothing, or crashed on import. A run in
+which every theme failed printed the exact same "66 / 66" summary as a run that
+worked — the one signal a human would use to notice was structurally incapable
+of noticing.
+
+`runSuite` now returns a boolean, `main` collects the results, and the success
+banner is only printed when every requested theme both exited 0 *and* wrote at
+least one file. A suite that passes while writing nothing (a project name
+matching no test, say) is now a failure. The counts come from `mtime >= run
+start`, so a clean run reports what it actually produced rather than what the
+repository already contained.
+
+**3. The derivative copies could never fail.** Every one ran as:
+
+```ts
+execSync(`cp ${src}.png ${dest}.png 2>/dev/null; true`, { stdio: "ignore" })
+```
+
+The trailing `; true` forces exit 0 unconditionally, so `execSync` could never
+throw and the surrounding `try { ... } catch { /* Already handled */ }` was
+dead code. A missing source produced a silently absent marketing or README
+image. Replaced with a `copyScreenshot` helper that warns per file. It still
+does not fail the run — a derivative image is not worth failing over — but it
+now says which file it could not produce.
+
+**Left alone, worth knowing.** `helpers/screenshot.ts` imports `sharp` for
+thumbnails, but `sharp` is not in the sub-package's dependencies, so it is
+absent. The import sits inside a `try` with a `fs.cpSync` fallback, so
+generation still succeeds — the thumbnails are just full-size copies of the
+screenshot instead of 256px wide, and the `catch {}` hides that too. Declaring
+the dependency is the real fix, but it needs a lockfile update, so it is not
+part of this change.
+
+**Affected files:** `.github/workflows/ci.yml`,
+`scripts/screenshots/generate_all.ts`
+
+**Commit:** _(see ROADMAP.md)_
+
+---
+
 ### 2026-09-26 — The Part Finder never returned a result, and nothing could ever make it
 
 **Symptom:** *Buscador de Partes* answered "No se encontraron partes compatibles"

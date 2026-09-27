@@ -10,6 +10,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Screenshot generation now installs its own dependencies, and no longer
+  reports success when it produced nothing.** `scripts/screenshots` is a
+  separate npm package that the root `npm ci` does not cover, so CI reached for
+  `npx playwright install` — which downloads browser binaries, not Playwright —
+  and both themes died on `ERR_MODULE_NOT_FOUND` for `@playwright/test`. The
+  job then printed "All screenshots generated… 66 / 66" anyway, because it
+  counted the PNGs already committed to the repository. Generation now installs
+  the sub-package with `npm ci`, and the summary only claims success when every
+  theme exited 0 *and* wrote new files; missing derivative images are reported
+  by name instead of being swallowed.
+
 - **Part Finder never returned a result, and nothing could ever make it.** Four
   faults stacked up: the `product_vehicle_compatibility` table could not be
   written to from anywhere in the UI, the search inner-joined that table (so a
