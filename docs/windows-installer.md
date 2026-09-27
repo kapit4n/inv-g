@@ -61,9 +61,18 @@ The tag must match the app version or the run fails on purpose. The full release
 process, including how to recover from a failed run, is in
 [Release Management](./release-management.md).
 
-The workflow runs the full quality gate first (typecheck, lint, Vitest, cargo
-test) and **fails the build if the NSIS bundle directory or the `.exe` is
-missing** — so a "successful" CI run always has a real installer behind it.
+It **fails the build if the NSIS bundle directory or the `.exe` is missing** — so a
+"successful" CI run always has a real installer behind it.
+
+The installer workflow deliberately does **not** run the quality gate. Typecheck,
+lint, Vitest and `cargo test` all live in the `CI` workflow, which runs on every
+push and pull request, and the installer workflow used to repeat all four. A
+release therefore ships a commit that CI has already checked. Because `CI`
+triggers on branches rather than tags, cut tags from a commit that is already
+green on `main` — a tag on an untested commit produces an installer with no CI
+behind it. `npm run build` still runs as part of `tauri build` (via
+`beforeBuildCommand`), so the frontend is still typechecked and built on the way
+to the installer; what is gone is the duplicate pass, not the check.
 
 ### Locally on Windows
 

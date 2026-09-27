@@ -35,11 +35,37 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   products, inventory, the dashboard, payments and reports all follow the
   setting. The symbol is rendered with `narrowSymbol` so the app shows `Bs`
   rather than the `BOB` code in an English locale.
+
+- **The Windows installer workflow no longer re-runs the test suite.** It
+  repeated typecheck, lint, the full Vitest suite and `cargo test` — all four
+  already run in `ci.yml` on every push and pull request — which roughly doubled
+  release wall time without ever testing a commit CI had not already tested. The
+  release path is now validate version → install → build → bundle → upload →
+  release, and `ci.yml` is unchanged: it remains the single place quality is
+  enforced, with typecheck, lint, Vitest, coverage and `cargo test` all intact.
+  The installer is still produced by `tauri build --bundles nsis`, which still
+  compiles the full Rust release profile and still runs `tsc -b` through
+  `beforeBuildCommand`, and every version gate (`version:check`, `version:tag`)
+  still fails the run on a mismatch.
+
+- **Caching in the installer workflow moved before the build and covers the Cargo
+  registry.** The build cache step sat *after* the test steps, so it saved and
+  restored `target/debug` while `tauri build` compiles `target/release` — a
+  profile the installer never reads. The release build therefore started cold
+  every time. The cache is now restored first and keyed on the Cargo.lock hash
+  plus the `rustc` version, with a second cache for `~/.cargo/registry` and
+  `~/.cargo/git` to skip repeated crate downloads. Cargo re-fingerprints
+  everything it restores, so a stale cache costs restore time, never correctness.
+
+- **The Windows Defender exclusion now actually applies.** The step guards each
+  path with `Test-Path`, and it ran before `npm ci` and before any Cargo
+  command, so neither `node_modules` nor `src-tauri/target` existed yet and both
+  guards silently failed. It runs after the caches are restored, so the build
+  tree it is meant to protect exists before Cargo writes into it.
 - **Schema v16** adds `warehouses.is_default` and a single-default unique index.
   The additive migration window was widened from two versions to three so
   databases on v13 keep their data instead of falling through to the older
   path that drops tables.
-
 
 - **Screenshot generation now installs its own dependencies, and no longer
   reports success when it produced nothing.** `scripts/screenshots` is a

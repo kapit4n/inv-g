@@ -16,6 +16,27 @@ name: Windows Installer
 # `github.ref` = `refs/heads/main` and failed with
 # `400 {"message":"Missing tag_name parameter"}`. The release step is now gated on
 # `github.ref_type == 'tag'` and passes `tag_name` explicitly, so that path is gone.
+#
+# QUALITY GATES LIVE IN ci.yml, NOT HERE.
+#
+# This workflow used to re-run typecheck, lint, the full frontend suite and the
+# Rust test step — the same four things `ci.yml` already runs on every push and
+# pull request. That doubled the cost of a release without testing anything the
+# tagged commit had not already been tested for, and it is the reason a release
+# took ~25 minutes. They are removed here, not from `ci.yml`: `ci.yml` remains the
+# single place quality is enforced, and nothing about it was changed.
+#
+# What is left is deliberately only the path to a shippable artifact: validate the
+# version, install, build, bundle, upload, release. `npm run tauri:build` is still
+# what produces the installer, and it still compiles the full Rust production code
+# and runs `tsc -b` via `beforeBuildCommand` — dropping the separate typecheck step
+# removes a duplicate, not the check itself.
+#
+# The assumption this rests on: the tagged commit already passed `ci.yml`. Note
+# that `ci.yml` triggers on `branches:`, not tags, so a tag push does not start a
+# CI run of its own. That is fine in the normal flow — a tag is cut from a commit
+# that is already green on `main` — but it does mean a tag on an untested commit
+# would build an installer with no CI behind it. Tag green commits.
 
 on:
   push:
@@ -59,23 +80,6 @@ jobs:
           build-warnings: "deny"
           components: clippy, rustfmt
 
-      # Windows Defender quarantines freshly-built unsigned Rust binaries and
-      # can corrupt or stall the NSIS build, producing a broken installer that
-      # looks fine. Excluding the build tree is the documented mitigation.
-      - name: Exclude build tree from Windows Defender
-        shell: pwsh
-        run: |
-          $paths = @(
-            "$env:GITHUB_WORKSPACE\src-tauri\target",
-            "$env:GITHUB_WORKSPACE\node_modules"
-          )
-          foreach ($p in $paths) {
-            if (Test-Path $p) {
-              Add-MpPreference -ExclusionPath $p
-              Write-Host "Excluded from Defender: $p"
-            }
-          }
-
       # `--ignore-scripts` is required, not an optimisation.
       #
       # `better-sqlite3` is a devDependency used only by the local seed tooling
@@ -110,24 +114,71 @@ jobs:
         if: github.ref_type == 'tag'
         run: npm run version:tag -- "${{ github.ref_name }}"
 
-      - name: TypeScript check
-        run: npm run typecheck
+      # The two cache steps below run *before* the build, which is the whole point
+      # of them. They used to sit after the test steps: by then the Rust test step
+      # had already compiled everything into `target/debug`, and because `tauri build`
+      # compiles the `release` profile, that work was in a directory the
+      # production build never reads. The cache was saved and restored for a
+      # profile the installer did not use, and the build still started cold.
+      #
+      # Caching `target` cannot hand back a stale *binary*: Cargo fingerprints
+      # every unit on its inputs and its own profile, and recompiles whatever does
+      # not match. A mismatched cache therefore costs restore time, never
+      # correctness. The rustc version is in the key so a toolchain bump starts a
+      # new entry instead of repeatedly restoring artifacts it must discard.
+      - name: Resolve Rust version for the cache key
+        shell: pwsh
+        run: |
+          $v = (rustc --version) -replace '\s+', '-'
+          "RUSTC=$v" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "Rust toolchain: $v"
 
-      - name: Lint
-        run: npm run lint
+      # Crate sources rather than build output. Keyed on Cargo.lock so a dependency
+      # change gets a fresh entry; the restore-keys prefix still lets an unchanged
+      # dependency graph skip the downloads entirely. Cargo verifies checksums on
+      # unpack, so a partially stale cache is corrected rather than trusted.
+      - name: Restore Cargo registry cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
 
-      - name: Frontend tests
-        run: npx vitest run
-
-      - name: Rust tests
-        run: cd src-tauri; cargo test
-
-      - name: Cache Rust build
+      - name: Restore Rust build cache
         uses: actions/cache@v4
         with:
           path: src-tauri/target
-          key: ${{ runner.os }}-nsis-${{ hashFiles('src-tauri/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-nsis-
+          key: ${{ runner.os }}-nsis-${{ env.RUSTC }}-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-nsis-${{ env.RUSTC }}-
+
+      # Windows Defender quarantines freshly-built unsigned Rust binaries and
+      # can corrupt or stall the NSIS build, producing a broken installer that
+      # looks fine. Excluding the build tree is the documented mitigation.
+      #
+      # This step is now placed *after* the caches and `npm ci` on purpose. It
+      # guards each path with `Test-Path`, and at its original position — before
+      # either directory existed — both guards failed, so the exclusion that is
+      # supposed to protect the build was silently never applied. It runs here so
+      # the directories it names are real before Cargo starts writing into them.
+      - name: Exclude build tree from Windows Defender
+        shell: pwsh
+        run: |
+          $paths = @(
+            "$env:GITHUB_WORKSPACE\src-tauri\target",
+            "$env:GITHUB_WORKSPACE\node_modules"
+          )
+          foreach ($p in $paths) {
+            if (Test-Path $p) {
+              Add-MpPreference -ExclusionPath $p
+              Write-Host "Excluded from Defender: $p"
+            } else {
+              Write-Host "NOT excluded (path does not exist yet): $p"
+            }
+          }
 
       - name: Build NSIS installer
         run: npx tauri build --bundles nsis
