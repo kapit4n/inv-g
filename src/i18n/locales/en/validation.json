@@ -20,5 +20,9 @@
   "fileRequired": "File is required",
   "fileTooLarge": "File exceeds maximum size",
   "invalidFileType": "File type not allowed",
-  "marginRange": "Must be between {{min}}% and {{max}}%"
+  "marginRange": "Must be between {{min}}% and {{max}}%",
+
+  "usernameTaken": "That username is already in use",
+  "emailTaken": "That email address is already in use",
+  "roleNotFound": "The selected role no longer exists. Reload and pick another."
 }

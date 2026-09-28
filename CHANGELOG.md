@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+### Users — required-field validation when creating an account
+- Both account-creation screens (**Admin → Users** and **Empleados**) now validate
+  before saving and show the message **on the field**, in the field's own language,
+  reporting every problem at once instead of a single toast naming three fields
+- **Role is now required.** `roleId: form.roleId || undefined` sent "no role" when
+  the selector was left on its placeholder and the backend stores a NULL `role_id`
+  without complaint, so an account that can sign in and open nothing was created
+  silently in one click. A user with no role is never what anyone means to create
+- Username, full name and email are required and trimmed, so a field holding only
+  spaces is caught instead of being saved as a whitespace username
+- Email is checked for a real address, and an optional phone number must be digits
+  and `+ - ( )` if given
+- A duplicate username or email is now reported on the field as a plain sentence.
+  The server has no duplicate check of its own — `create_admin_user` runs a raw
+  INSERT — so the clash used to reach the user as SQLite's own
+  `UNIQUE constraint failed: users.username`
+- Fixed the admin form swallowing failures entirely: it had no `catch` at all, so
+  a rejected save left the form silently. The form also carries `noValidate` now,
+  because a Tauri webview renders no native validation bubble — with the native
+  `required` attribute left on, **Save** did nothing and showed nothing
+- Both screens moved onto the shared field components (`TextField`, `EmailField`,
+  `SelectField`), so the labels are now properly associated with their controls
+- Validation lives in one place, `src/lib/validation/user-form.ts`, returning
+  translation keys so the English and Spanish builds both read correctly
+- Docs: docs-site Admin → Users & Roles, new "Required Fields" section
+
 ### Inventory — Quick add
 - New **Quick add** dialog on Inventory → Products for registering a product with
   just the four fields that matter at the counter: product, provider, quantity

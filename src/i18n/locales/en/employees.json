@@ -22,6 +22,7 @@
   "fullName": "Full Name",
   "phone": "Phone",
   "selectRole": "Select a role",
+  "roleRequiredHint": "The role decides what this employee can open. An account without one can sign in but do nothing.",
   "defaultPasswordNotice": "New employees start with the shared password CHANGEPASSWORD and must change it the first time they sign in.",
   "searchEmployees": "Search employees...",
   "noEmployees": "No employees found",

@@ -7,8 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Input } from "@/components/ui/input"
+import { TextField } from "@/components/forms/text-field"
+import { EmailField } from "@/components/forms/email-field"
+import { SelectField } from "@/components/forms/select-field"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
 import { PermissionGuard } from "@/components/permission-guard"
 import toast from "react-hot-toast"
 import {
@@ -20,6 +22,8 @@ import {
   restoreAdminUser,
   resetUserPassword,
 } from "@/lib/tauri"
+import { validateUserForm, hasErrors, translateUserSaveError } from "@/lib/validation/user-form"
+import type { UserFormErrors } from "@/lib/validation/user-form"
 import { useAuthStore } from "@/stores"
 import type { AdminUser, AdminRole } from "@/types"
 
@@ -39,6 +43,7 @@ export function EmployeesPage() {
 
   const [resetTarget, setResetTarget] = useState<AdminUser | null>(null)
   const [resetting, setResetting] = useState(false)
+  const [errors, setErrors] = useState<UserFormErrors>({})
 
   const activeCount = users.filter((u) => u.isActive).length
 
@@ -76,6 +81,7 @@ export function EmployeesPage() {
   const resetForm = () => {
     setForm({ username: "", fullName: "", email: "", phone: "", roleId: 0 })
     setEditUser(null)
+    setErrors({})
   }
 
   const openAddDialog = () => {
@@ -92,36 +98,39 @@ export function EmployeesPage() {
       phone: u.phone || "",
       roleId: u.roleId || 0,
     })
+    setErrors({})
     setDialogOpen(true)
   }
 
+  /**
+   * Clears one field's error as soon as it is edited, so the untouched fields
+   * are not flagged while the user is still filling in the first one.
+   */
+  const setField = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
+    setForm((prev) => ({ ...prev, [key]: value }))
+    setErrors((prev) => (prev[key] ? { ...prev, [key]: undefined } : prev))
+  }
+
   const handleSave = async () => {
-    if (!form.username.trim() || !form.fullName.trim() || !form.email.trim()) {
-      toast.error(t("employees.requiredFields"))
-      return
-    }
+    const found = validateUserForm(form)
+    setErrors(found)
+    if (hasErrors(found)) return
+
     setSaving(true)
     try {
+      const payload = {
+        username: form.username.trim(),
+        email: form.email.trim(),
+        fullName: form.fullName.trim(),
+        phone: form.phone.trim() || undefined,
+        roleId: form.roleId,
+      }
       if (editUser) {
-        await updateAdminUser({
-          id: editUser.id,
-          username: form.username.trim(),
-          email: form.email.trim(),
-          fullName: form.fullName.trim(),
-          phone: form.phone || undefined,
-          roleId: form.roleId || undefined,
-        })
+        await updateAdminUser({ id: editUser.id, ...payload })
         toast.success(t("employees.updated"))
       } else {
         await createAdminUser(
-          {
-            username: form.username.trim(),
-            email: form.email.trim(),
-            password: "CHANGEPASSWORD",
-            fullName: form.fullName.trim(),
-            phone: form.phone || undefined,
-            roleId: form.roleId || undefined,
-          },
+          { ...payload, password: "CHANGEPASSWORD" },
           currentUserId,
         )
         toast.success(t("employees.created"))
@@ -130,7 +139,19 @@ export function EmployeesPage() {
       resetForm()
       fetchUsers(search)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Operation failed")
+      // The backend runs a raw INSERT with no duplicate check, so a collision
+      // arrives as rusqlite's `UNIQUE constraint failed: users.username`.
+      const issue = translateUserSaveError(e instanceof Error ? e.message : String(e))
+      if (issue.key.startsWith("validation.")) {
+        const field = issue.key.includes("email")
+          ? "email"
+          : issue.key.includes("role")
+            ? "roleId"
+            : "username"
+        setErrors({ [field]: issue })
+      } else {
+        toast.error(issue.key)
+      }
     } finally {
       setSaving(false)
     }
@@ -315,37 +336,52 @@ export function EmployeesPage() {
                 </p>
               )}
               <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="username">{t("employees.username")} *</Label>
-                  <Input id="username" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="fullName">{t("employees.fullName")} *</Label>
-                  <Input id="fullName" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
-                </div>
+                <TextField
+                  label={t("employees.username")}
+                  name="username"
+                  required
+                  value={form.username}
+                  onChange={(e) => setField("username", e.target.value)}
+                  error={errors.username && t(errors.username.key, errors.username.params)}
+                  autoComplete="off"
+                />
+                <TextField
+                  label={t("employees.fullName")}
+                  name="fullName"
+                  required
+                  value={form.fullName}
+                  onChange={(e) => setField("fullName", e.target.value)}
+                  error={errors.fullName && t(errors.fullName.key, errors.fullName.params)}
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="email">{t("employees.email")} *</Label>
-                  <Input id="email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="phone">{t("employees.phone")}</Label>
-                  <Input id="phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-                </div>
+                <EmailField
+                  label={t("employees.email")}
+                  name="email"
+                  required
+                  value={form.email}
+                  onChange={(e) => setField("email", e.target.value)}
+                  error={errors.email && t(errors.email.key, errors.email.params)}
+                />
+                <TextField
+                  label={t("employees.phone")}
+                  name="phone"
+                  value={form.phone}
+                  onChange={(e) => setField("phone", e.target.value)}
+                  error={errors.phone && t(errors.phone.key, errors.phone.params)}
+                />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="role">{t("employees.role")}</Label>
-                <select
-                  id="role"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={form.roleId}
-                  onChange={(e) => setForm({ ...form, roleId: Number(e.target.value) })}
-                >
-                  <option value={0}>{t("employees.selectRole")}</option>
-                  {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-                </select>
-              </div>
+              <SelectField
+                label={t("employees.role")}
+                name="roleId"
+                required
+                value={form.roleId}
+                onChange={(value) => setField("roleId", Number(value))}
+                placeholder={t("employees.selectRole")}
+                options={roles.map((r) => ({ label: r.name, value: r.id }))}
+                error={errors.roleId && t(errors.roleId.key, errors.roleId.params)}
+                description={t("employees.roleRequiredHint")}
+              />
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => { setDialogOpen(false); resetForm() }}>

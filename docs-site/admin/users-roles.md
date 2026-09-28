@@ -15,15 +15,46 @@ Manage user accounts, roles, and permissions for role-based access control (RBAC
 1. Go to **Admin → Users**
 2. Click **+ New User**
 3. Fill in:
-   - **Username** (required)
-   - **Email** (required)
+   - **Username** (required, must be unique)
+   - **Email** (required, must be a valid address and unique)
    - **Full Name** (required)
-   - **Phone / Role / Notes** (optional)
+   - **Role** (required)
+   - **Phone / Notes** (optional)
 4. Click **Save**
 
 Only users with the **Owner** or **Administrator** role can create users. For
 everyone else the Users section is hidden and the routes return an "access
 denied" message.
+
+### Required Fields
+
+| Field | Rule |
+|-------|------|
+| Username | Required, must be unique across all accounts |
+| Full Name | Required |
+| Email | Required, must look like an address (`name@example.com`) and be unique |
+| Role | Required — the account cannot be saved without one |
+| Phone | Optional, but must be digits and `+ - ( )` if given |
+| Notes | Optional, no rules |
+
+Errors appear **on the field itself**, in red underneath it, and every problem is
+reported at once rather than one per attempt. Fixing a field clears its error as
+soon as you start typing in it.
+
+**Why Role is required.** A user with no role can sign in but cannot open
+anything — the account is dead on arrival. Leaving the selector on its
+placeholder used to save such an account silently, because an empty selection
+was sent to the server as "no change". If you need someone to have no access at
+all, create the account without the shared default and leave it disabled
+instead, or give it a role with no permissions ticked.
+
+**Duplicate username or email.** The server has no duplicate check of its own, so
+it reports the clash back on the field with a plain message rather than as a
+database error. If you see "That username is already in use", the field keeps
+what you typed so you can correct it.
+
+The same rules and the same messages apply to the **Empleados** screen, which
+uses the identical accounts.
 
 ### Default Password
 
@@ -66,9 +97,9 @@ message (and the backend rejects any such request).
 ### How to Use
 
 1. **Add employee** — click the button in the header and fill in **Username**,
-   **Full name**, **Email** (required) plus **Phone** and **Role** (optional).
-   New accounts start with the shared default password **`CHANGEPASSWORD`**
-   and must replace it on their first login (see [Default
+   **Full name**, **Email** and **Role** (all required) plus **Phone**
+   (optional). New accounts start with the shared default password
+   **`CHANGEPASSWORD`** and must replace it on their first login (see [Default
    Password](#default-password)).
 2. **Edit employee** — use the edit (pencil) icon on a row to change the same
    fields via the pre-filled dialog.

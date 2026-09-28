@@ -28,6 +28,12 @@ function setCurrentUser(id: number, permissions: string[]) {
   useAuthStore.setState({ isAuthenticated: true, permissions, user })
 }
 
+/** Opens the role select and clicks an option. */
+async function pickRole(name: string) {
+  fireEvent.click(screen.getByRole("combobox"))
+  fireEvent.click(await screen.findByRole("option", { name }))
+}
+
 describe("AdminUserFormPage", () => {
   beforeEach(() => {
     vi.mocked(getAdminRoles).mockReset()
@@ -61,12 +67,14 @@ describe("AdminUserFormPage", () => {
 
   it("creates the user with CHANGEPASSWORD and the logged-in administrator as creator", async () => {
     setCurrentUser(7, ["admin.users.manage"])
+    vi.mocked(getAdminRoles).mockResolvedValue([{ id: 3, name: "Cashier" }])
     render(<AdminUserFormPage />)
 
     const [username, fullName, email] = screen.getAllByRole("textbox")
     fireEvent.change(username, { target: { value: "nuevo" } })
     fireEvent.change(fullName, { target: { value: "Nuevo Usuario" } })
     fireEvent.change(email, { target: { value: "nuevo@test.com" } })
+    await pickRole("Cashier")
     fireEvent.click(screen.getByRole("button", { name: "Save" }))
 
     await waitFor(() =>
@@ -77,7 +85,7 @@ describe("AdminUserFormPage", () => {
           password: "CHANGEPASSWORD",
           fullName: "Nuevo Usuario",
           phone: undefined,
-          roleId: undefined,
+          roleId: 3,
           notes: undefined,
         },
         7

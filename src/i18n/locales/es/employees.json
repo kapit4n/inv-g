@@ -22,6 +22,7 @@
   "fullName": "Nombre Completo",
   "phone": "Teléfono",
   "selectRole": "Seleccione un rol",
+  "roleRequiredHint": "El rol define qué puede abrir este empleado. Una cuenta sin rol puede iniciar sesión pero no puede hacer nada.",
   "defaultPasswordNotice": "Los empleados nuevos comienzan con la contraseña compartida CHANGEPASSWORD y deben cambiarla la primera vez que inicien sesión.",
   "searchEmployees": "Buscar empleados...",
   "noEmployees": "No se encontraron empleados",

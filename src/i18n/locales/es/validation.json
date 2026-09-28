@@ -20,5 +20,9 @@
   "fileRequired": "Archivo requerido",
   "fileTooLarge": "El archivo excede el tamaño máximo permitido",
   "invalidFileType": "Tipo de archivo no permitido",
-  "marginRange": "Debe estar entre {{min}}% y {{max}}%"
+  "marginRange": "Debe estar entre {{min}}% y {{max}}%",
+
+  "usernameTaken": "Ese nombre de usuario ya está en uso",
+  "emailTaken": "Ese correo electrónico ya está en uso",
+  "roleNotFound": "El rol seleccionado ya no existe. Recarga la página y elige otro."
 }
