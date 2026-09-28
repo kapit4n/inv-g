@@ -1166,8 +1166,13 @@ export async function restoreAdminUser(id: number): Promise<void> {
   return invoke<void>("restore_admin_user", { id })
 }
 
-export async function resetUserPassword(id: number, newPassword: string, requireChange: boolean): Promise<void> {
-  return invoke<void>("reset_user_password", { id, newPassword, requireChange })
+/**
+ * Restores an account to the shared default password (blank `newPassword`) and
+ * re-arms the forced first change. `resetBy` is the acting user, which the
+ * backend checks against `admin.users.manage`.
+ */
+export async function resetUserPassword(id: number, newPassword: string, requireChange: boolean, resetBy: number): Promise<void> {
+  return invoke<void>("reset_user_password", { id, newPassword, requireChange, resetBy })
 }
 
 export async function lockUserAccount(id: number, durationMinutes?: number): Promise<void> {

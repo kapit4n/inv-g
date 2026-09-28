@@ -8,6 +8,20 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- **Employee passwords can be reset from the Employees screen.** A key action on
+  each row of **Empleados** restores the account to the shared default
+  `CHANGEPASSWORD` and re-arms the forced change, so a forgotten password is
+  cleared exactly as it is for a newly created account: the employee signs in
+  with the default and the app requires a new password before anything else
+  opens. The dialog names the employee and states the shared default, the reset
+  is recorded in the audit trail (never the password), accounts awaiting their
+  first sign-in are marked in the list, and the password expiry is re-armed for
+  90 days. The backend requires `admin.users.manage` (owner/administrator), so
+  the action cannot be used by a sales-only account, and an unknown account is
+  reported instead of silently succeeding. Documented in
+  `docs-site/admin/users-roles.md`.
+
 ### Changed
 - **The cashier role is now a selling-only account.** The seeded `cashier` role
   carries `dashboard.view` plus the sales permissions (`sales.view`,

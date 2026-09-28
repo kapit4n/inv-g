@@ -333,17 +333,68 @@ pub fn restore_admin_user(id: i64) -> Result<(), String> {
     Ok(())
 }
 
+/// Restores an account to the shared default password and re-arms the forced
+/// first change, so the next sign-in lands on the change-password screen exactly
+/// like a freshly created account. A blank password means "the shared default",
+/// mirroring `create_admin_user_inner`.
+///
+/// The permission gate is the same `admin.users.manage` check as user creation:
+/// resetting a credential is at least as sensitive as creating the account, and
+/// the command is reachable from any authenticated session.
 #[tauri::command]
-pub fn reset_user_password(id: i64, new_password: String, require_change: bool) -> Result<(), String> {
+pub fn reset_user_password(
+    id: i64,
+    new_password: String,
+    require_change: bool,
+    reset_by: i64,
+) -> Result<(), String> {
     let db = DB_STATE.get().ok_or("Database not initialized")?;
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
 
-    let password_hash = hash(&new_password, DEFAULT_COST).map_err(|e| e.to_string())?;
+    reset_user_password_inner(&conn, id, &new_password, require_change, reset_by)
+}
 
+pub fn reset_user_password_inner(
+    conn: &rusqlite::Connection,
+    id: i64,
+    new_password: &str,
+    require_change: bool,
+    reset_by: i64,
+) -> Result<(), String> {
+    if !user_has_permission(conn, reset_by, USER_MANAGE_PERMISSION)? {
+        return Err("No tienes permiso para restablecer contraseñas.".to_string());
+    }
+
+    let password = if new_password.trim().is_empty() {
+        DEFAULT_USER_PASSWORD.to_string()
+    } else {
+        new_password.to_string()
+    };
+    let password_hash = hash(&password, DEFAULT_COST).map_err(|e| e.to_string())?;
+
+    let changed = conn
+        .execute(
+            "UPDATE users SET password_hash = ?1, password_change_required = ?2, password_expires_at = datetime('now', '+90 days'), updated_at = datetime('now') WHERE id = ?3",
+            rusqlite::params![password_hash, if require_change { 1 } else { 0 }, id],
+        )
+        .map_err(|e| e.to_string())?;
+
+    if changed == 0 {
+        return Err("El usuario no existe.".to_string());
+    }
+
+    // Never the password itself: the audit trail records who reset whose
+    // credential, and whether the next sign-in must change it.
+    let details = if require_change {
+        "Password reset; change required on next login"
+    } else {
+        "Password reset"
+    };
     conn.execute(
-        "UPDATE users SET password_hash = ?1, password_change_required = ?2, password_expires_at = datetime('now', '+90 days'), updated_at = datetime('now') WHERE id = ?3",
-        rusqlite::params![password_hash, if require_change { 1 } else { 0 }, id],
-    ).map_err(|e| e.to_string())?;
+        "INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details, severity)
+         VALUES (?1, 'reset_password', 'user', ?2, ?3, 'warning')",
+        rusqlite::params![reset_by, id.to_string(), details],
+    ).ok();
 
     Ok(())
 }
@@ -547,5 +598,71 @@ mod tests {
 
         assert_eq!(a.created_by, Some(owner));
         assert_eq!(b.created_by, Some(administrator));
+    }
+
+    #[test]
+    fn reset_restores_the_default_password_and_forces_the_first_change() {
+        let conn = test_db();
+        let admin = user_id(&conn, "admin");
+
+        let created = create_with_password(&conn, "vendedor1", "M1PropioCambiado", admin).expect("create");
+        // Simulate the employee having replaced the default with their own.
+        reset_user_password_inner(&conn, created.id, "OtraClavePropia", false, admin)
+            .expect("reset with an explicit password");
+
+        // A blank password means "the shared default", like creation.
+        reset_user_password_inner(&conn, created.id, "", true, admin).expect("reset to the default");
+
+        assert!(
+            bcrypt::verify(DEFAULT_USER_PASSWORD, &stored_password(&conn, "vendedor1"))
+                .expect("verify hash"),
+            "the account is back on the shared default password"
+        );
+
+        let (required, expires): (i64, Option<String>) = conn
+            .query_row(
+                "SELECT password_change_required, password_expires_at FROM users WHERE id = ?1",
+                rusqlite::params![created.id],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .expect("read flags");
+        assert_eq!(required, 1, "the next sign-in must force a password change");
+        assert!(expires.is_some(), "the password expiry is re-armed");
+
+        let audited: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM audit_logs WHERE action = 'reset_password' AND entity_id = ?1
+                 AND details = 'Password reset; change required on next login'",
+                rusqlite::params![created.id.to_string()],
+                |r| r.get(0),
+            )
+            .expect("read audit");
+        assert_eq!(audited, 1, "the forced-change reset is recorded, the plain one is not");
+    }
+
+    #[test]
+    fn non_administrator_cannot_reset_passwords() {
+        let conn = test_db();
+        let cashier = user_id(&conn, "cashier");
+        let target = user_id(&conn, "viewer");
+
+        let err = reset_user_password_inner(&conn, target, "", true, cashier)
+            .expect_err("must be rejected");
+
+        assert!(
+            err.contains("permiso"),
+            "error should explain the missing permission, got: {err}"
+        );
+    }
+
+    #[test]
+    fn reset_reports_an_unknown_account() {
+        let conn = test_db();
+        let admin = user_id(&conn, "admin");
+
+        let err = reset_user_password_inner(&conn, 999_999, "", true, admin)
+            .expect_err("an unknown id must not silently succeed");
+
+        assert!(err.contains("no existe"), "unexpected error: {err}");
     }
 }

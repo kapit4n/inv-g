@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Plus, Search, Edit, Archive, RotateCcw } from "lucide-react"
+import { Plus, Search, Edit, Archive, RotateCcw, KeyRound } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,6 +18,7 @@ import {
   updateAdminUser,
   archiveAdminUser,
   restoreAdminUser,
+  resetUserPassword,
 } from "@/lib/tauri"
 import { useAuthStore } from "@/stores"
 import type { AdminUser, AdminRole } from "@/types"
@@ -35,6 +36,9 @@ export function EmployeesPage() {
   const [editUser, setEditUser] = useState<AdminUser | null>(null)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({ username: "", fullName: "", email: "", phone: "", roleId: 0 })
+
+  const [resetTarget, setResetTarget] = useState<AdminUser | null>(null)
+  const [resetting, setResetting] = useState(false)
 
   const activeCount = users.filter((u) => u.isActive).length
 
@@ -147,6 +151,27 @@ export function EmployeesPage() {
     }
   }
 
+  /**
+   * Puts the account back on the shared default password and re-arms the forced
+   * first change, so the employee lands on the change-password screen at the
+   * next sign-in exactly like a new account. A blank password tells the backend
+   * to use the default; the constant itself stays in one place.
+   */
+  const handleResetPassword = async () => {
+    if (!resetTarget) return
+    setResetting(true)
+    try {
+      await resetUserPassword(resetTarget.id, "", true, currentUserId)
+      toast.success(t("employees.passwordReset"))
+      setResetTarget(null)
+      fetchUsers(search)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("employees.passwordResetFailed"))
+    } finally {
+      setResetting(false)
+    }
+  }
+
   const noPermission = (
     <div className="flex h-full items-center justify-center p-6">
       <Card><CardContent className="p-6 text-sm text-muted-foreground">{t("employees.noPermission")}</CardContent></Card>
@@ -237,6 +262,11 @@ export function EmployeesPage() {
                       <td className="px-4 py-3">
                         <p className="text-sm font-medium">{u.fullName}</p>
                         <p className="text-xs text-muted-foreground">{u.username}</p>
+                        {u.passwordChangeRequired && (
+                          <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+                            {t("employees.mustChangePassword")}
+                          </p>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-sm">{u.roleName || "-"}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">{u.email}</td>
@@ -250,6 +280,9 @@ export function EmployeesPage() {
                         <div className="flex items-center justify-center gap-1">
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(u)} title={t("employees.editEmployee")}>
                             <Edit className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setResetTarget(u)} title={t("employees.resetPassword")}>
+                            <KeyRound className="h-3.5 w-3.5" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -277,7 +310,7 @@ export function EmployeesPage() {
             </DialogHeader>
             <div className="grid gap-4 py-4">
               {!editUser && (
-                <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
                   {t("employees.defaultPasswordNotice")}
                 </p>
               )}
@@ -320,6 +353,30 @@ export function EmployeesPage() {
               </Button>
               <Button onClick={handleSave} disabled={saving}>
                 {saving ? t("common.saving") : t("common.save")}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={resetTarget !== null} onOpenChange={(open) => { if (!open) setResetTarget(null) }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>{t("employees.resetPassword")}</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <p className="text-sm text-muted-foreground">
+                {t("employees.resetPasswordConfirm", { name: resetTarget?.fullName || "" })}
+              </p>
+              <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                {t("employees.resetPasswordNotice", { name: resetTarget?.fullName || "" })}
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setResetTarget(null)}>
+                {t("common.cancel")}
+              </Button>
+              <Button onClick={handleResetPassword} disabled={resetting}>
+                {resetting ? t("common.saving") : t("common.confirm")}
               </Button>
             </DialogFooter>
           </DialogContent>

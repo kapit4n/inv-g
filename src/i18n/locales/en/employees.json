@@ -33,6 +33,12 @@
   "disabled": "Employee disabled",
   "enable": "Enable",
   "disable": "Disable",
-  "lastLogin": "Last Login",
-  "requiredFields": "Username, full name and email are required."
+"lastLogin": "Last Login",
+"requiredFields": "Username, full name and email are required.",
+"resetPassword": "Reset Password",
+"resetPasswordConfirm": "Set {{name}}'s password back to the shared default?",
+"resetPasswordNotice": "The password becomes the shared default CHANGEPASSWORD, and {{name}} will be asked to change it the first time they sign in — exactly like a new account.",
+"passwordReset": "Password reset; the employee must change it at the next sign-in",
+"passwordResetFailed": "The password could not be reset",
+"mustChangePassword": "Must change password at next sign-in"
 }

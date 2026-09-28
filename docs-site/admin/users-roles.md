@@ -42,7 +42,7 @@ There is no password step when creating a user:
 |--------|-------------|
 | Edit | Modify user details |
 | Deactivate | Disable without deleting |
-| Reset Password | Set new password |
+| Reset Password | Restore the shared default `CHANGEPASSWORD` and force a change at next sign-in |
 | Change Role | Assign different role |
 
 ## Employees Screen
@@ -74,9 +74,36 @@ message (and the backend rejects any such request).
    fields via the pre-filled dialog.
 3. **Enable / disable** — use the cross / recycle icon to disable (archive) or
    re-enable an account. Disabled accounts cannot sign in but are never deleted.
+4. **Reset password** — use the key icon to put the account back on the shared
+   default **`CHANGEPASSWORD`** and force a change at the next sign-in.
 
 The header cards show the current totals (total employees, active accounts,
 number of roles). Search filters by username, email, or full name.
+
+### Resetting an Employee's Password
+
+Use this when an employee has forgotten their password. There is no password to
+type: the account is put back on the shared default, and the forced change is
+re-armed, so the next sign-in lands on the change-password screen exactly as it
+would for a newly created account.
+
+1. Go to **Empleados**
+2. Click the key icon on the employee's row
+3. Read the confirmation (it names the employee and the shared default) and
+   click **Confirm**
+
+Afterwards:
+
+- The employee signs in with **`CHANGEPASSWORD`** and the app forces them to set
+  their own password before anything else opens
+- The password expiry is re-armed (90 days from the reset)
+- An account that must change its password is marked under the employee's name
+  in the list, so you can see who has not signed in yet
+- The reset is recorded in the audit trail (Diagnostics → Audit) — never the
+  password itself
+
+There is no self-service reset: an administrator performs it. Resetting your own
+account from this screen is allowed and has the same effect on your next sign-in.
 
 ## Roles
 

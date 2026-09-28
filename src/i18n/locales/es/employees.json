@@ -33,6 +33,12 @@
   "disabled": "Empleado deshabilitado",
   "enable": "Habilitar",
   "disable": "Deshabilitar",
-  "lastLogin": "Último Inicio de Sesión",
-  "requiredFields": "Nombre de usuario, nombre completo y correo son obligatorios."
+"lastLogin": "Último Inicio de Sesión",
+"requiredFields": "Nombre de usuario, nombre completo y correo son obligatorios.",
+"resetPassword": "Restablecer Contraseña",
+"resetPasswordConfirm": "¿Restablecer la contraseña de {{name}} a la contraseña compartida predeterminada?",
+"resetPasswordNotice": "La contraseña vuelve a ser la predeterminada compartida CHANGEPASSWORD y {{name}} deberá cambiarla la primera vez que inicie sesión, igual que una cuenta nueva.",
+"passwordReset": "Contraseña restablecida; el empleado deberá cambiarla en el próximo inicio de sesión",
+"passwordResetFailed": "No se pudo restablecer la contraseña",
+"mustChangePassword": "Debe cambiar la contraseña en el próximo inicio de sesión"
 }

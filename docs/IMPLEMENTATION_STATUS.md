@@ -333,3 +333,40 @@ signed in, and the sidebar did not filter by permission at all.
 - [ ] Existing installs keep their old cashier permissions — the role must be
       adjusted under Admin → Roles (documented); decide whether a migration
       should sync the seeded roles instead
+
+## Employee Password Reset (2026-09-28)
+
+Feature status: **on `feat/employee-reset-password`; live app check pending.**
+
+A forgotten employee password is cleared by putting the account back on the
+shared default and re-arming the forced change — the same state a new account
+starts in — not by inventing a temporary password an administrator has to
+transmit by hand.
+
+### Status
+- [x] `reset_user_password(id, new_password, require_change, reset_by)`:
+      permission-checked (`admin.users.manage`), existence-checked, and
+      delegated to the shared `reset_user_password_inner` helper
+- [x] A blank password resolves to `DEFAULT_USER_PASSWORD` inside the backend, so
+      the default lives in exactly one place and the UI cannot drift from it
+- [x] Sets `password_change_required = 1` and re-arms `password_expires_at`
+      (+90 days); the existing "explicit password still forces a change" test
+      still holds
+- [x] Audit entry `reset_password` (`severity=warning`, entity = user) with no
+      password material in the log
+- [x] Wrapper `resetUserPassword(id, newPassword, requireChange, resetBy)`;
+      the IPC argument-contract test verifies the mapping against the Rust
+      signature
+- [x] Employees screen: key action per row → confirmation dialog naming the
+      employee and the shared default → reset + success/error toast + refetch;
+      rows awaiting a first sign-in show a "must change password" marker
+- [x] i18n: 6 `employees.*` keys in `en`/`es` (valid, no duplicates)
+- [x] Tests: Rust `users::tests` (7, incl. default reset + forced change +
+      audit, cashier denied, unknown account) and
+      `tests/unit/components/employees-page-reset-password.test.tsx` (5)
+- [x] Docs: `docs/CHANGELOG.md` (Added), `docs-site/admin/users-roles.md`
+      (Employee reset walkthrough, Admin action table)
+- [ ] Live app check: reset an employee, sign in with `CHANGEPASSWORD` and
+      confirm the change-password screen appears before any other page
+- [ ] Decide whether the audit entry should also be surfaced in the Diagnostics
+      → Audit UI filter list
