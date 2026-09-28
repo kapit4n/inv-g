@@ -6,6 +6,48 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-27 — "Caja registradora" not updated after selling products
+
+**Symptom:** After a POS cash sale, the Cash Register ("Caja registradora") page's
+"Cash Sales Today" (ventas en efectivo hoy) and "Expected" figures did not grow;
+the Daily Closeout report could show the correct totals while the register card
+stayed behind.
+
+**Investigation:** A backend reproduction test (open session → cash checkout →
+`get_daily_closeout`) showed the data flow itself is sound: `process_checkout`
+records `sale_payments` with `method='cash'`, and the closeout sums them. The
+failure was not in recording but in the "today" filter. The root cause is the
+local-vs-UTC day boundary, the same one `9f02059` fixed for the sales KPIs but
+never applied to the closeout/cash-register queries:
+
+- `sales.created_at` defaults to `datetime('now')` — a **UTC** timestamp.
+- `get_daily_closeout_inner` filtered with `date(created_at) = today_date()`,
+  where `today_date()` is the **local** calendar date.
+- On an offset machine (the app targets Bolivia, UTC-4), sales made from ~20:00
+  local onward are stamped with the *next* UTC day, so `date(created_at)` no
+  longer equals the local date. Those sales silently vanished from "today" until
+  the following day. The same wrong filter was duplicated in
+  `close_cash_register` (expected balance) and underpinned `close_daily_shift`.
+
+**Fix:** Mirrored the `sales_summary_for` pattern from `9f02059` — extracted
+`daily_closeout_for(conn, now)` which translates the LOCAL calendar day into a
+UTC range via `utc_bounds_for_local_day(now)` and filters every query with
+`created_at >= ? AND created_at < ?` instead of `date(created_at) = today`.
+`get_daily_closeout_inner` is now a thin wrapper over it, and
+`close_cash_register` reuses `daily_closeout_for(...).cash_total` so the closed
+session's expected balance always agrees with the page's live "Cash Sales Today".
+
+**Affected files:** `src-tauri/src/commands/sales.rs`
+
+**Tests added:** `closeout_counts_evening_sales_across_utc_day_boundary`
+(21:00 local sale must count even when its UTC date has rolled over),
+`closeout_excludes_sales_from_next_local_day`, `closeout_tracks_refunds_separately`.
+Rust suite 168 → 171.
+
+**Commit:** (pending)
+
+---
+
 ### 2026-09-27 — Six Rust tests failed in CI
 
 **Symptom:** `cargo test` in CI: 162 passed, 6 failed — `fresh_db_seeds_users`

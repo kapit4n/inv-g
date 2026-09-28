@@ -769,78 +769,94 @@ pub fn get_daily_closeout(state: State<DbState>) -> Result<DailyCloseout, String
 /// Connection-scoped body of [`get_daily_closeout`], so callers that already hold the
 /// database lock can reuse their guard instead of re-locking it.
 fn get_daily_closeout_inner(conn: &rusqlite::Connection) -> Result<DailyCloseout, String> {
-    let today = today_date();
+    daily_closeout_for(conn, chrono::Local::now())
+}
+
+/// Core daily-closeout computation, factored out of the command so it can be
+/// unit-tested against a real connection with a controlled clock.
+///
+/// Accounting rules (kept consistent with `get_sales`, `sales_summary_for` and
+/// the runtime schema):
+/// - "today" = the LOCAL calendar day that contains `now`, translated into a
+///   UTC range (sales are stored as UTC `datetime('now')` text). This avoids
+///   the local-vs-UTC day-boundary mismatch (e.g. UTC-4 Bolivia) where evening
+///   sales landed on the next UTC day and silently vanished from the day's
+///   totals until the following day.
+/// - Only sales with `payment_status != 'refunded'` count toward revenue and
+///   transaction totals (refunds are tracked separately).
+fn daily_closeout_for(conn: &rusqlite::Connection, now: chrono::DateTime<chrono::Local>) -> Result<DailyCloseout, String> {
+    let (day_start, day_end) = utc_bounds_for_local_day(now);
 
     let total_sales: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM sales WHERE date(created_at) = ?1 AND payment_status != 'refunded'",
-        params![today], |row| row.get(0)
+        "SELECT COUNT(*) FROM sales WHERE created_at >= ?1 AND created_at < ?2 AND payment_status != 'refunded'",
+        params![day_start, day_end], |row| row.get(0)
     ).map_err(|e| e.to_string())?;
 
     let total_revenue: f64 = conn.query_row(
-        "SELECT COALESCE(SUM(total), 0) FROM sales WHERE date(created_at) = ?1 AND payment_status != 'refunded'",
-        params![today], |row| row.get(0)
+        "SELECT COALESCE(SUM(total), 0) FROM sales WHERE created_at >= ?1 AND created_at < ?2 AND payment_status != 'refunded'",
+        params![day_start, day_end], |row| row.get(0)
     ).map_err(|e| e.to_string())?;
 
     let total_tax: f64 = conn.query_row(
-        "SELECT COALESCE(SUM(tax_amount), 0) FROM sales WHERE date(created_at) = ?1 AND payment_status != 'refunded'",
-        params![today], |row| row.get(0)
+        "SELECT COALESCE(SUM(tax_amount), 0) FROM sales WHERE created_at >= ?1 AND created_at < ?2 AND payment_status != 'refunded'",
+        params![day_start, day_end], |row| row.get(0)
     ).map_err(|e| e.to_string())?;
 
     let total_discount: f64 = conn.query_row(
-        "SELECT COALESCE(SUM(discount_amount), 0) FROM sales WHERE date(created_at) = ?1 AND payment_status != 'refunded'",
-        params![today], |row| row.get(0)
+        "SELECT COALESCE(SUM(discount_amount), 0) FROM sales WHERE created_at >= ?1 AND created_at < ?2 AND payment_status != 'refunded'",
+        params![day_start, day_end], |row| row.get(0)
     ).map_err(|e| e.to_string())?;
 
     let cash_total: f64 = conn.query_row(
-        "SELECT COALESCE(SUM(sp.amount), 0) FROM sale_payments sp JOIN sales s ON sp.sale_id = s.id WHERE date(s.created_at) = ?1 AND sp.method='cash' AND s.payment_status != 'refunded'",
-        params![today], |row| row.get(0)
+        "SELECT COALESCE(SUM(sp.amount), 0) FROM sale_payments sp JOIN sales s ON sp.sale_id = s.id WHERE s.created_at >= ?1 AND s.created_at < ?2 AND sp.method='cash' AND s.payment_status != 'refunded'",
+        params![day_start, day_end], |row| row.get(0)
     ).unwrap_or_else(|_| {
-        conn.query_row("SELECT COALESCE(SUM(total), 0) FROM sales WHERE date(created_at) = ?1 AND payment_method='cash' AND payment_status != 'refunded'", params![today], |row| row.get(0)).unwrap_or(0.0)
+        conn.query_row("SELECT COALESCE(SUM(total), 0) FROM sales WHERE created_at >= ?1 AND created_at < ?2 AND payment_method='cash' AND payment_status != 'refunded'", params![day_start, day_end], |row| row.get(0)).unwrap_or(0.0)
     });
 
     let card_total: f64 = conn.query_row(
-        "SELECT COALESCE(SUM(sp.amount), 0) FROM sale_payments sp JOIN sales s ON sp.sale_id = s.id WHERE date(s.created_at) = ?1 AND sp.method='card' AND s.payment_status != 'refunded'",
-        params![today], |row| row.get(0)
+        "SELECT COALESCE(SUM(sp.amount), 0) FROM sale_payments sp JOIN sales s ON sp.sale_id = s.id WHERE s.created_at >= ?1 AND s.created_at < ?2 AND sp.method='card' AND s.payment_status != 'refunded'",
+        params![day_start, day_end], |row| row.get(0)
     ).unwrap_or_else(|_| {
-        conn.query_row("SELECT COALESCE(SUM(total), 0) FROM sales WHERE date(created_at) = ?1 AND payment_method='card' AND payment_status != 'refunded'", params![today], |row| row.get(0)).unwrap_or(0.0)
+        conn.query_row("SELECT COALESCE(SUM(total), 0) FROM sales WHERE created_at >= ?1 AND created_at < ?2 AND payment_method='card' AND payment_status != 'refunded'", params![day_start, day_end], |row| row.get(0)).unwrap_or(0.0)
     });
 
     let transfer_total: f64 = conn.query_row(
-        "SELECT COALESCE(SUM(sp.amount), 0) FROM sale_payments sp JOIN sales s ON sp.sale_id = s.id WHERE date(s.created_at) = ?1 AND sp.method='transfer' AND s.payment_status != 'refunded'",
-        params![today], |row| row.get(0)
+        "SELECT COALESCE(SUM(sp.amount), 0) FROM sale_payments sp JOIN sales s ON sp.sale_id = s.id WHERE s.created_at >= ?1 AND s.created_at < ?2 AND sp.method='transfer' AND s.payment_status != 'refunded'",
+        params![day_start, day_end], |row| row.get(0)
     ).unwrap_or_else(|_| {
-        conn.query_row("SELECT COALESCE(SUM(total), 0) FROM sales WHERE date(created_at) = ?1 AND payment_method='transfer' AND payment_status != 'refunded'", params![today], |row| row.get(0)).unwrap_or(0.0)
+        conn.query_row("SELECT COALESCE(SUM(total), 0) FROM sales WHERE created_at >= ?1 AND created_at < ?2 AND payment_method='transfer' AND payment_status != 'refunded'", params![day_start, day_end], |row| row.get(0)).unwrap_or(0.0)
     });
 
     let cash_count: i64 = conn.query_row(
-        "SELECT COUNT(DISTINCT sp.sale_id) FROM sale_payments sp JOIN sales s ON sp.sale_id = s.id WHERE date(s.created_at) = ?1 AND sp.method='cash' AND s.payment_status != 'refunded'",
-        params![today], |row| row.get(0)
+        "SELECT COUNT(DISTINCT sp.sale_id) FROM sale_payments sp JOIN sales s ON sp.sale_id = s.id WHERE s.created_at >= ?1 AND s.created_at < ?2 AND sp.method='cash' AND s.payment_status != 'refunded'",
+        params![day_start, day_end], |row| row.get(0)
     ).unwrap_or_else(|_| {
-        conn.query_row("SELECT COUNT(*) FROM sales WHERE date(created_at) = ?1 AND payment_method='cash' AND payment_status != 'refunded'", params![today], |row| row.get(0)).unwrap_or(0)
+        conn.query_row("SELECT COUNT(*) FROM sales WHERE created_at >= ?1 AND created_at < ?2 AND payment_method='cash' AND payment_status != 'refunded'", params![day_start, day_end], |row| row.get(0)).unwrap_or(0)
     });
 
     let card_count: i64 = conn.query_row(
-        "SELECT COUNT(DISTINCT sp.sale_id) FROM sale_payments sp JOIN sales s ON sp.sale_id = s.id WHERE date(s.created_at) = ?1 AND sp.method='card' AND s.payment_status != 'refunded'",
-        params![today], |row| row.get(0)
+        "SELECT COUNT(DISTINCT sp.sale_id) FROM sale_payments sp JOIN sales s ON sp.sale_id = s.id WHERE s.created_at >= ?1 AND s.created_at < ?2 AND sp.method='card' AND s.payment_status != 'refunded'",
+        params![day_start, day_end], |row| row.get(0)
     ).unwrap_or_else(|_| {
-        conn.query_row("SELECT COUNT(*) FROM sales WHERE date(created_at) = ?1 AND payment_method='card' AND payment_status != 'refunded'", params![today], |row| row.get(0)).unwrap_or(0)
+        conn.query_row("SELECT COUNT(*) FROM sales WHERE created_at >= ?1 AND created_at < ?2 AND payment_method='card' AND payment_status != 'refunded'", params![day_start, day_end], |row| row.get(0)).unwrap_or(0)
     });
 
     let transfer_count: i64 = conn.query_row(
-        "SELECT COUNT(DISTINCT sp.sale_id) FROM sale_payments sp JOIN sales s ON sp.sale_id = s.id WHERE date(s.created_at) = ?1 AND sp.method='transfer' AND s.payment_status != 'refunded'",
-        params![today], |row| row.get(0)
+        "SELECT COUNT(DISTINCT sp.sale_id) FROM sale_payments sp JOIN sales s ON sp.sale_id = s.id WHERE s.created_at >= ?1 AND s.created_at < ?2 AND sp.method='transfer' AND s.payment_status != 'refunded'",
+        params![day_start, day_end], |row| row.get(0)
     ).unwrap_or_else(|_| {
-        conn.query_row("SELECT COUNT(*) FROM sales WHERE date(created_at) = ?1 AND payment_method='transfer' AND payment_status != 'refunded'", params![today], |row| row.get(0)).unwrap_or(0)
+        conn.query_row("SELECT COUNT(*) FROM sales WHERE created_at >= ?1 AND created_at < ?2 AND payment_method='transfer' AND payment_status != 'refunded'", params![day_start, day_end], |row| row.get(0)).unwrap_or(0)
     });
 
     let refunded_count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM sales WHERE date(created_at) = ?1 AND payment_status='refunded'",
-        params![today], |row| row.get(0)
+        "SELECT COUNT(*) FROM sales WHERE created_at >= ?1 AND created_at < ?2 AND payment_status='refunded'",
+        params![day_start, day_end], |row| row.get(0)
     ).map_err(|e| e.to_string())?;
 
     let refunded_total: f64 = conn.query_row(
-        "SELECT COALESCE(SUM(total), 0) FROM sales WHERE date(created_at) = ?1 AND payment_status='refunded'",
-        params![today], |row| row.get(0)
+        "SELECT COALESCE(SUM(total), 0) FROM sales WHERE created_at >= ?1 AND created_at < ?2 AND payment_status='refunded'",
+        params![day_start, day_end], |row| row.get(0)
     ).map_err(|e| e.to_string())?;
 
     let net_revenue = total_revenue - refunded_total;
@@ -1229,13 +1245,8 @@ pub fn open_cash_register(state: State<DbState>, user_id: i64, opening_balance: 
 pub fn close_cash_register(state: State<DbState>, id: i64, closing_balance: f64, notes: Option<String>) -> Result<CashRegisterSession, String> {
     let conn = get_conn(&state)?;
 
-    let today = today_date();
-    let expected_balance: f64 = conn.query_row(
-        "SELECT COALESCE(SUM(sp.amount), 0) FROM sale_payments sp
-         JOIN sales s ON sp.sale_id = s.id
-         WHERE date(s.created_at) = ?1 AND s.payment_status != 'refunded' AND sp.method = 'cash'",
-        params![today], |row| row.get(0)
-    ).map_err(|e| e.to_string())?;
+    let closeout = daily_closeout_for(&conn, chrono::Local::now())?;
+    let expected_balance = closeout.cash_total;
 
     let session_opening: f64 = conn.query_row(
         "SELECT opening_balance FROM cash_register_sessions WHERE id = ?1",
@@ -2111,5 +2122,59 @@ mod tests {
         assert!(ms < me);
         assert!(ds >= ms, "local day must fall within local month");
         assert!(de <= me, "local day must fall within local month");
+    }
+
+    #[test]
+    fn closeout_counts_evening_sales_across_utc_day_boundary() {
+        let db = test_db();
+        let n = now();
+        // 21:00 local: on an offset machine (e.g. UTC-4 Bolivia) the UTC calendar
+        // date has already rolled to the next day, yet the sale belongs to the
+        // LOCAL day and must count in today's closeout. Regression guard for the
+        // previous `date(created_at) = today_date()` mismatch.
+        let created = day_offset(n, Duration::hours(21));
+        let sale_id = insert_sale(&db, 1, 250.0, "paid", &created);
+        db.execute(
+            "INSERT INTO sale_payments (sale_id, method, amount) VALUES (?1, 'cash', ?2)",
+            params![sale_id, 250.0],
+        ).unwrap();
+
+        let d = daily_closeout_for(&db, n).unwrap();
+        assert_eq!(d.total_sales, 1);
+        assert_eq!(d.total_revenue, 250.0);
+        assert_eq!(d.cash_total, 250.0);
+        assert_eq!(d.cash_count, 1);
+    }
+
+    #[test]
+    fn closeout_excludes_sales_from_next_local_day() {
+        let db = test_db();
+        let n = now();
+        let sale_id = insert_sale(&db, 1, 100.0, "paid", &day_offset(n, Duration::hours(26)));
+        db.execute(
+            "INSERT INTO sale_payments (sale_id, method, amount) VALUES (?1, 'cash', ?2)",
+            params![sale_id, 100.0],
+        ).unwrap();
+
+        let d = daily_closeout_for(&db, n).unwrap();
+        assert_eq!(d.total_sales, 0);
+        assert_eq!(d.total_revenue, 0.0);
+        assert_eq!(d.cash_total, 0.0);
+    }
+
+    #[test]
+    fn closeout_tracks_refunds_separately() {
+        let db = test_db();
+        let n = now();
+        let t = day_offset(n, Duration::hours(10));
+        insert_sale(&db, 1, 100.0, "refunded", &t);
+        insert_sale(&db, 2, 50.0, "paid", &t);
+
+        let d = daily_closeout_for(&db, n).unwrap();
+        assert_eq!(d.total_sales, 1);
+        assert_eq!(d.total_revenue, 50.0);
+        assert_eq!(d.refunded_count, 1);
+        assert_eq!(d.refunded_total, 100.0);
+        assert_eq!(d.net_revenue, -50.0);
     }
 }

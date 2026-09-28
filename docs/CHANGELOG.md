@@ -9,6 +9,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Fixed
+- **The Cash Register ("Caja registradora") now reflects every same-day sale.**
+  `get_daily_closeout`, `close_cash_register`, and `close_daily_shift` compared
+  the local `today_date()` against the UTC `date(created_at)` of each sale, so on
+  offset timezones (UTC-4, Bolivia) cash sales made from ~8pm local onward were
+  stamped with the next UTC day and dropped out of "today". The closeout and
+  register now use the same local-day-into-UTC-bounds translation the sales KPIs
+  already used (`daily_closeout_for`, filtering `created_at BETWEEN <utc bounds>`),
+  and the session's expected balance reuses the corrected live closeout so the two
+  always agree. Three regression tests added; Rust suite 168 → 171.
 - **`cargo test` is deterministic again.** Test binaries no longer read the
   developer's live `installer-config.json` from the repo root (`cfg!(not(test))`
   drops that candidate), so user-seeding tests always use the built-in demo
