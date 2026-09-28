@@ -19,10 +19,13 @@
 //! These are the passwords the machines will ship with, and a bcrypt hash of a
 //! known password is not a secret. That is the point: the operator sets a password
 //! per installation, `passwordChangeRequired` forces each user to replace it on
-//! first login, and the file never leaves the build machine unless the operator
-//! checks it into the repository. It is listed in `.gitignore` by default; see
-//! `scripts/installer-config.mjs` for the workflow that keeps it out of git while
-//! still shipping it in the installer.
+//! first login, and the file is read once and never written afterwards.
+//!
+//! The file is committed to the repository on purpose, so the starting passwords
+//! are in git history as well as in every artifact built from that commit. Treat
+//! the repository as holding production credentials, and rotate by editing the
+//! file and re-tagging rather than by rewriting history. See
+//! `scripts/installer-config.mjs` and `docs/windows-installer.md`.
 
 use serde::Deserialize;
 use std::path::{Path, PathBuf};

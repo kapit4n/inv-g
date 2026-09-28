@@ -1,4 +1,14 @@
 {
-  "users": [],
+  "users": [
+    {
+      "username": "jhona",
+      "email": "jhona@tienda.bo",
+      "fullName": "Jhona Flores",
+      "password": "JHONACHANGE1",
+      "role": "owner",
+      "passwordChangeRequired": true,
+      "active": true
+    }
+  ],
   "quickLoginRoles": []
 }

@@ -14,8 +14,8 @@ docs-site/.vitepress/cache/
 .env.local
 
 # Local first-launch fixture: seeds a test account with a real password in it.
-# The release config (installer-config.json) is tracked deliberately; this one is
-# never meant to leave the machine.
+# Never meant to leave the machine. The release config (installer-config.json)
+# is tracked deliberately — see docs/windows-installer.md.
 installer-config.dev.json
 
 # IDE

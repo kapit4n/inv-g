@@ -6,6 +6,31 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-28 — The release validator passed a config that ships an unusable installer
+
+**Symptom:** `npm run installer-config:validate` printed `valid 0 user(s)` and
+exited 0 on a file containing `{"users": []}`. That file is committed, and
+`bundle.resources` puts it in the installer, so tagging a release from it produced
+an installer with roles and permissions but no account anyone could sign in with.
+
+**Root cause:** the validator only checked the users it found, so an empty list
+vacuously passed. The asymmetry that makes it dangerous is in the backend: the six
+demo accounts are seeded only when the file is *absent*, while a present-but-empty
+file takes the "the operator configured these users" branch and inserts nothing.
+The two cases look identical from the CLI, and `commandList` actively asserted the
+wrong one — it told you the demo accounts "will be created instead".
+
+**Fix:** `validate` now reports a present-but-empty user list as a problem, and
+`commandList` says what actually happens. The committed config also now carries a
+real owner, so the file that ships has somebody to log in as.
+
+**Not fixed, needs a decision rather than a patch:** the passwords live in git
+history permanently, and in every artifact built from the commit. Generating the
+file from CI secrets instead was prototyped and reverted; it is the right answer
+if a customer ever needs a starting password that is not readable in the repo.
+
+---
+
 ### 2026-09-28 — The demo catalog was cloned from, and activated into, the wrong database
 
 **Symptom:** after a scripted first launch, logging in as the configured account

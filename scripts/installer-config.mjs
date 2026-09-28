@@ -81,6 +81,19 @@ function validate(config) {
   const usernames = new Set()
   const emails = new Set()
 
+  // A present file with no users is the one shape that ships an installer
+  // nobody can log into. The backend falls back to the six demo accounts only
+  // when the file is *absent*; present-but-empty takes the "operator asked for
+  // these users" branch and inserts nothing. Every other rule here checks a user
+  // that was written, so without this an empty list passed every gate and
+  // produced an unusable release.
+  if (!Array.isArray(config.users) || config.users.length === 0) {
+    problems.push(
+      "no users are configured, so the installer would ship with nobody able to log in; " +
+        "add at least one with `installer-config:add`, or delete the file to get the six demo accounts instead"
+    )
+  }
+
   config.users.forEach((user, index) => {
     const label = user.username?.trim() ? `"${user.username}"` : `user #${index + 1}`
 
@@ -211,7 +224,7 @@ function commandList() {
   const problems = validate(config)
 
   if (config.users.length === 0) {
-    console.log(C.dim("no users configured — the six built-in demo accounts (password 123456) will be created instead"))
+    console.log(C.dim("no users configured — this installer would ship with nobody able to log in"))
   } else {
     console.log(C.bold(`${config.users.length} user(s):`))
     for (const user of config.users) {

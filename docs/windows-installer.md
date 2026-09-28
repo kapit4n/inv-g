@@ -286,14 +286,27 @@ found in this order:
 
 ### Preparing a release
 
+`installer-config.json` is committed to the repository, and the release build uses
+whatever is committed — the workflow does not generate or modify it. Set the
+accounts before you tag:
+
 ```bash
-npm run installer-config:init                       # create the file
 npm run installer-config:add maria maria@tienda.bo 'Mariposa123' owner 'María Flores'
 npm run installer-config:add luis  luis@tienda.bo  'Luis2026x'
 npm run installer-config:quick-login cashier on
 npm run installer-config:list
 npm run installer-config:validate                   # run this before tagging
 ```
+
+Use `npm run installer-config:init` only if the file is missing, and
+`npm run installer-config:remove <username>` to drop an account.
+
+Two consequences of committing it, both worth knowing before a release goes out.
+The passwords land in git history permanently, so rotate them by editing the file
+and re-tagging rather than by deleting the commit. And every artifact built from
+that commit ships those passwords, so treat the repository as holding production
+credentials: no personal passwords, and a separate repository or branch per
+customer if two installations need different starting owners.
 
 `role` defaults to `owner`, and `passwordChangeRequired` is on for every user
 added this way, because a password written in a config file is a shared password
