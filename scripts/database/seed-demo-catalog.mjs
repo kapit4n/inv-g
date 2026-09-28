@@ -25,7 +25,7 @@
  */
 
 import Database from "better-sqlite3"
-import { existsSync, writeFileSync, rmSync, copyFileSync, readFileSync } from "fs"
+import { existsSync, rmSync, copyFileSync, readFileSync } from "fs"
 import { homedir } from "os"
 import { join, dirname } from "path"
 import { fileURLToPath } from "url"
@@ -89,14 +89,22 @@ function projectRoot() {
 }
 
 function usableSource(dir) {
+  // The active profile comes first, because the demo catalog is meant to be a
+  // copy of the database that is about to be replaced — users included, which is
+  // what lets a pre-configured account survive into the demo build. Hardcoding
+  // single-store first meant an `empty` or `multi` profile silently cloned a
+  // different database's users, and `--activate` then wrote the result into the
+  // active profile anyway, so the two halves disagreed about whose accounts they
+  // were carrying. The remaining entries stay as a fallback for the case where
+  // the active database has not been initialized yet.
   const candidates = [
-    "inventory-gear-single.db",
-    "inventory-gear-multi.db",
-    "inventory_gear.db",
-    "inventory-gear-empty.db",
+    activeProfileFile(dir),
+    join(dir, "inventory-gear-single.db"),
+    join(dir, "inventory-gear-multi.db"),
+    join(dir, "inventory_gear.db"),
+    join(dir, "inventory-gear-empty.db"),
   ]
-  for (const file of candidates) {
-    const path = join(dir, file)
+  for (const path of candidates) {
     if (!existsSync(path)) continue
     try {
       const db = new Database(path, { readonly: true })
@@ -312,8 +320,13 @@ function main() {
     if (existsSync(candidate) && candidate !== backup) rmSync(candidate)
   }
   copyFileSync(dest, active)
-  writeFileSync(join(dir, "profile.json"), JSON.stringify({ profile: "single-store" }, null, 2), "utf8")
 
+  // profile.json is deliberately left alone. The catalog is written into the
+  // database that is already active, so the app keeps reading that same file.
+  // This used to hardcode "single-store", which silently pointed the app at a
+  // *different* database than the one just written whenever the active profile
+  // was anything else — the app came up on stale data, and on a demo build
+  // usually on the six demo accounts instead of the configured ones.
   console.log(`\n✅ Demo catalog activated.`)
   console.log(`   Backed up previous DB → ${backup}`)
   console.log(`   Active profile DB → ${active}`)

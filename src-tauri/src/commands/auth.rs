@@ -61,7 +61,7 @@ pub fn login(username: String, password: String) -> Result<LoginResponse, String
     let user_row = conn.query_row(
         "SELECT u.id, u.username, u.email, u.password_hash, u.full_name,
                 u.role_id, u.is_active, u.password_change_required, u.created_at
-         FROM users u WHERE u.username = ?1 AND u.is_active = 1",
+         FROM users u WHERE u.username = ?1 COLLATE NOCASE AND u.is_active = 1",
         rusqlite::params![username],
         |row| {
             Ok((

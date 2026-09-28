@@ -6,6 +6,56 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-28 — The demo catalog was cloned from, and activated into, the wrong database
+
+**Symptom:** after a scripted first launch, logging in as the configured account
+failed with "Credenciales inválidas" while the account demonstrably existed —
+right role, active, correct bcrypt hash. The app log named the expected profile
+and the right file. It was the app reading a *different* database than the one
+that had been seeded.
+
+**Root cause:** two places in `scripts/database/seed-demo-catalog.mjs` disagreed
+about which database was active.
+
+`usableSource` picked the clone source from a hardcoded candidate list ordered
+`single-store, multi, default, empty`, ignoring `profile.json`. With any other
+profile active it silently cloned a different database's users — so a config
+provisioned specifically for the run was replaced by the six demo accounts.
+
+`--activate` then wrote the finished catalog into the correct file (resolved
+from `profile.json`) but hardcoded `profile.json` back to `"single-store"`. The
+app came up on `single-store`, a file nothing had written to. The catalog build
+and the profile pointer were each individually plausible and jointly wrong.
+
+**Fix:** `usableSource` now tries the active profile first, falling back to the
+old list. `--activate` no longer writes `profile.json` at all — the catalog goes
+into the database that is already active, so the pointer is already correct. The
+now-unused `writeFileSync` import was dropped.
+
+---
+
+### 2026-09-28 — Login was case-sensitive on the username, with no hint
+
+**Symptom:** typing `Maria` returned "Credenciales inválidas" for an account that
+was really named `maria`. Correct password, correct role, active, valid hash —
+the same account accepted `maria` and rejected `Maria`.
+
+**Root cause:** `users.username` is `TEXT NOT NULL UNIQUE` with no
+`COLLATE NOCASE`, and SQLite's `=` is case-sensitive for text. The login screen
+displays the full name ("María Flores"), which actively invites a capitalised
+attempt, and the failure message is the same one used for a wrong password, so
+there is nothing to tell the two apart.
+
+**Fix:** `auth.rs` now matches with `WHERE u.username = ?1 COLLATE NOCASE`. That
+was the only username comparison in the codebase.
+
+**Not fixed here, both needing a migration rather than a query change:** the
+`UNIQUE` constraint is equally case-sensitive, so `maria` and `Maria` can exist
+as separate accounts; and `failed_login_attempts` / `is_locked` are in the schema
+but login neither increments nor checks them, so there is no lockout.
+
+---
+
 ### 2026-09-27 — The installer workflow rejected a version that was correct
 
 **Symptom:** the Windows installer job failed at "Verify version sync" on a
