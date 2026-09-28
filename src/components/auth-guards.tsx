@@ -92,3 +92,26 @@ export function ModuleRoute({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>
 }
+
+/**
+ * Blocks routes the signed-in role may not open, regardless of how the page was
+ * reached (sidebar, command palette, bookmark, or hand-typed URL). The check
+ * keys off the path prefix via PermissionService, so the module permission
+ * applies to every child page (e.g. sales.view covers /sales, /sales/new, ...).
+ * Roles without the permission land on /forbidden.
+ */
+export function RoutePermissionGuard({ children }: { children: React.ReactNode }) {
+  const permissions = useAuthStore((s) => s.permissions)
+  const { pathname } = useLocation()
+
+  const denied = useMemo(
+    () => !PermissionService.hasRouteAccess(permissions, pathname),
+    [permissions, pathname]
+  )
+
+  if (denied) {
+    return <Navigate to="/forbidden" replace />
+  }
+
+  return <>{children}</>
+}

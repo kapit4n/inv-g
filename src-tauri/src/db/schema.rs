@@ -1452,6 +1452,84 @@ mod tests {
         assert!(count >= 6, "Expected at least 6 seed users, got {count}");
     }
 
+    fn role_permission_keys(conn: &Connection, role_name: &str) -> Vec<String> {
+        let mut stmt = conn
+            .prepare(
+                "SELECT p.key FROM role_permissions rp
+                 JOIN permissions p ON p.id = rp.permission_id
+                 JOIN roles r ON r.id = rp.role_id
+                 WHERE r.name = ?1
+                 ORDER BY p.key",
+            )
+            .unwrap();
+        let rows = stmt
+            .query_map([role_name], |row| row.get(0))
+            .unwrap();
+        rows.filter_map(|r| r.ok()).collect()
+    }
+
+    #[test]
+    fn cashier_role_is_sales_only() {
+        let td = TestDb::new();
+        let conn = td.conn();
+        let perms = role_permission_keys(&conn, "cashier");
+
+        // Sales-only front-of-house account: landing page plus the sales module.
+        let expected = vec![
+            "dashboard.view",
+            "sales.create",
+            "sales.quotes",
+            "sales.receipts",
+            "sales.register",
+            "sales.view",
+        ];
+        assert_eq!(
+            perms, expected,
+            "cashier must carry exactly the sales-only permission set"
+        );
+
+        // Explicit guards for the modules a cashier must never reach.
+        for forbidden in [
+            "inventory.view",
+            "customers.view",
+            "customers.create",
+            "purchases.view",
+            "reports.view",
+            "employees.manage",
+            "admin.users.manage",
+        ] {
+            assert!(
+                !perms.iter().any(|p| p == forbidden),
+                "cashier must not hold {forbidden}"
+            );
+        }
+    }
+
+    #[test]
+    fn owner_and_administrator_keep_every_module_permission() {
+        let td = TestDb::new();
+        let conn = td.conn();
+        for role in ["owner", "administrator"] {
+            let perms = role_permission_keys(&conn, role);
+            for needed in [
+                "dashboard.view",
+                "sales.view",
+                "inventory.view",
+                "purchases.view",
+                "customers.view",
+                "reports.view",
+                "warehouse.view",
+                "admin.users.manage",
+                "admin.database.manage",
+            ] {
+                assert!(
+                    perms.iter().any(|p| p == needed),
+                    "{role} must keep {needed}"
+                );
+            }
+        }
+    }
+
     #[test]
     fn fresh_db_seeds_permissions() {
         let td = TestDb::new();

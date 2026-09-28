@@ -25,10 +25,12 @@ interface CommandRegistryDeps {
   t: TFunction
   /** False for paths inside a module an administrator switched off. */
   isModuleEnabled?: (path: string) => boolean
+  /** False for paths the signed-in role may not open. Defaults to open. */
+  canAccessPath?: (path: string) => boolean
 }
 
 export function buildCommands(deps: CommandRegistryDeps): Command[] {
-  const { navigate, cycleTheme, sidebarCollapsed, toggleSidebar, t, isModuleEnabled } = deps
+  const { navigate, cycleTheme, sidebarCollapsed, toggleSidebar, t, isModuleEnabled, canAccessPath } = deps
 
   const nav = (id: string, label: string, path: string, icon: typeof LayoutDashboard, keywords?: string[]): Command => ({
     id,
@@ -151,8 +153,13 @@ export function buildCommands(deps: CommandRegistryDeps): Command[] {
   ]
 
   // A module switched off in Admin > Settings must not be reachable from the
-  // palette either, otherwise the entry becomes a dead end.
-  return isModuleEnabled
-    ? commands.filter((cmd) => !cmd.path || isModuleEnabled(cmd.path))
-    : commands
+  // palette either, otherwise the entry becomes a dead end. The same goes for
+  // modules the signed-in role may not open: the palette would otherwise offer
+  // entries that the route guard sends straight to /forbidden.
+  return commands.filter((cmd) => {
+    if (!cmd.path) return true
+    if (isModuleEnabled && !isModuleEnabled(cmd.path)) return false
+    if (canAccessPath && !canAccessPath(cmd.path)) return false
+    return true
+  })
 }

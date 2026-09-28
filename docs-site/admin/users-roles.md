@@ -57,9 +57,29 @@ There is no password step when creating a user:
 |------|-------------|
 | Owner | Full system access, cannot be deleted |
 | Admin | Most features, limited system settings |
-| Cashier | POS, sales, product lookup |
+| Cashier | **Sales module only** (plus the dashboard) — a selling-only account |
 | Warehouse | Inventory, stock, movements |
 | Viewer | Read-only access |
+
+### Cashier — the selling-only role
+
+A cashier account is focused purely on selling. It can open only the **Sales**
+module and the **Dashboard**:
+
+- **Visible and usable:** Dashboard and every Sales screen — Point of Sale,
+  Sales history, Quotes, Returns, Cash register, Receipts, Daily closeout and
+  the Sales customers list
+- **Hidden and blocked:** Inventory, Purchases, CRM (including the standalone
+  Customers and Vehicles pages), Warehouse, Reports, Employees, Admin, and
+  Settings
+
+Hidden modules are not merely removed from the sidebar: opening one directly —
+via a bookmarked address, the command palette, or a hand-typed URL — sends the
+user to the access-denied screen. The shared tools that are not part of a
+business module (Part finder, Help, Manual) stay open.
+
+Attaching a customer to a sale, and opening a new customer from the POS, remain
+part of the sale itself and are available to a cashier.
 
 ### Creating a Custom Role
 
@@ -86,6 +106,14 @@ There is no password step when creating a user:
 - Each user has one active role
 - Permission changes are audited
 - Only Owner and Administrator roles may create users (permission `admin.users.manage`); the backend rejects any other creator
+- A module is shown in the sidebar and may be opened only when the role carries
+  that module's permission, so a cashier sees Sales only while an administrator
+  sees everything
+- A blocked URL redirects to the access-denied screen; it is not enough to hide
+  the menu entry, because a bookmark or the command palette could still reach it
+- The seeded role permissions apply to **new** databases. On an existing
+  database, review the role under **Admin → Roles** and adjust its permissions
+  to match
 
 ## Related
 

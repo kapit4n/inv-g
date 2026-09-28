@@ -270,3 +270,44 @@ administrator action recreates the initial data.
 - [ ] Live app check: run Scenarios A–D from the checklist in `docs-site/admin/database.md`
 - [ ] Decide whether the pre-reset backup naming (`inventory-gear-backup-…sqlite`)
       should match the manual-backup convention (`inventory_gear_….db`)
+
+## Cashier — Sales-Only Role & Module-Level Access (2026-09-28)
+
+Feature status: **implemented on `feat/cashier-sales-only`, pending live test, then merge.**
+
+A cashier account is a selling-only account. Two parts were needed, because the
+seed alone changed nothing visible: the router only checked that a user was
+signed in, and the sidebar did not filter by permission at all.
+
+### Status
+- [x] Seeded `cashier` role reduced to `dashboard.view` + `sales.view`,
+      `sales.create`, `sales.quotes`, `sales.register`, `sales.receipts`
+      (dropped `inventory.view`, `customers.view`, `customers.create`)
+- [x] `PermissionService.getRoutePermission` rewritten as a longest-prefix map so
+      a child page inherits its module permission (`/sales/quotes` → `sales.view`,
+      `/inventory/products` → `inventory.view`); `/crm` + `/customers` →
+      `customers.view`; `/admin/*` → internal `admin.module` gate satisfied by any
+      `admin.*` permission; `/part-finder`, `/help`, `/manual` stay ungated
+- [x] `RoutePermissionGuard` wraps the authenticated layout in
+      `src/routes/index.tsx`; a denied path redirects to `/forbidden` (covers
+      bookmarks, typed URLs and any future link)
+- [x] Sidebar filters both nav trees with `canAccessRoute`; command palette
+      gained a `canAccessPath` dep and filters the same way, so no entry is a
+      dead end
+- [x] Customer attach/create from the POS keeps working (it is part of the sale,
+      and those backend commands are not permission-gated)
+- [x] Tests: Rust `cashier_role_is_sales_only` (exact permission set + explicit
+      forbidden keys) and `owner_and_administrator_keep_every_module_permission`;
+      Vitest `tests/unit/services/permission.service.test.ts` (12),
+      `tests/unit/components/permission-gating.test.tsx` (7, mirrors the
+      `module-gating` harness), and a cashier case in the command-palette test
+- [x] Verified: `cargo test` 186 passed; `npm test` 1667 passed (95 files);
+      `tsc --noEmit`, scoped ESLint (0 errors), `docs:build`
+- [x] Docs: `docs/CHANGELOG.md` (Changed), `docs-site/admin/users-roles.md`
+      (cashier section, roles table, considerations)
+- [ ] Live app check: sign in as a cashier and confirm the sidebar shows only
+      Dashboard + Sales and that a typed `/inventory` lands on the denied screen
+- [ ] Existing installs keep their old cashier permissions — the role must be
+      adjusted under Admin → Roles (documented); decide whether a migration
+      should sync the seeded roles instead
+- [ ] Merge to `main` after testing

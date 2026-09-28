@@ -141,9 +141,7 @@ const ROLES: &[(&str, &str, bool, &[&str])] = &[
     ]),
     ("cashier", "Cajero", true, &[
         "dashboard.view",
-        "inventory.view",
         "sales.view", "sales.create", "sales.quotes", "sales.register", "sales.receipts",
-        "customers.view", "customers.create",
     ]),
     ("warehouse", "Almacén", true, &[
         "dashboard.view",
