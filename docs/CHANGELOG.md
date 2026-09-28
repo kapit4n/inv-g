@@ -8,6 +8,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- **`npm run second-launch`** (scripts/second-launch.sh) boots the app against
+  the database a previous `first-launch.sh` created, without resetting or
+  re-seeding anything: users and their already-changed passwords are kept, so
+  the forced first-login password change never comes back on subsequent starts.
+  `--check` verifies the active profile database without launching. Documented
+  in the developer guide.
+
 ### Fixed
 - **The Cash Register ("Caja registradora") now reflects every same-day sale.**
   `get_daily_closeout`, `close_cash_register`, and `close_daily_shift` compared

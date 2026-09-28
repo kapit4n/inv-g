@@ -22,6 +22,27 @@ npm run dev          # Frontend only (Vite)
 npm run dev:tauri    # Full app (Tauri + Vite)
 ```
 
+### First vs. second launch
+
+A dev workstation that mirrors a customer install has two launch scripts:
+
+- `./scripts/first-launch.sh` — wipes the active profile database, re-seeds it
+  from an installer config, and grafts the demo catalog on top. Run it once to
+  create the database and its accounts. It takes two app launches and asks you
+  to close the first one.
+- `./scripts/second-launch.sh` (alias `npm run second-launch`) — boots the app
+  against the database a previous first launch created. It never resets or
+  re-seeds anything: the users and their (already changed) passwords stay as
+  they are, so the forced first-login password change never comes back. Use this
+  for every subsequent start. `--check` verifies the database and prints what
+  would happen without booting.
+
+```bash
+./scripts/first-launch.sh            # once, to initialize the database
+./scripts/second-launch.sh           # every later start
+./scripts/second-launch.sh --check   # verify without launching
+```
+
 ## Project Structure
 
 ```
