@@ -2,12 +2,14 @@ import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate } from "react-router-dom"
-import { Plus, Pencil, Eye } from "lucide-react"
+import { PackagePlus, Plus, Pencil, Eye } from "lucide-react"
 import { EntityListPage } from "@/components/entity"
 import { DataTable } from "@/components/data-table"
 import type { TableColumn } from "@/types/crud"
 import { getProducts } from "@/lib/tauri"
 import type { InventoryProduct } from "@/types/inventory"
+import { QuickAddProductDialog } from "@/features/inventory/components/quick-add-product-dialog"
+import { usePermission } from "@/hooks"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 
@@ -17,6 +19,10 @@ export function ProductsPage() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [search, setSearch] = useState("")
+  const [quickAddOpen, setQuickAddOpen] = useState(false)
+  // The backend does not check `inventory.create` on `create_product`, so the
+  // only thing keeping a read-only role out of product creation is this button.
+  const canCreate = usePermission("inventory.create")
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["inventory-products", page, pageSize, search],
@@ -58,13 +64,23 @@ export function ProductsPage() {
   ]
 
   return (
+    <>
     <EntityListPage
       title={t("inventory.products")}
       description={t("inventory.productsDescription")}
       actions={
-        <Button onClick={() => navigate("/inventory/products/new")}>
-          <Plus className="h-4 w-4 mr-2" /> {t("inventory.addProduct")}
-        </Button>
+        <>
+          {canCreate && (
+            <Button variant="outline" onClick={() => setQuickAddOpen(true)} data-testid="open-quick-add">
+              <PackagePlus className="h-4 w-4 mr-2" /> {t("inventory.quickAdd.button")}
+            </Button>
+          )}
+          {canCreate && (
+            <Button onClick={() => navigate("/inventory/products/new")}>
+              <Plus className="h-4 w-4 mr-2" /> {t("inventory.addProduct")}
+            </Button>
+          )}
+        </>
       }
     >
       <DataTable
@@ -93,5 +109,8 @@ export function ProductsPage() {
         ]}
       />
     </EntityListPage>
+
+    <QuickAddProductDialog open={quickAddOpen} onOpenChange={setQuickAddOpen} />
+    </>
   )
 }

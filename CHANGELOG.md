@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+### Inventory — Quick add
+- New **Quick add** dialog on Inventory → Products for registering a product with
+  just the four fields that matter at the counter: product, provider, quantity
+  and prices, instead of walking the full 25-field product form for every line of
+  a supplier's price list
+- Captures name, SKU, supplier, opening quantity, cost price, sale price, gain
+  margin, unit and (on multi-store installations) warehouse
+- The quantity is written as an `in` stock movement tagged `quick_add` rather
+  than onto the product row, so the opening stock is backed by a row in the
+  product's activity history and appears in movement reports
+- Blank SKU generates a `QA-…` code automatically; a duplicate is reported as
+  "This SKU is already used by another product" with the dialog left open and
+  the typed name intact, instead of a raw SQLite constraint message
+- Suppliers are searchable by name or tax number, and an unknown one can be
+  registered from inside the dialog without leaving it
+- The dialog stays open after saving with a counter of products added, keeping
+  the supplier, prices, unit and warehouse filled in and clearing only the
+  per-line fields, so a whole supplier list can be keyed in one sitting
+- Selling price left empty is derived from the product's gain margin or the
+  global default; a live preview shows the suggested price, effective gain and
+  effective price, and warns when the price is at or below cost
+- Both buttons are gated on the `inventory.create` permission
+- Docs: docs-site Inventory → Products quick add section
+
 ### Dashboard — role-aware content
 - The Panel de Control no longer shows functionality the signed-in role cannot
   use: a cashier (dashboard + sales) now sees only the **Nueva Venta** action, the

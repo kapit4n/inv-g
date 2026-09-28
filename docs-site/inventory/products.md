@@ -14,6 +14,61 @@ Maintain a complete catalog of all parts and products your business deals with, 
 
 **Sidebar → Inventory → Products**. Route: `/inventory/products`.
 
+## Quick Add — registering a product in four fields
+
+::: tip When to use which
+The products page has two ways in. **Quick add** is for getting a line onto the
+shelf now; **New Product** is the full form for setting a product up properly.
+Both create the same product — quick add simply leaves the optional fields empty
+for you to fill in later from the product page.
+:::
+
+When you are working down a supplier's price list, the full form asks for about
+twenty-five fields per row. **Quick add** asks for the four that matter at the
+counter: product, provider, quantity and prices.
+
+### Step 1: Click "Quick add"
+
+The button sits next to **+ New Product** on the products page. It needs the
+`inventory.create` permission, so a read-only account sees neither button.
+
+### Step 2: Fill in the four fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| Product Name | Yes | The name as it will read on the shelf |
+| SKU | No | Leave empty to generate one automatically (`QA-…`). Must be unique if you type one |
+| Stock Quantity | Yes | How many units arrived. `0` is allowed |
+| Supplier | No | Search by name or tax number. A supplier you have never bought from can be registered from inside the dialog |
+| Cost Price | Yes | What you pay the supplier. Required, so a product is never registered at a price nobody set |
+| Sale Price | No | Leave empty to derive it from the gain |
+| % de ganancia | No | Leave empty to use the global default from Settings → Business |
+| Unit | No | Defaults to `unit` |
+| Warehouse | No | Only shown on multi-store installations, where you pick the store the stock lands in |
+
+The grey box at the bottom previews the **suggested price**, the **effective
+gain** and the **effective price**, and warns if the selling price is at or below
+cost — the same calculation as the full form. See
+[How Pricing Works](#how-pricing-works).
+
+### Step 3: Press "Add product"
+
+The product is created and the quantity is entered as an *in* movement tagged
+`quick_add`, so the units you see are backed by a row in the product's
+**Activity** tab rather than appearing from nowhere.
+
+The dialog **stays open**, the name and SKU and quantity clear, and a counter
+shows how many products you have added in this sitting. The supplier, prices, unit
+and warehouse stay filled in, because those are the constant part of one
+supplier's catalogue — so the next line is typed straight in. Press **Close** when
+the list is done.
+
+### Step 4: Fill in the rest later
+
+Anything quick add skipped is untouched, not guessed. Open the product and use
+**Edit** to add brand, manufacturer, category, images, vehicle fitment, storage
+location and the three stock thresholds.
+
 ## How to Create a Product
 
 ### Step 1: Click "New Product"
@@ -245,14 +300,26 @@ field a full product record requires so the file round-trips with the
 - Barcodes should be unique for POS scanning
 - Setting accurate stock levels is critical for inventory management
 - Use the "Product 360°" view for a complete product overview
+- Quick add writes the opening quantity as a stock movement, so it counts
+  towards the product's activity history and shows up in movement reports
+- Quick add leaves optional fields empty rather than defaulting them, so a
+  product added this way is usually not ready to be sold until it has a brand
+  or category
+- On a multi-store installation, the warehouse selector is shown and empty by
+  default — pick the store the stock is actually landing in, otherwise the units
+  will be counted against the wrong store
+- A quick add with quantity `0` creates the product with no movement at all; add
+  the stock later through **Stock → Movement**
 
 ## Common Errors
 
 | Error | Cause | Solution |
 |-------|-------|----------|
+| "This SKU is already used by another product" in quick add | Duplicate SKU | Type a different one, or clear the field to generate one |
 | "SKU already exists" | Duplicate SKU | Use a unique SKU |
 | "Category required" | Missing category | Select or create a category |
 | Stock negative | More sold than available | Check physical stock count |
+| Quick add refuses to save | Name or cost price is empty | Both are required so a product is never registered with a price nobody set |
 
 ## Related
 

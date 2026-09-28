@@ -323,11 +323,18 @@ export async function getProduct(id: number): Promise<InventoryProduct> {
   return invoke<InventoryProduct>("get_product", { id })
 }
 
-export async function createProduct(data: Partial<InventoryProduct>): Promise<InventoryProduct> {
+/**
+ * `createdBy` is accepted by the `create_product` / `update_product` commands to
+ * write the pricing audit trail, but it is not a column on `products`, so it has
+ * to be declared here rather than on `InventoryProduct`.
+ */
+export type ProductWrite = Partial<InventoryProduct> & { createdBy?: number }
+
+export async function createProduct(data: ProductWrite): Promise<InventoryProduct> {
   return invoke<InventoryProduct>("create_product", data)
 }
 
-export async function updateProduct(data: Partial<InventoryProduct> & { id: number }): Promise<InventoryProduct> {
+export async function updateProduct(data: ProductWrite & { id: number }): Promise<InventoryProduct> {
   return invoke<InventoryProduct>("update_product", data)
 }
 

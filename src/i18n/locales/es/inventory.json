@@ -129,6 +129,28 @@
   "productArchived": "Producto archivado correctamente",
   "confirmDeleteProduct": "¿Estás seguro de archivar este producto?",
 
+  "quickAdd": {
+    "button": "Agregar rápido",
+    "title": "Agregar producto rápido",
+    "description": "Registra un producto con su proveedor, cantidad y precios. Lo demás se completa después desde la ficha del producto.",
+    "addProduct": "Agregar producto",
+    "addedCount_one": "{{count}} producto agregado",
+    "addedCount_other": "{{count}} productos agregados",
+    "productNamePlaceholder": "p. ej. Set de balatas",
+    "skuHint": "Déjalo vacío para generar uno automáticamente",
+    "duplicateSku": "Este SKU ya lo usa otro producto",
+    "salePriceHint": "Déjalo vacío para calcularlo desde la ganancia",
+    "marginHint": "Ganancia global: {{value}}%. Déjala vacía para usar la global.",
+    "openingStock": "Stock inicial (agregado rápido)",
+    "searchSupplier": "Buscar proveedor por nombre o NIT...",
+    "noSupplierFound": "Ningún proveedor coincide con la búsqueda",
+    "newSupplier": "Registrar un nuevo proveedor",
+    "clearSupplier": "Quitar proveedor",
+    "supplierCreated": "Proveedor {{name}} registrado",
+    "supplierName": "Nombre de la empresa",
+    "supplierPhone": "Teléfono (opcional)"
+  },
+
   "allProducts": "Todos los Productos",
   "inStock": "En Stock",
   "lowStock": "Stock Bajo",

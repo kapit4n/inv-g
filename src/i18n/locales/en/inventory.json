@@ -129,6 +129,28 @@
   "productArchived": "Product archived successfully",
   "confirmDeleteProduct": "Are you sure you want to archive this product?",
 
+  "quickAdd": {
+    "button": "Quick add",
+    "title": "Quick add product",
+    "description": "Register a product with its supplier, quantity and prices. Everything else can be filled in later from the product page.",
+    "addProduct": "Add product",
+    "addedCount_one": "{{count}} product added",
+    "addedCount_other": "{{count}} products added",
+    "productNamePlaceholder": "e.g. Brake pad set",
+    "skuHint": "Leave empty to generate one automatically",
+    "duplicateSku": "This SKU is already used by another product",
+    "salePriceHint": "Leave empty to calculate it from the gain",
+    "marginHint": "Global gain: {{value}}%. Leave empty to use the global one.",
+    "openingStock": "Opening stock (quick add)",
+    "searchSupplier": "Search supplier by name or tax number...",
+    "noSupplierFound": "No supplier matches that search",
+    "newSupplier": "Register a new supplier",
+    "clearSupplier": "Clear supplier",
+    "supplierCreated": "Supplier {{name}} registered",
+    "supplierName": "Company name",
+    "supplierPhone": "Phone (optional)"
+  },
+
   "allProducts": "All Products",
   "inStock": "In Stock",
   "lowStock": "Low Stock",
