@@ -6,6 +6,93 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-28 — A cashier could not fix a customer they mistyped at the till
+
+**Symptom:** A cashier registers a customer during a sale, misspells the name,
+and cannot correct it. The POS customer field offers **Quick Add** (and could
+already create a customer, despite the role holding no customer permission at
+all) but no way to amend one. Only an administrator, on the Customers page, could
+fix it afterwards.
+
+**Investigation:** The `cashier` role carried no `customers.*` permission of any
+kind (`seed.rs`, `ROLES`): only `dashboard.view` and the five `sales.*` keys. The
+route gate maps both `/customers` and `/crm` to `customers.view`, so a cashier
+could not reach either page. The POS field (`components/forms/customer-search-field.tsx`)
+was ungated in both directions — it could search and quick-add a customer with no
+permission at all — which is why creating worked and amending did not.
+
+**The grant could not have come from the seeder.** `seed_additional_permissions`
+returns early once any `admin.*` permission exists:
+
+```rust
+let existing: i64 = conn.query_row(
+    "SELECT COUNT(*) FROM permissions WHERE key LIKE 'admin.%'", ...
+if existing > 0 { return Ok(()); }
+```
+
+So on any installation that already has roles and grants, the `ROLES` table is
+never re-applied. Editing the seeder to add the permission would have produced a
+build where the code lists the grant, the seeder lists the grant, and the user is
+still refused — the same `INSERT OR IGNORE` trap as the currency options one
+schema step earlier, in the same file, and it fails silently. The fix is a schema
+v18 → v19 migration.
+
+**The permission would also have been decorative.** `update_customer` had **no
+permission check at all**:
+
+```rust
+pub fn update_customer(id: i64, name: String, ...) -> Result<Customer, String> {
+    // straight to conn.execute("UPDATE customers SET ...")
+```
+
+Every customer permission in the app was enforced by the frontend hiding a button
+and nothing else. Granting `customers.update` to cashiers while leaving that in
+place would have widened an unenforced command rather than controlled it. The
+command now takes the acting user and checks the grant before writing.
+
+**Fix.**
+- `customers.update` added to the `cashier` role, and applied to existing
+  installations by the v19 migration. `customers.view` and `customers.delete` are
+  deliberately **not** granted, so the grant opens one affordance on the customer
+  in front of the cashier and not the module.
+- `update_customer` takes `user_id` and refuses without applying any part of the
+  update. Core split into `update_customer_inner` over a borrowed connection, so
+  the gate is testable without `DB_STATE`, following `create_admin_user_inner`.
+- The POS customer field shows an edit button gated on the permission, opening a
+  dialog for name, email, phone and notes.
+- The dialog passes the fields it does not render through from the loaded
+  record. `update_customer` overwrites *every* column, so omitting them would
+  make saving a corrected name silently blank the customer's address. A test
+  asserts the pass-through, because the bug it prevents is invisible on screen.
+- Additive-migration window widened to `SCHEMA_VERSION - 6`. Bumping to 19 slid
+  the floor from v13 to v14, which would have pushed v13 installations onto the
+  legacy `DROP TABLE` path and destroyed their products — the hazard the comment
+  above that threshold warns about.
+
+**Verification:** 4 Rust tests on the gate (a cashier can correct a customer; a
+role without the grant is refused with nothing written; an unknown user id is
+refused; owner and admin still work), 3 on the migration (grant applied, module
+still closed to cashiers, idempotent), 6 on the POS field (affordance shown and
+hidden by permission, acting user sent, unrendered fields passed through, blank
+name refused, quick add unaffected). The pre-existing `cashier_role_is_sales_only`
+test was updated to the new expected set rather than left passing by accident.
+
+**Affected files:** `src-tauri/src/db/schema.rs` (SCHEMA_VERSION 19, the
+migration, the widened window, 3 tests, the updated role test),
+`src-tauri/src/db/seed.rs` (the `cashier` grant),
+`src-tauri/src/commands/customers.rs` (`update_customer` + `update_customer_inner`
++ `fetch_customer` + 4 tests), `src/lib/tauri.ts` (wrapper takes `userId`),
+`src/components/forms/customer-search-field.tsx`,
+`src/features/customers/pages/customers-page.tsx`,
+`src/features/crm/pages/crm-customers-page.tsx`,
+`src/i18n/locales/{en,es}/common.json`,
+`tests/unit/components/customer-search-field.test.tsx`,
+`tests/unit/components/customers-pages.test.tsx`, `docs-site/admin/users-roles.md`
+
+**Commit:** TBD
+
+---
+
 ### 2026-09-28 — Rejected settings spoke English, and the currency rollback never rolled back
 
 Follow-up to the entry below, in the same session. Two defects in the same
@@ -639,7 +726,8 @@ checkout — and the divergence was invisible in a diff, because git converts
 back on the way in.
 
 `Cargo.toml` was never affected: its pattern anchors on `^version` and closes
-before the ``. Only `Cargo.lock` was, because only its pattern spans a
+before the `
+`. Only `Cargo.lock` was, because only its pattern spans a
 newline.
 
 **Worse, `version:sync` could not fix it.** `propagate` rewrites the lockfile

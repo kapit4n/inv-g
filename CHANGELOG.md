@@ -2,6 +2,34 @@
 
 ## [Unreleased]
 
+### Customers — a cashier can correct a customer they mistyped at the till
+- A cashier registering a customer at the point of sale could not fix a mistake:
+  the name went in as typed and only an administrator could change it later. The
+  POS customer field now offers **Edit customer details** next to the selection
+- The cashier role gains `customers.update`. It deliberately does **not** gain
+  `customers.view`, so the Customers module stays closed to cashiers: they can
+  correct the customer on the sale in front of them and cannot list anyone
+  else's contact details or credit balance
+- `customers.delete` is not granted
+- The dialog renders name, email, phone and notes. `update_customer` overwrites
+  every column, so the address, city, state, postcode and country are passed
+  through from the loaded record — otherwise saving a corrected name would
+  quietly blank the customer's address
+- **The permission is now enforced in the backend.** `update_customer` had no
+  permission check at all, so every customer permission in the app was enforced
+  by the interface hiding a button and nothing else. The command now takes the
+  acting user and checks `customers.update` before writing, and the refusal is
+  returned without applying any part of the update
+- The grant is applied to existing installations by a schema v18 → v19
+  migration, not by the seeder. `seed_additional_permissions` returns early once
+  any `admin.*` permission exists, so a seeder-only change would have been
+  silently ignored on exactly the databases that needed it — the same
+  `INSERT OR IGNORE` trap as the currency options one schema step earlier
+- The additive-migration window was widened to `SCHEMA_VERSION - 6`, so bumping
+  the schema version did not push v13 installations onto the legacy `DROP TABLE`
+  path
+
+
 ### Settings — rejected values now speak your language, and the currency selector actually rolls back
 - A refused settings write no longer shows the backend's English sentence. The
   command now returns a stable code (`notAllowed`, `notNumber`, `notBoolean`,

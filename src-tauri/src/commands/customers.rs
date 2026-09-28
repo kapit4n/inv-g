@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use super::admin::user_has_permission;
 use crate::DB_STATE;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -275,8 +276,18 @@ pub fn create_customer(
     get_customer(id)
 }
 
+/// Permission required to edit a customer's record.
+///
+/// A cashier holds this so they can correct a name mistyped at the till from the
+/// POS customer field. They deliberately do *not* hold `customers.view`, so the
+/// grant opens the edit affordance on the customer in front of them without
+/// opening the whole Customers module -- which would expose every customer's
+/// contact details and credit balance.
+const CUSTOMER_UPDATE_PERMISSION: &str = "customers.update";
+
 #[tauri::command]
 pub fn update_customer(
+    user_id: i64,
     id: i64,
     name: String,
     email: Option<String>,
@@ -290,14 +301,52 @@ pub fn update_customer(
 ) -> Result<Customer, String> {
     let db = DB_STATE.get().ok_or("Database not initialized")?;
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
+    update_customer_inner(
+        &conn, user_id, id, name, email, phone, address, city, state, postal_code, country,
+        notes,
+    )
+}
+
+/// Pure, `DB_STATE`-free core of `update_customer`, so the permission gate can be
+/// tested against a disposable connection.
+///
+/// The gate is the reason this is not a plain `UPDATE`: until now `update_customer`
+/// had no permission check at all, so every customer permission in the app was
+/// enforced by the frontend hiding a button and nothing else.
+pub fn update_customer_inner(
+    conn: &rusqlite::Connection,
+    user_id: i64,
+    id: i64,
+    name: String,
+    email: Option<String>,
+    phone: Option<String>,
+    address: Option<String>,
+    city: Option<String>,
+    state: Option<String>,
+    postal_code: Option<String>,
+    country: Option<String>,
+    notes: Option<String>,
+) -> Result<Customer, String> {
+    if !user_has_permission(conn, user_id, CUSTOMER_UPDATE_PERMISSION)? {
+        return Err("No tienes permiso para actualizar clientes.".to_string());
+    }
 
     map_err!(conn.execute(
         "UPDATE customers SET name = ?1, email = ?2, phone = ?3, address = ?4, city = ?5, state = ?6, postal_code = ?7, country = ?8, notes = ?9, updated_at = datetime('now') WHERE id = ?10",
         rusqlite::params![name, email, phone, address, city, state, postal_code, country, notes, id],
     ))?;
 
-    drop(conn);
-    get_customer(id)
+    fetch_customer(conn, id)
+}
+
+/// Read one customer off a connection the caller already holds.
+fn fetch_customer(conn: &rusqlite::Connection, id: i64) -> Result<Customer, String> {
+    conn.query_row(
+        "SELECT id, name, email, phone, address, city, state, postal_code, country, notes, is_active, created_at, updated_at FROM customers WHERE id = ?1",
+        rusqlite::params![id],
+        row_to_customer,
+    )
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -661,4 +710,111 @@ pub fn get_customer_timeline(customer_id: i64) -> Result<Vec<TimelineEntry>, Str
         result.push(map_err!(row)?);
     }
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::PROFILE_SINGLE_STORE;
+    use crate::db::init_database_with_profile;
+
+    /// A disposable database on the real seeder, so the role grants under test
+    /// are the ones an installation actually has.
+    fn test_db() -> rusqlite::Connection {
+        let dir = std::env::temp_dir()
+            .join(format!("ig_customers_test_{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).expect("create temp dir");
+        let path = dir.join("customers.db");
+        init_database_with_profile(path.to_str().unwrap(), PROFILE_SINGLE_STORE).expect("init db")
+    }
+
+    fn user_id(conn: &rusqlite::Connection, username: &str) -> i64 {
+        conn.query_row(
+            "SELECT id FROM users WHERE username = ?1",
+            rusqlite::params![username],
+            |r| r.get(0),
+        )
+        .expect("seed user")
+    }
+
+    fn insert_customer(conn: &rusqlite::Connection, name: &str) -> i64 {
+        conn.execute(
+            "INSERT INTO customers (name, created_at, updated_at) VALUES (?1, datetime('now'), datetime('now'))",
+            rusqlite::params![name],
+        )
+        .expect("insert customer");
+        conn.last_insert_rowid()
+    }
+
+    fn name_of(conn: &rusqlite::Connection, id: i64) -> String {
+        conn.query_row(
+            "SELECT name FROM customers WHERE id = ?1",
+            rusqlite::params![id],
+            |r| r.get(0),
+        )
+        .expect("read customer")
+    }
+
+    fn update_name(
+        conn: &rusqlite::Connection,
+        user_id: i64,
+        id: i64,
+        name: &str,
+    ) -> Result<Customer, String> {
+        update_customer_inner(
+            conn, user_id, id, name.to_string(), None, None, None, None, None, None, None, None,
+        )
+    }
+
+    /// The reason this command takes a `user_id` at all: until now it had no
+    /// permission check, so the grant in the seeder and the button the frontend
+    /// hides were the only two things standing between a cashier and any
+    /// customer's record.
+    #[test]
+    fn a_cashier_can_correct_a_customer_they_mistyped() {
+        let conn = test_db();
+        let id = insert_customer(&conn, "Jhoan P.");
+
+        let updated = update_name(&conn, user_id(&conn, "cashier"), id, "Jhohan Perez").unwrap();
+        assert_eq!(updated.name, "Jhohan Perez");
+        assert_eq!(name_of(&conn, id), "Jhohan Perez");
+    }
+
+    #[test]
+    fn a_user_without_the_permission_is_refused_and_nothing_is_written() {
+        let conn = test_db();
+        let id = insert_customer(&conn, "Original Name");
+
+        // The seeded `viewer` role holds customers.view but not customers.update.
+        let err = update_name(&conn, user_id(&conn, "viewer"), id, "Hacked").unwrap_err();
+        assert!(
+            err.contains("permiso"),
+            "expected a permission refusal, got {err:?}"
+        );
+        // The refusal must not have half-applied the write.
+        assert_eq!(name_of(&conn, id), "Original Name");
+    }
+
+    #[test]
+    fn an_unknown_user_id_is_refused() {
+        let conn = test_db();
+        let id = insert_customer(&conn, "Original Name");
+
+        let err = update_name(&conn, 999_999, id, "Hacked").unwrap_err();
+        assert!(err.contains("permiso"), "got {err:?}");
+        assert_eq!(name_of(&conn, id), "Original Name");
+    }
+
+    #[test]
+    fn full_customer_management_roles_keep_working() {
+        let conn = test_db();
+        let id = insert_customer(&conn, "Before");
+
+        // Usernames, not role names: the administrator's account is `admin`.
+        for username in ["owner", "admin"] {
+            let name = format!("After {username}");
+            update_name(&conn, user_id(&conn, username), id, &name).unwrap();
+            assert_eq!(name_of(&conn, id), name);
+        }
+    }
 }

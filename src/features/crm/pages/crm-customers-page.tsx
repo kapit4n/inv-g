@@ -15,11 +15,14 @@ import toast from "react-hot-toast"
 import {
   getCustomers, createCustomer, updateCustomer, archiveCustomer,
 } from "@/lib/tauri"
+import { useAuthStore } from "@/stores"
 import type { Customer } from "@/types"
 
 export function CrmCustomersPage() {
   const { t } = useTranslation("crm")
   const navigate = useNavigate()
+  // The backend checks `customers.update` against this before writing.
+  const userId = useAuthStore((s) => s.user?.id)
 
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
@@ -112,8 +115,12 @@ export function CrmCustomersPage() {
     setSaving(true)
     try {
       if (editCustomer) {
+        if (userId === undefined) {
+          toast.error(t("error"))
+          return
+        }
         await updateCustomer(
-          editCustomer.id, formName.trim(),
+          userId, editCustomer.id, formName.trim(),
           formEmail || undefined, formPhone || undefined,
           formAddress || undefined, formCity || undefined,
           formState || undefined, formPostalCode || undefined,

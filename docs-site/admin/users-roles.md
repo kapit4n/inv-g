@@ -148,7 +148,7 @@ account from this screen is allowed and has the same effect on your next sign-in
 |------|-------------|
 | Owner | Full system access, cannot be deleted |
 | Admin | Most features, limited system settings |
-| Cashier | **Sales module only** (plus the dashboard) — a selling-only account |
+| Cashier | **Sales module only** (plus the dashboard) — a selling-only account. Can also correct a customer they mistyped at the till |
 | Warehouse | Inventory, stock, movements |
 | Viewer | Read-only access |
 
@@ -214,7 +214,15 @@ part of the sale itself and are available to a cashier.
   the menu entry, because a bookmark or the command palette could still reach it
 - The seeded role permissions apply to **new** databases. On an existing
   database, review the role under **Admin → Roles** and adjust its permissions
-  to match
+  to match, because the seeder stops early once roles already exist and will not
+  back-fill a new grant. Schema v19 is the exception: it adds `customers.update`
+  to the cashier role on existing databases, so a cashier can correct a customer
+  mistyped at the till without an administrator editing the role by hand
+- A cashier holds `customers.update` but **not** `customers.view`, so they can
+  fix the customer on the sale in front of them from the POS customer field and
+  still cannot open the Customers module or list other customers
+- The backend enforces `customers.update` on the customer edit itself, not only in
+  the interface, so hiding the button is not the whole of the protection
 
 ## Related
 

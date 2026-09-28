@@ -433,13 +433,18 @@ export async function createCustomer(
   })
 }
 
+/**
+ * `userId` is the acting user: the backend checks `customers.update` against it
+ * before writing. A cashier holds that permission so they can fix a customer
+ * mistyped at the till, without being able to open the Customers module.
+ */
 export async function updateCustomer(
-  id: number, name: string, email?: string, phone?: string, address?: string,
+  userId: number, id: number, name: string, email?: string, phone?: string, address?: string,
   city?: string, state?: string, postalCode?: string,
   country?: string, notes?: string
 ): Promise<Customer> {
   return invoke<Customer>("update_customer", {
-    id, name, email, phone, address, city, state, postalCode, country, notes,
+    userId, id, name, email, phone, address, city, state, postalCode, country, notes,
   })
 }
 

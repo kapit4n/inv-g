@@ -6,6 +6,7 @@ import { CrmCustomersPage } from "@/features/crm/pages/crm-customers-page"
 import { getCustomers, createCustomer, updateCustomer, archiveCustomer } from "@/lib/tauri"
 import type { Customer } from "@/types"
 import { setupI18n } from "@/i18n"
+import { useAuthStore } from "@/stores"
 
 vi.mock("react-hot-toast", () => ({
   default: { success: vi.fn(), error: vi.fn() },
@@ -63,6 +64,9 @@ function nameInput(): HTMLInputElement {
 }
 
 beforeEach(() => {
+  // `updateCustomer` needs an acting user: the backend checks the caller's
+  // `customers.update` grant against this id before writing.
+  useAuthStore.setState({ user: { id: 7 } as never, isAuthenticated: true })
   vi.mocked(getCustomers).mockResolvedValue(customers as never)
   vi.mocked(createCustomer).mockResolvedValue({ id: 3 } as never)
   vi.mocked(updateCustomer).mockResolvedValue({ id: 1 } as never)
@@ -193,8 +197,11 @@ describe.each(screens)("$name", ({ Page, add, empty }) => {
     await user.click(screen.getByRole("button", { name: "Save" }))
 
     await waitFor(() => expect(updateCustomer).toHaveBeenCalled())
-    expect(vi.mocked(updateCustomer).mock.calls[0][0]).toBe(1)
-    expect(vi.mocked(updateCustomer).mock.calls[0][1]).toBe("Taller Norte SL")
+    // The acting user is sent first: the backend checks `customers.update`
+    // against it before writing, so the id is part of the call, not implied.
+    expect(vi.mocked(updateCustomer).mock.calls[0][0]).toBe(7)
+    expect(vi.mocked(updateCustomer).mock.calls[0][1]).toBe(1)
+    expect(vi.mocked(updateCustomer).mock.calls[0][2]).toBe("Taller Norte SL")
     // Editing must not be mistaken for creating a duplicate.
     expect(createCustomer).not.toHaveBeenCalled()
   })

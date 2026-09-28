@@ -142,6 +142,13 @@ const ROLES: &[(&str, &str, bool, &[&str])] = &[
     ("cashier", "Cajero", true, &[
         "dashboard.view",
         "sales.view", "sales.create", "sales.quotes", "sales.register", "sales.receipts",
+        // Enough to correct a customer mistyped at the till, from the POS
+        // customer field. Deliberately NOT `customers.view`: the route gate
+        // would then open the whole Customers module to a cashier, exposing
+        // every customer's contact details and credit balance. The rename
+        // affordance lives in the POS field instead, so the cashier only ever
+        // touches the customer on the sale in front of them.
+        "customers.update",
     ]),
     ("warehouse", "Almacén", true, &[
         "dashboard.view",

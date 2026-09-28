@@ -1,6 +1,6 @@
 use rusqlite::{Connection, Result};
 
-const SCHEMA_VERSION: i32 = 18;
+const SCHEMA_VERSION: i32 = 19;
 
 fn get_user_version(conn: &Connection) -> Result<i32> {
     let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
@@ -20,18 +20,19 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
     }
 
     // Additive migration for the immediately-previous schema versions
-    // (13, 14, 15, 16 and 17). This preserves existing business data instead of
+    // (13, 14, 15, 16, 17 and 18). This preserves existing business data instead of
     // dropping the world; the legacy path further down begins with DROP TABLE, so
     // a database that falls through to it loses products and their pricing. Each
     // step below is guarded by `current_version <= N` and applied in order, so a
     // single pass takes v13 straight to the current version.
     //
-    // The window is deliberately six versions wide, one wider than the five
+    // The window is deliberately seven versions wide, two wider than the six
     // steps above it. Bumping SCHEMA_VERSION slides this threshold, so a window
-    // of five would have silently pushed v13 customers onto the DROP TABLE path
-    // the first time a column was added. Widen the window whenever the version is
-    // bumped; do not shrink it to "just the steps we wrote".
-    if current_version >= SCHEMA_VERSION - 5 {
+    // matching the number of steps would have silently pushed v13 customers onto
+    // the DROP TABLE path the first time a column was added, and again on every
+    // subsequent bump. Widen the window whenever the version is bumped; do not
+    // shrink it to "just the steps we wrote".
+    if current_version >= SCHEMA_VERSION - 6 {
         conn.execute_batch("PRAGMA foreign_keys=OFF;")?;
 
         // v13 -> v14: per-product pricing columns. Every existing product gets
@@ -137,6 +138,49 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
                         AND (options IS NULL OR options NOT LIKE '%BOB%')",
                     [],
                 )?;
+            }
+        }
+
+        // v18 -> v19: let a cashier correct a customer they mistyped at the till.
+        //
+        // A permission cannot be granted by editing `ROLES` in the seeder:
+        // `seed_additional_permissions` returns early once any `admin.*`
+        // permission exists (seed.rs), so on an installation that already has
+        // roles and grants the loop never runs and the new key never reaches
+        // `role_permissions`. This is the same trap as the currency options one
+        // step up, and it fails silently -- the code exists, the seeder lists
+        // it, and the user is still refused.
+        if current_version <= 18 {
+            // Both steps run before `create_tables` finishes, so on a fresh
+            // database these tables do not exist yet. The seeder writes the
+            // grant below, and letting a bare UPDATE throw would abort init.
+            for table in ["permissions", "roles", "role_permissions"] {
+                let exists: bool = conn.query_row(
+                    "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1)",
+                    [table],
+                    |row| row.get(0),
+                )?;
+                if !exists { continue; }
+
+                if table == "permissions" {
+                    conn.execute(
+                        "INSERT OR IGNORE INTO permissions (key, name, group_name, description)
+                         VALUES ('customers.update', 'Actualizar Cliente', 'customers', 'Update customers')",
+                        [],
+                    )?;
+                } else if table == "roles" {
+                    // Nothing to do: the cashier role already exists on every
+                    // installation that got this far.
+                } else {
+                    conn.execute(
+                        "INSERT OR IGNORE INTO role_permissions (role_id, permission_id)
+                         SELECT r.id, p.id
+                           FROM roles r
+                           JOIN permissions p ON p.key = 'customers.update'
+                          WHERE r.name = 'cashier'",
+                        [],
+                    )?;
+                }
             }
         }
 
@@ -1511,8 +1555,11 @@ mod tests {
         let conn = td.conn();
         let perms = role_permission_keys(&conn, "cashier");
 
-        // Sales-only front-of-house account: landing page plus the sales module.
+        // Sales-only front-of-house account: landing page, the sales module, and
+        // `customers.update` so a customer mistyped at the till can be corrected
+        // from the POS customer field.
         let expected = vec![
+            "customers.update",
             "dashboard.view",
             "sales.create",
             "sales.quotes",
@@ -1525,11 +1572,15 @@ mod tests {
             "cashier must carry exactly the sales-only permission set"
         );
 
-        // Explicit guards for the modules a cashier must never reach.
+        // Explicit guards for the modules a cashier must never reach. Note the
+        // absence of `customers.view` and `customers.create` next to the grant
+        // above: `customers.update` lets a cashier correct the customer on the
+        // sale in front of them, not list or create customers.
         for forbidden in [
             "inventory.view",
             "customers.view",
             "customers.create",
+            "customers.delete",
             "purchases.view",
             "reports.view",
             "employees.manage",
@@ -2263,5 +2314,105 @@ mod tests {
             violations.is_empty(),
             "Should have no FK violations after migration, found: {violations:?}"
         );
+    }
+
+    // ── v18 -> v19: cashier may correct a customer ─────────────────────
+
+    fn role_has_permission(conn: &Connection, role: &str, key: &str) -> bool {
+        conn.query_row(
+            "SELECT COUNT(*) FROM roles r
+               JOIN role_permissions rp ON rp.role_id = r.id
+               JOIN permissions p ON p.id = rp.permission_id
+             WHERE r.name = ?1 AND p.key = ?2",
+            rusqlite::params![role, key],
+            |row| row.get::<_, i64>(0),
+        )
+        .unwrap()
+            > 0
+    }
+
+    #[test]
+    fn migration_v18_to_v19_grants_cashier_customer_update() {
+        let td = TestDb::new();
+        let path = td.path.to_str().unwrap();
+
+        // An existing installation: roles, permissions and grants are all
+        // already there, which is exactly the state where
+        // `seed_additional_permissions` early-returns on its `admin.*` count and
+        // never re-applies the seeder's role list.
+        init_database(path).unwrap();
+        {
+            let conn = Connection::open(path).unwrap();
+            conn.execute_batch(
+                "DELETE FROM role_permissions
+                  WHERE role_id = (SELECT id FROM roles WHERE name = 'cashier')
+                    AND permission_id = (SELECT id FROM permissions WHERE key = 'customers.update');
+                 PRAGMA user_version=18;",
+            )
+            .unwrap();
+            assert!(
+                !role_has_permission(&conn, "cashier", "customers.update"),
+                "precondition: the grant must be absent before the migration runs"
+            );
+        }
+
+        let conn = init_database(path).unwrap();
+        assert_eq!(get_schema_version(&conn), SCHEMA_VERSION);
+        assert!(
+            role_has_permission(&conn, "cashier", "customers.update"),
+            "migration must grant a cashier customers.update"
+        );
+    }
+
+    #[test]
+    fn migration_v18_to_v19_does_not_open_the_customers_module_to_cashiers() {
+        let td = TestDb::new();
+        let conn = td.conn();
+
+        // `customers.view` route-gates /customers and /crm. Granting it would let
+        // a cashier list every customer, with contact details and credit balance.
+        assert!(
+            !role_has_permission(&conn, "cashier", "customers.view"),
+            "a cashier must not be able to open the Customers module"
+        );
+        assert!(
+            !role_has_permission(&conn, "cashier", "customers.delete"),
+            "a cashier must not be able to delete a customer"
+        );
+        // Full customer management roles are untouched.
+        for role in ["owner", "administrator"] {
+            assert!(
+                role_has_permission(&conn, role, "customers.update"),
+                "{role} must keep customers.update"
+            );
+        }
+    }
+
+    #[test]
+    fn migration_v18_to_v19_is_idempotent() {
+        let td = TestDb::new();
+        let path = td.path.to_str().unwrap();
+
+        init_database(path).unwrap();
+        {
+            let conn = Connection::open(path).unwrap();
+            conn.execute_batch("PRAGMA user_version=18;").unwrap();
+        }
+
+        // Re-running must not fail on the INSERT OR IGNORE, nor duplicate the grant.
+        init_database(path).unwrap();
+        let conn = init_database(path).unwrap();
+
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM role_permissions rp
+                   JOIN roles r ON r.id = rp.role_id
+                   JOIN permissions p ON p.id = rp.permission_id
+                  WHERE r.name = 'cashier' AND p.key = 'customers.update'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 1, "the grant must be applied exactly once");
     }
 }
