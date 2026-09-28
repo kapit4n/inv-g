@@ -9,6 +9,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **`npm run release:alpha`** (`scripts/release-alpha.mjs`): cuts the next alpha
+  version in one shot from a clean tree — computes the next `-alpha.N`, runs
+  `version:set` + `version:check`, commits `chore: release <v>`, tags
+  `v<version>` and pushes branch + tag. `--dry-run` (or `release:alpha:dry`)
+  previews the bump and restores the tree; `RELEASE_BRANCH` overrides the push
+  target (defaults to the current branch).
 - **First-launch `admin` account.** The shipped `installer-config.json` (and the
   local `installer-config.dev.json` used by `first-launch.sh`) now pre-create an
   `admin` account with the `administrator` role alongside the owner, both with
