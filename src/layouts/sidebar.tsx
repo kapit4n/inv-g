@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useSettingsStore } from "@/stores"
-import { useBusinessCapabilities, useModules, moduleForPath, useSalesResetEnabled } from "@/hooks"
+import { useBusinessCapabilities, useModules, moduleForPath, useSalesResetEnabled, usePermissions } from "@/hooks"
 import { cn } from "@/lib/utils"
 import { navigation, secondaryNavigation } from "@/config/navigation"
 import type { NavItemConfig } from "@/config/navigation"
@@ -23,6 +23,7 @@ export function Sidebar() {
   const capabilities = useBusinessCapabilities()
   const { isEnabled } = useModules()
   const salesResetEnabled = useSalesResetEnabled()
+  const { hasPermission } = usePermissions()
   const location = useLocation()
   const { t } = useTranslation()
   const [expanded, setExpanded] = useState<string[]>(["/inventory", "/sales", "/purchases"])
@@ -61,6 +62,8 @@ export function Sidebar() {
     .map((item) => {
       if (item.href === "/admin") {
         const children = item.children!.filter((child) => {
+          // Permission-restricted entries are hidden for roles that lack them.
+          if (child.permission && !hasPermission(child.permission)) return false
           // The reset tool appears only when an administrator switches on the
           // "enable_sales_reset" flag in Admin > Settings.
           if (child.href === "/admin/sales-reset") return salesResetEnabled

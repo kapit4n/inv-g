@@ -205,3 +205,29 @@ Feature marker: **implemented, pending live app check.**
 - [x] Tests: 5 Rust (`cargo test reset`) + 5 Vitest page tests
 - [x] Docs: `docs-site/admin/sales-reset.md`, settings.md (Admin group), sidebar, CHANGELOG
 - [ ] Live app check: enable the flag in Admin → Settings → Admin, open the page, run a reset
+
+## Admin User Creation — Default Password & Admin-Only (2026-09-28)
+
+Feature status: **implemented, pending live app check.**
+
+The Administration → Users section already existed; this change makes user
+creation behave as specced: administrators only, shared default password,
+forced first-login change.
+
+### Status
+- [x] Backend `create_admin_user` now refuses creators without the
+      `admin.users.manage` permission (owner/administrator roles only)
+- [x] Blank password becomes `CHANGEPASSWORD` (`DEFAULT_USER_PASSWORD`); custom
+      passwords are kept but still force the first change
+- [x] All created users start with `password_change_required = 1` and a
+      `password_expires_at` of +90 days
+- [x] Form: no password field on create — a notice explains the shared default;
+      `created_by` is the logged-in administrator (no longer hardcoded 1)
+- [x] Users list + form wrapped in `PermissionGuard admin.users.manage`;
+      sidebar entry hidden without the permission
+- [x] Tests: 4 Rust (default password, forced change, non-admin rejected,
+      owner+administrator allowed) + 3 Vitest page tests
+- [x] Docs: `users-roles.md` (default password section), CHANGELOG
+- [ ] Live app check: log in as a non-administrator and confirm the Users link
+      and routes are hidden, then create a user and log in with `CHANGEPASSWORD`
+      to confirm the forced change screen appears

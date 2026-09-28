@@ -95,6 +95,8 @@
   "users.createdAt": "Created At",
   "users.updatedAt": "Updated At",
   "users.password": "Password",
+  "users.defaultPasswordNotice": "New users start with the shared default password CHANGEPASSWORD and must change it the first time they sign in.",
+  "users.noPermission": "You do not have permission to manage users. Ask an administrator with the owner or administrator role.",
   "users.confirmPassword": "Confirm Password",
   "users.passwordChanged": "Password Changed",
   "users.mustChangePassword": "Must Change Password",

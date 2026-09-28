@@ -13,6 +13,8 @@ export interface NavChildConfig {
   nameKey: string
   href: string
   icon?: ComponentType<{ className?: string }>
+  /** Only render the entry for users carrying this permission. */
+  permission?: string
 }
 
 export interface NavItemConfig {
@@ -105,7 +107,7 @@ export const secondaryNavigation: NavItemConfig[] = [
     nameKey: "admin.title", href: "/admin", icon: Shield,
     children: [
       { nameKey: "admin.dashboard", href: "/admin", icon: Monitor },
-      { nameKey: "admin.users", href: "/admin/users", icon: Users },
+      { nameKey: "admin.users", href: "/admin/users", icon: Users, permission: "admin.users.manage" },
       { nameKey: "admin.roles", href: "/admin/roles", icon: ShieldCheck },
       { nameKey: "admin.permissions", href: "/admin/roles", icon: Shield },
       { nameKey: "admin.settings", href: "/admin/settings", icon: Settings },

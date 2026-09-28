@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { PermissionGuard } from "@/components/permission-guard"
 import { getAdminUsers, archiveAdminUser, restoreAdminUser, lockUserAccount, unlockUserAccount } from "@/lib/tauri"
 import type { AdminUser } from "@/types"
 
@@ -55,7 +56,15 @@ export function AdminUsersPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <PermissionGuard
+      permission="admin.users.manage"
+      fallback={
+        <div className="flex h-full items-center justify-center p-6">
+          <Card><CardContent className="p-6 text-sm text-muted-foreground">{t("admin.users.noPermission")}</CardContent></Card>
+        </div>
+      }
+    >
+      <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{t("admin.users.title")}</h1>
@@ -154,6 +163,7 @@ export function AdminUsersPage() {
           </Button>
         </div>
       </div>
-    </div>
+      </div>
+    </PermissionGuard>
   )
 }

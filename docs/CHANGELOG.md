@@ -9,6 +9,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **Admin-only user creation with a forced default password.** Creating users in
+  **Admin → Users** is now restricted to `owner`/`administrator` roles: the
+  backend rejects creators without `admin.users.manage`, the sidebar entry and
+  the Users routes are permission-gated, and the creator is recorded from the
+  logged-in session instead of a hardcoded id. The new-user form no longer asks
+  for a password — accounts start with the shared default **`CHANGEPASSWORD`**,
+  are flagged `password_change_required`, and the password also expires 90 days
+  out, so the first login lands on the change-password screen. Explicit
+  passwords are still honored if one is ever passed. Docs updated in
+  `docs-site/admin/users-roles.md`.
 - **`npm run release:alpha`** (`scripts/release-alpha.mjs`): cuts the next alpha
   version in one shot from a clean tree — computes the next `-alpha.N`, runs
   `version:set` + `version:check`, commits `chore: release <v>`, tags

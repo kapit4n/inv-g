@@ -95,6 +95,8 @@
   "users.createdAt": "Fecha de Creación",
   "users.updatedAt": "Fecha de Actualización",
   "users.password": "Contraseña",
+  "users.defaultPasswordNotice": "Los usuarios nuevos comienzan con la contraseña compartida CHANGEPASSWORD y deben cambiarla la primera vez que inicien sesión.",
+  "users.noPermission": "No tienes permisos para gestionar usuarios. Solicita acceso a un administrador con rol propietario o administrador.",
   "users.confirmPassword": "Confirmar Contraseña",
   "users.passwordChanged": "Contraseña Cambiada",
   "users.mustChangePassword": "Debe Cambiar la Contraseña",
