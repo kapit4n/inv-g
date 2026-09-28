@@ -63,9 +63,14 @@ function run(cmd, args, opts = {}) {
   return result
 }
 
-function git(args, { silent = false } = {}) {
+function git(args, { silent = false, mayFail = false } = {}) {
   if (silent) {
-    return execFileSync("git", args, { cwd: ROOT, stdio: ["ignore", "pipe", "ignore"], encoding: "utf8" })
+    try {
+      return execFileSync("git", args, { cwd: ROOT, stdio: ["ignore", "pipe", "ignore"], encoding: "utf8" })
+    } catch {
+      if (mayFail) return ""
+      throw new Error(`git ${args.join(" ")} failed`)
+    }
   }
   run("git", args)
   return ""
@@ -135,7 +140,7 @@ console.log(git(["status", "--short"], { silent: true }).trim() || "  tree clean
 // ── Step 5: tag ───────────────────────────────────────────────────────────────
 const tag = `v${next}`
 console.log(C.dim(`\n[6/8] git tag ${tag}…`))
-const existing = git(["rev-parse", "-q", "--verify", `refs/tags/${tag}`], { silent: true }).trim()
+const existing = git(["rev-parse", "-q", "--verify", `refs/tags/${tag}`], { silent: true, mayFail: true }).trim()
 if (existing) {
   console.error(C.red(`Tag ${tag} already exists at ${existing}. The release is committed but not tagged.`))
   console.error(C.red("Resolve manually: delete the tag or use the existing one, then `git push` the rest."))
