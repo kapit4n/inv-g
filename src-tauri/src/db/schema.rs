@@ -1,6 +1,6 @@
 use rusqlite::{Connection, Result};
 
-const SCHEMA_VERSION: i32 = 15;
+const SCHEMA_VERSION: i32 = 17;
 
 fn get_user_version(conn: &Connection) -> Result<i32> {
     let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
@@ -19,12 +19,19 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
         return Ok(());
     }
 
-    // Additive migration for the two immediately-previous schema versions
-    // (13 and 14). This preserves existing business data (requirement: do not
-    // lose current product prices or equivalents) instead of dropping the
-    // world. A database on version 13 gets every step applied in order, so a
-    // single pass upgrades it straight to the current version.
-    if current_version >= SCHEMA_VERSION - 2 {
+    // Additive migration for the immediately-previous schema versions
+    // (13, 14, 15 and 16). This preserves existing business data instead of
+    // dropping the world; the legacy path further down begins with DROP TABLE, so
+    // a database that falls through to it loses products and their pricing. Each
+    // step below is guarded by `current_version <= N` and applied in order, so a
+    // single pass takes v13 straight to the current version.
+    //
+    // The window is deliberately four versions wide, one wider than the three
+    // steps above it. Bumping SCHEMA_VERSION slides this threshold, so a window
+    // of three would have silently pushed v13 customers onto the DROP TABLE path
+    // the first time a column was added. Widen the window whenever the version is
+    // bumped; do not shrink it to "just the steps we wrote".
+    if current_version >= SCHEMA_VERSION - 4 {
         conn.execute_batch("PRAGMA foreign_keys=OFF;")?;
 
         // v13 -> v14: per-product pricing columns. Every existing product gets
@@ -61,6 +68,38 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
                 );
                 CREATE INDEX IF NOT EXISTS idx_pe_product ON product_equivalents(product_id);
                 CREATE INDEX IF NOT EXISTS idx_pe_equivalent ON product_equivalents(equivalent_product_id);",
+            )?;
+        }
+
+        // v15 -> v16: designate a default store.
+        //
+        // The store/almacén concept already exists as `warehouses.is_active`;
+        // this extends it rather than introducing a second store system. The
+        // column is what lets the app always resolve a store, even if every
+        // other store is deactivated. A partial unique index enforces "at most
+        // one default", so the invariant lives in the schema rather than in
+        // every writer that has to remember it.
+        if current_version <= 15 {
+            conn.execute_batch(
+                "ALTER TABLE warehouses ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0;
+                 UPDATE warehouses SET is_default = 1 WHERE id = (SELECT MIN(id) FROM warehouses);
+                 CREATE UNIQUE INDEX IF NOT EXISTS uq_warehouses_single_default
+                     ON warehouses(is_default) WHERE is_default = 1;",
+            )?;
+        }
+
+        // v16 -> v17: per-role quick login.
+        //
+        // Quick login (`login_by_role`) signs a user in from their role alone, with
+        // no password, so it has to be off unless somebody deliberately turns it
+        // on. It lives on `roles` rather than in application settings so the gate
+        // is a single indexed lookup inside the login query and cannot drift out of
+        // step with the UI. DEFAULT 0 means every role is off: a database upgraded
+        // from 16 gains no new way in, and a fresh install starts with quick login
+        // disabled until the installer config or an administrator enables it.
+        if current_version <= 16 {
+            conn.execute_batch(
+                "ALTER TABLE roles ADD COLUMN quick_login_enabled INTEGER NOT NULL DEFAULT 0;",
             )?;
         }
 
@@ -155,6 +194,7 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             description TEXT,
             is_system INTEGER NOT NULL DEFAULT 0,
             is_active INTEGER NOT NULL DEFAULT 1,
+            quick_login_enabled INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             updated_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
@@ -455,9 +495,12 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             manager TEXT,
             phone TEXT,
             is_active INTEGER NOT NULL DEFAULT 1,
+            is_default INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             updated_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_warehouses_single_default
+            ON warehouses(is_default) WHERE is_default = 1;
 
         CREATE TABLE IF NOT EXISTS storage_locations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1718,6 +1761,8 @@ mod tests {
                     created_at TEXT NOT NULL DEFAULT (datetime('now')),
                     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
                 );
+                CREATE TABLE warehouses (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, code TEXT);
+                CREATE TABLE roles (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT);
                 INSERT INTO products (name, sku, cost_price, sale_price) VALUES
                     ('Regular margin', 'V13-A', 24.5, 35.0),
                     ('Zero cost', 'V13-B', 0.0, 12.0),
@@ -1729,7 +1774,7 @@ mod tests {
         }
 
         let conn = Connection::open(path).expect("open for migration");
-        crate::db::schema::create_tables(&conn).expect("v13 -> v15 additive migration should succeed");
+        crate::db::schema::create_tables(&conn).expect("v13 -> v16 additive migration should succeed");
         assert_eq!(get_schema_version(&conn), SCHEMA_VERSION);
 
         // Data is preserved (no drop), not re-seeded away.
@@ -1801,6 +1846,8 @@ mod tests {
                     profit_margin_pct REAL,
                     edited_price REAL
                 );
+                CREATE TABLE warehouses (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, code TEXT);
+                CREATE TABLE roles (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT);
                 INSERT INTO products (name, sku, cost_price, sale_price, profit_margin_pct, edited_price) VALUES
                     ('V14-A', 'V14-A', 20.0, 30.0, 50.0, NULL),
                     ('V14-B', 'V14-B', 10.0, 15.0, NULL, 15.0);
@@ -1811,7 +1858,7 @@ mod tests {
         }
 
         let conn = Connection::open(path).expect("open for migration");
-        crate::db::schema::create_tables(&conn).expect("v14 -> v15 additive migration should succeed");
+        crate::db::schema::create_tables(&conn).expect("v14 -> v16 additive migration should succeed");
         assert_eq!(get_schema_version(&conn), SCHEMA_VERSION);
 
         // Existing products keep their individual pricing.

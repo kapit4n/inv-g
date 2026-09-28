@@ -1,0 +1,23 @@
+{
+  "users": [
+    {
+      "username": "jhona",
+      "email": "jhona@tienda.bo",
+      "fullName": "Jhona Flores",
+      "password": "JHONACHANGE1",
+      "role": "owner",
+      "passwordChangeRequired": true,
+      "active": true
+    },
+    {
+      "username": "admin",
+      "email": "admin@inventorygear.com",
+      "fullName": "Administrador",
+      "password": "vWphGLbTE01z7q",
+      "role": "administrator",
+      "passwordChangeRequired": true,
+      "active": true
+    }
+  ],
+  "quickLoginRoles": []
+}

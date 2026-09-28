@@ -186,7 +186,7 @@ const DEFAULT_USERS: &[(&str, &str, &str, &str)] = &[
 const DEFAULT_SETTINGS: &[(&str, &str, &str, &str, &str)] = &[
     ("store_name", "Inventory Gear", "general", "string", "Store name"),
     ("store_logo", "", "general", "string", "Store logo URL"),
-    ("currency", "USD", "general", "string", "Default currency"),
+    ("currency", "BOB", "general", "string", "Default currency"),
     ("timezone", "America/Mexico_City", "general", "string", "Timezone"),
     ("tax_rate", "16", "general", "number", "Default tax rate percentage"),
     ("receipt_footer", "¡Gracias por su compra!", "printing", "string", "Receipt footer text"),
@@ -222,6 +222,13 @@ const SEED_WAREHOUSES: &[(&str, &str, &str, &str, &str)] = &[
     ("Almacén Norte", "WH-002", "Calle Secundaria 500", "Cochabamba", "Bolivia"),
     ("Almacén Sur", "WH-003", "Av. Sur 200", "Santa Cruz", "Bolivia"),
 ];
+
+/// Used by `ensure_default_store` when the database has no store at all (the
+/// `empty` profile). The code is fixed so re-creating it after a delete cannot
+/// collide with a user-chosen code, and the UNIQUE constraint on `code` is what
+/// stops a second one being inserted.
+const DEFAULT_STORE_NAME: &str = "Tienda Principal";
+const DEFAULT_STORE_CODE: &str = "TIENDA-PRINCIPAL";
 
 const SEED_STORAGE_LOCATIONS: &[(&str, &str, &str, &str, &str, i32)] = &[
     ("A", "01", "A", "01", "WH-001-A-01-A-01", 1),
@@ -294,6 +301,7 @@ pub fn seed_database_with_profile(conn: &Connection, profile: &str) -> Result<()
         seed_permissions(conn)?;
         seed_roles(conn)?;
         seed_users(conn)?;
+        seed_quick_login_roles(conn)?;
         seed_settings(conn)?;
 
         if profile != crate::config::PROFILE_EMPTY {
@@ -314,6 +322,62 @@ pub fn seed_database_with_profile(conn: &Connection, profile: &str) -> Result<()
     seed_device_settings(conn)?;
     seed_license_record(conn)?;
     seed_system_update_record(conn)?;
+    seed_initialization_marker(conn)?;
+    ensure_default_store(conn)?;
+
+    Ok(())
+}
+
+/// Guarantees the app can always resolve a store.
+///
+/// The `empty` profile deliberately seeds no warehouses, and a user can
+/// deactivate stores, so "at least one active store" is an invariant the seeder
+/// and the delete/deactivate guards both depend on. This runs on every startup
+/// and is deliberately non-destructive:
+///
+/// * no stores at all -> create "Tienda Principal" and make it the default;
+/// * stores exist but none active -> reactivate the default one, then the
+///   lowest id, rather than inventing a new store;
+/// * stores exist but none flagged default -> flag the existing one.
+///
+/// Existing data is never dropped and a deactivated store that still has history
+/// is never silently reactivated as a side effect of a different repair.
+fn ensure_default_store(conn: &Connection) -> Result<()> {
+    let count: i64 = conn.query_row("SELECT COUNT(*) FROM warehouses", [], |row| row.get(0))?;
+    if count == 0 {
+        conn.execute(
+            "INSERT INTO warehouses (name, code, city, country, is_active, is_default) VALUES (?1, ?2, ?3, ?4, 1, 1)",
+            rusqlite::params![DEFAULT_STORE_NAME, DEFAULT_STORE_CODE, "", "BO"],
+        )?;
+        return Ok(());
+    }
+
+    let active: i64 =
+        conn.query_row("SELECT COUNT(*) FROM warehouses WHERE is_active = 1", [], |row| row.get(0))?;
+    if active == 0 {
+        // Reactivate an existing store, preferring the flagged default, so
+        // historical data stays attached to the store it belonged to.
+        conn.execute(
+            "UPDATE warehouses SET is_active = 1
+              WHERE id = (SELECT id FROM warehouses
+                           ORDER BY is_default DESC, id ASC LIMIT 1)",
+            [],
+        )?;
+    }
+
+    let default: i64 =
+        conn.query_row("SELECT COUNT(*) FROM warehouses WHERE is_default = 1", [], |row| row.get(0))?;
+    if default == 0 {
+        // The partial unique index permits at most one default; clear first so a
+        // database that somehow holds two cannot fail this statement.
+        conn.execute("UPDATE warehouses SET is_default = 0", [])?;
+        conn.execute(
+            "UPDATE warehouses SET is_default = 1
+              WHERE id = (SELECT id FROM warehouses
+                           ORDER BY is_active DESC, is_default DESC, id ASC LIMIT 1)",
+            [],
+        )?;
+    }
 
     Ok(())
 }
@@ -359,7 +423,7 @@ fn seed_application_settings(conn: &Connection) -> Result<()> {
     let app_settings: &[(&str, &str, &str, &str, &str, Option<&str>, Option<&str>)] = &[
         ("general", "store_name", "Inventory Gear", "string", "Store display name", None, None),
         ("general", "store_logo", "", "string", "Store logo URL", None, None),
-        ("general", "currency", "USD", "string", "Default currency", Some("{\"options\":[\"USD\",\"MXN\",\"EUR\",\"GTQ\",\"CRC\",\"COP\"]}"), None),
+        ("general", "currency", "BOB", "string", "Default currency", Some("{\"options\":[\"BOB\",\"USD\",\"MXN\",\"EUR\",\"GTQ\",\"CRC\",\"COP\"]}"), None),
         ("general", "timezone", "America/Mexico_City", "string", "Timezone", None, None),
         ("general", "language", "es", "string", "Default language", Some("{\"options\":[\"es\",\"en\"]}"), None),
         ("theme", "theme", "system", "string", "Default theme", Some("{\"options\":[\"light\",\"dark\",\"system\"]}"), None),
@@ -426,6 +490,7 @@ fn seed_application_settings(conn: &Connection) -> Result<()> {
         ("business", "enable_sales", "true", "boolean", "Enable sales module", None, None),
         ("business", "enable_purchasing", "true", "boolean", "Enable purchasing module", None, None),
         ("business", "enable_crm", "true", "boolean", "Enable CRM module", None, None),
+        ("admin", "enable_sales_reset", "false", "boolean", "Show the 'Reset all sales' admin tool", None, None),
     ];
 
     let mut sort_order: std::collections::HashMap<&str, i64> = std::collections::HashMap::new();
@@ -559,20 +624,164 @@ fn seed_roles(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
+/// Seeds the operator's configured users when an installer config is present,
+/// and the six built-in demo accounts otherwise.
+///
+/// The installer config wins outright rather than being merged with
+/// `DEFAULT_USERS`. An operator who configures exactly three owners and then
+/// finds a fourth `viewer` account with a published password did not get what
+/// they asked for, and the demo accounts all share the password `123456`.
+///
+/// `password_change_required` is set explicitly rather than left to its column
+/// default of 0: a pre-configured password is a shared password until the person
+/// it belongs to replaces it, and the column was previously written by the admin
+/// reset path and read by nothing.
 fn seed_users(conn: &Connection) -> Result<()> {
-    let default_password = hash("123456", DEFAULT_COST).expect("Failed to hash password");
+    match crate::installer_config::load() {
+        Ok(Some(config)) => {
+            for user in &config.users {
+                insert_user(
+                    conn,
+                    &user.username,
+                    &user.email,
+                    &user.full_name,
+                    &user.password,
+                    &user.role,
+                    user.password_change_required,
+                    user.active,
+                    user.phone.as_deref(),
+                )?;
+            }
+        }
+        Ok(None) => {
+            // No installer config. These six accounts all share the password
+            // `123456` and are now flagged to change it, but they are still
+            // created, and that is worth saying out loud: a build cut without
+            // `npm run installer-config:validate -- add` produces an installer
+            // that ships known credentials to whoever receives it.
+            log::warn!(
+                "No se encontró {}. Se crearán las {} cuentas de prueba con la contraseña 123456. \
+                 Configura installer-config.json antes de generar un instalador para un cliente.",
+                crate::installer_config::CONFIG_FILE_NAME,
+                DEFAULT_USERS.len()
+            );
 
-    for (username, email, full_name, role_name) in DEFAULT_USERS {
-        let role_id: Option<i64> = conn.query_row(
-            "SELECT id FROM roles WHERE name = ?1",
-            rusqlite::params![role_name],
-            |row| row.get(0),
-        ).ok();
+            let default_password = hash("123456", DEFAULT_COST).expect("Failed to hash password");
 
-        conn.execute(
-            "INSERT OR IGNORE INTO users (username, email, password_hash, full_name, role_id) VALUES (?1, ?2, ?3, ?4, ?5)",
-            rusqlite::params![username, email, default_password, full_name, role_id],
+            for (username, email, full_name, role_name) in DEFAULT_USERS {
+                insert_user(
+                    conn,
+                    username,
+                    email,
+                    full_name,
+                    &default_password,
+                    role_name,
+                    // The demo accounts all share one published password, so they
+                    // are flagged too. It was never flagged before this column
+                    // became readable, which is why `123456` has been the way in.
+                    true,
+                    true,
+                    None,
+                )?;
+            }
+        }
+        Err(err) => {
+            // Fatal. A malformed installer config means the operator asked for
+            // users who will not be there; falling back to the demo accounts would
+            // hide that behind a working-looking login screen.
+            return Err(rusqlite::Error::InvalidParameterName(err.to_string()));
+        }
+    }
+    Ok(())
+}
+
+/// Inserts one user, ignoring the insert if the username or email is taken.
+///
+/// `password_hash` may already be a bcrypt hash; hashing a hash would lock the
+/// account out permanently.
+fn insert_user(
+    conn: &Connection,
+    username: &str,
+    email: &str,
+    full_name: &str,
+    password: &str,
+    role_name: &str,
+    password_change_required: bool,
+    active: bool,
+    phone: Option<&str>,
+) -> Result<()> {
+    let role_id: Option<i64> = conn.query_row(
+        "SELECT id FROM roles WHERE name = ?1",
+        rusqlite::params![role_name],
+        |row| row.get(0),
+    ).ok();
+
+    if role_id.is_none() {
+        // A role named in the config that does not exist would create a user with
+        // no role: no permissions, and invisible to quick login. Better to fail.
+        return Err(rusqlite::Error::InvalidParameterName(format!(
+            "El rol '{role_name}' del usuario '{username}' no existe. Roles disponibles: owner, administrator, cashier, warehouse, purchasing, viewer."
+        )));
+    }
+
+    let password_hash = if password.starts_with("$2") {
+        password.to_string()
+    } else {
+        hash(password, DEFAULT_COST).map_err(|e| {
+            rusqlite::Error::InvalidParameterName(format!(
+                "No se pudo cifrar la contraseña de '{username}': {e}"
+            ))
+        })?
+    };
+
+    conn.execute(
+        "INSERT OR IGNORE INTO users
+            (username, email, password_hash, full_name, role_id, phone,
+             is_active, password_change_required, password_expires_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, datetime('now', '+90 days'))",
+        rusqlite::params![
+            username,
+            email,
+            password_hash,
+            full_name,
+            role_id,
+            phone,
+            if active { 1 } else { 0 },
+            if password_change_required { 1 } else { 0 },
+        ],
+    )?;
+    Ok(())
+}
+
+/// Applies the configured quick-login roles.
+///
+/// Only ever turns a role on, and only during the seed that creates the users:
+/// this runs on first launch, so a later edit to the config cannot quietly
+/// re-open a way into an installation that an administrator has since closed.
+/// Turning a role off is an administrative action, not a config re-read.
+fn seed_quick_login_roles(conn: &Connection) -> Result<()> {
+    let config = match crate::installer_config::load() {
+        Ok(Some(config)) => config,
+        Ok(None) => return Ok(()),
+        Err(err) => return Err(rusqlite::Error::InvalidParameterName(err.to_string())),
+    };
+
+    for role in &config.quick_login_roles {
+        let name = role.trim();
+        if name.is_empty() {
+            continue;
+        }
+        let changed = conn.execute(
+            "UPDATE roles SET quick_login_enabled = 1, updated_at = datetime('now')
+             WHERE name = ?1 AND is_active = 1",
+            rusqlite::params![name],
         )?;
+
+        if changed == 0 {
+            return Err(rusqlite::Error::InvalidParameterName(format!(
+                "El rol '{name}' no existe o está inactivo, así que no se puede habilitar el acceso rápido."
+            )));
+        }
     }
     Ok(())
 }
@@ -584,6 +793,24 @@ fn seed_settings(conn: &Connection) -> Result<()> {
             rusqlite::params![key, value, group, setting_type, description],
         )?;
     }
+    Ok(())
+}
+
+/// Internal "first launch has been completed" flag.
+///
+/// Mirrors the intent of the tier-1 (users == 0) seed without depending on a
+/// volatile outcome: it is (re)written on every boot and again after the admin
+/// "restore initial data" tool, so a database that has already been initialized
+/// is never treated as brand new. Stored in the legacy `settings` table, which
+/// is the mechanism the settings UI never renders, so no spurious setting tab
+/// appears for it.
+fn seed_initialization_marker(conn: &Connection) -> Result<()> {
+    conn.execute(
+        "INSERT INTO settings (key, value, group_name, setting_type, description)
+         VALUES ('database_initialized', 'true', 'system', 'string', 'Database has completed first-launch initialization')
+         ON CONFLICT(key) DO UPDATE SET value = 'true'",
+        [],
+    )?;
     Ok(())
 }
 

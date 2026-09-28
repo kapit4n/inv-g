@@ -16,7 +16,7 @@ import {
   TransfersPage,
   ImportExportPage,
 } from "@/features/inventory"
-import { SalesPage, PosPage, SaleDetailPage, CloseoutPage, QuotesPage, QuoteDetailPage, QuoteFormPage, ReturnsPage, CashRegisterPage, ReceiptsPage } from "@/features/sales"
+import { SalesPage, PosPage, SaleDetailPage, CloseoutPage, QuotesPage, QuoteDetailPage, QuoteFormPage, ReturnsPage, CashRegisterPage, ReceiptsPage, SalesCustomersPage } from "@/features/sales"
 import {
   PurchasesPage,
   PurchaseOrdersPage,
@@ -44,7 +44,7 @@ import {
   AdminDashboardPage, AdminUsersPage, AdminUserFormPage,
   AdminRolesPage, AdminRoleFormPage, AdminSettingsPage,
   AdminPrintersPage, AdminDevicesPage, AdminBackupsPage,
-  AdminRestorePage, AdminDatabasePage, AdminDiagnosticsPage,
+  AdminRestorePage, AdminDatabasePage, AdminSalesResetPage, AdminDiagnosticsPage,
   AdminAuditPage, AdminUpdatesPage, AdminLicensePage,
   AdminMaintenancePage, AdminAboutPage,
 } from "@/features/admin"
@@ -128,6 +128,7 @@ export const router = createBrowserRouter([
       { path: "sales/returns", element: <ReturnsPage /> },
       { path: "sales/register", element: <CashRegisterPage /> },
       { path: "sales/receipts", element: <ReceiptsPage /> },
+      { path: "sales/customers", element: <SalesCustomersPage /> },
       { path: "sales/:id", element: <SaleDetailPage /> },
       { path: "purchases", element: <PurchasesPage /> },
       { path: "purchases/orders", element: <PurchaseOrdersPage /> },
@@ -173,6 +174,7 @@ export const router = createBrowserRouter([
       { path: "admin/backups", element: <AdminBackupsPage /> },
       { path: "admin/restore", element: <AdminRestorePage /> },
       { path: "admin/database", element: <AdminDatabasePage /> },
+      { path: "admin/sales-reset", element: <AdminSalesResetPage /> },
       { path: "admin/diagnostics", element: <AdminDiagnosticsPage /> },
       { path: "admin/audit", element: <AdminAuditPage /> },
       { path: "admin/updates", element: <AdminUpdatesPage /> },

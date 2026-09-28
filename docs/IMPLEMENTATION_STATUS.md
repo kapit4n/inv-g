@@ -134,7 +134,15 @@ Feature marker: **in-progress from 2026-09-18.**
 - [x] Tests: Rust (87), Vitest (431), command contracts, business-gating
 - [x] Docs: `database-profiles.md`, progress file, docs-site page, CHANGELOG
 - [x] `npm run verify` green
+- [x] Store management (create / edit / activate / deactivate / delete) in Settings
+- [x] Store rules: last active store protected, stores with history only deactivated
+- [x] Default store designation + bootstrap ("Tienda Principal" when no stores exist)
+- [x] Schema v16: `warehouses.is_default` with a single-default unique index
+- [x] System currency configuration (BOB/Boliviano supported, display only)
+- [x] Centralised currency formatter honours the configured currency everywhere
+- [x] Docs: `docs-site/settings/index.md` (store modes, selector, currency)
 - [ ] Live app check: run against single-store / multi-store / empty DBs
+- [ ] Automated tests for the new store commands and currency formatter
 - [ ] Final implementation report (`docs/IMPLEMENTATION_REPORT.md`)
 
 ## Per-Product Pricing & Gains Milestone (2026-09-24)
@@ -148,3 +156,117 @@ Feature marker: **in-progress from 2026-09-18.**
 - [x] Tests: Rust pricing/import (10 each), Vitest pricing domain + Product 360 tabs
 - [x] Docs: `docs-site/inventory/products.md`, `import-export.md`, CHANGELOG, ROADMAP, `MILESTONE_15.md`
 - [x] `npm test` green (452), `cargo test --lib` 118 passed (2 pre-existing config failures)
+
+## Pre-Configured Users & First-Login Password Milestone (2026-09-27)
+
+Feature marker: **implemented, not yet run in the app.**
+
+### Status
+- [x] `installer-config.json` read once at first launch, bundled beside the executable
+- [x] Shipped config pre-creates `jhona` (owner) plus `admin` (administrator), both
+      `passwordChangeRequired`; dev `installer-config.dev.json` mirrors it
+- [x] Config editor CLI (`scripts/installer-config.mjs`, `npm run installer-config:*`)
+- [x] Seed N configured users; `role` defaults to `owner`, `passwordChangeRequired` on
+- [x] Config validation shared with the backend (length, uniqueness, known roles) and fails the seed
+- [x] Schema v17: `roles.quick_login_enabled` (default 0) + additive migration
+- [x] Additive migration window widened to four versions so v13 is not dropped
+- [x] `password_change_required` surfaced by login, quick login and `get_current_user`
+- [x] `change_password` command (verifies current password, ends other sessions)
+- [x] Forced change-password screen rendered in place of the app by `AuthenticatedRoute`
+- [x] `login_by_role` gated on the per-role toggle; `owner` refused
+- [x] `get_quick_login_roles` / `set_role_quick_login`; login screen shows enabled roles only
+- [x] Fixed the `admin` vs `administrator` role-name mismatch on the quick-login button
+- [x] Warning logged when no config is present and the demo accounts are seeded
+- [x] Docs: `docs/windows-installer.md`, CHANGELOG
+- [x] Verified: `cargo check`, `tsc -b`, lint, `i18n:check`, production build, and a
+      throwaway SQLite harness covering v16→v17, v13→v17, config seeding and the guards
+- [ ] Automated tests for config validation, the seed and the forced-change flow
+- [ ] Live app check: build the installer and confirm a configured user is forced to change
+- [ ] Decide whether `installer-config.json` stays in version control (plaintext passwords)
+
+## Admin Reset-All-Sales Feature (2026-09-28)
+
+Feature marker: **implemented, pending live app check.**
+
+### Status
+- [x] Backend `reset_sales` command under `commands/admin/reset.rs`: preview + reset,
+      single transaction (`BEGIN IMMEDIATE`), deletes sales (cascade items/payments/
+      receipts), quotes, held sales, cash-register sessions, daily closings, and
+      sale/refund inventory movements; warranties auto-nulled via FK `SET NULL`
+- [x] Confirmation token: server rejects unless the literal `RESET` is passed
+- [x] Flag-gated: `enable_sales_reset` application setting (new `admin` group, default
+      `false`, hidden) — backend `sales_reset_enabled()` fails closed
+- [x] `reset_sales` audit entry (`severity=warning`) written on success
+- [x] Seed row for `enable_sales_reset`; registered invoke handlers `get_sales_reset_preview` / `reset_sales`
+- [x] Frontend page `/admin/sales-reset` with blast-radius preview, kept-items list,
+      permission-gated confirm card (`admin.database.manage`), exact-`RESET` gate,
+      and post-reset query invalidation (sales, closeouts, cash register, dashboard, stock)
+- [x] Sidebar entry filtered by the flag; nav + route + i18n (en/es)
+- [x] Tests: 5 Rust (`cargo test reset`) + 5 Vitest page tests
+- [x] Docs: `docs-site/admin/sales-reset.md`, settings.md (Admin group), sidebar, CHANGELOG
+- [ ] Live app check: enable the flag in Admin → Settings → Admin, open the page, run a reset
+
+## Admin User Creation — Default Password & Admin-Only (2026-09-28)
+
+Feature status: **implemented, pending live app check.**
+
+The Administration → Users section already existed; this change makes user
+creation behave as specced: administrators only, shared default password,
+forced first-login change.
+
+### Status
+- [x] Backend `create_admin_user` now refuses creators without the
+      `admin.users.manage` permission (owner/administrator roles only)
+- [x] Blank password becomes `CHANGEPASSWORD` (`DEFAULT_USER_PASSWORD`); custom
+      passwords are kept but still force the first change
+- [x] All created users start with `password_change_required = 1` and a
+      `password_expires_at` of +90 days
+- [x] Form: no password field on create — a notice explains the shared default;
+      `created_by` is the logged-in administrator (no longer hardcoded 1)
+- [x] Users list + form wrapped in `PermissionGuard admin.users.manage`;
+      sidebar entry hidden without the permission
+- [x] Tests: 4 Rust (default password, forced change, non-admin rejected,
+      owner+administrator allowed) + 3 Vitest page tests
+- [x] Docs: `users-roles.md` (default password section), CHANGELOG
+- [ ] Live app check: log in as a non-administrator and confirm the Users link
+      and routes are hidden, then create a user and log in with `CHANGEPASSWORD`
+      to confirm the forced change screen appears
+
+## Database Lifecycle — First-Launch Initialization & Restore-Initial-Data (2026-09-28)
+
+Feature status: **implemented, pending live app check.**
+
+Completes the database lifecycle guarantees: first launch initializes and seeds,
+restarts and updates never re-seed or delete, and only an explicit, verified
+administrator action recreates the initial data.
+
+### Status
+- [x] First-launch marker `database_initialized` written into the legacy `settings`
+      table on every boot and after a reset (never surfaced in the settings UI);
+      the tier-1 seed still only runs when `users` is empty, so updates never re-seed
+- [x] Seeds Bolivian defaults: currency value `BOB` + `BOB` added to the allowed
+      currency options (both legacy `settings` and `application_settings`), so the
+      settings validator accepts it
+- [x] Backend `commands/admin/initial_data.rs`: `get_initial_data_reset_preview` +
+      `reset_to_initial_data`, gated server-side on `admin.database.manage` and the
+      literal confirm token `RESTAURAR`
+- [x] Automatic pre-reset backup (`inventory-gear-backup-<timestamp>.sqlite` in the
+      backups folder) with checksum + `backup_history` record; a failed backup
+      aborts the reset
+- [x] Transactional wipe: `PRAGMA foreign_keys=OFF` → DELETE from every data table
+      (schema kept, `backup_history`/`restore_history`/`audit_logs` preserved) →
+      re-enable FK → full re-seed via the existing `seed_database_with_profile`; on
+      failure everything rolls back
+- [x] Reset recorded in the audit trail; accounts are recreated as on first launch
+      (installer-config users or the six demo accounts), `password_change_required`
+      re-armed, so the acting session is invalidated deliberately
+- [x] Frontend: "Restaurar datos iniciales" card on Admin → Database with blast-radius
+      preview, two-step confirmation (dialog + typed `RESTAURAR`), success then forced
+      sign-out to `/login`; tauri wrappers + typings + i18n (en/es)
+- [x] Rust: 4 unit tests (preview, confirm-token gate, permission gate, full reset
+      incl. backup-on-disk + history preservation); `cargo check --tests` green
+- [x] Docs: `docs/CHANGELOG.md`, `docs-site/admin/database.md` (lifecycle + restore
+      section + manual checklist Scenarios A–D)
+- [ ] Live app check: run Scenarios A–D from the checklist in `docs-site/admin/database.md`
+- [ ] Decide whether the pre-reset backup naming (`inventory-gear-backup-…sqlite`)
+      should match the manual-backup convention (`inventory_gear_….db`)

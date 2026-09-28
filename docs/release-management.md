@@ -21,9 +21,7 @@ GitHub Actions — "Windows Installer", on windows-latest
         │
         ├─ verify version sync      (package.json == Cargo.toml)
         ├─ verify tag == version    (v1.0.0 == 1.0.0)
-        ├─ typecheck / lint
-        ├─ vitest  (all suites)
-        ├─ cargo test
+        ├─ restore npm / cargo caches
         ├─ tauri build --bundles nsis
         ├─ normalize name  →  InventoryGear-1.0.0-setup.exe
         ├─ upload-artifact          (run Artifacts, 30 days)
@@ -37,8 +35,13 @@ GitHub Actions — "Windows Installer", on windows-latest
 ```
 
 There is exactly **one** workflow that can publish, and `ci.yml` never touches
-releases. Both facts are asserted by
-`tests/integration/release-workflow.test.ts`.
+releases. Both facts are asserted by `tests/integration/release-workflow.test.ts`.
+
+Quality is enforced in one place only: `ci.yml`. It runs typecheck, lint, the full
+Vitest suite (twice — plain and with coverage) and `cargo test` on every push and
+pull request. The installer workflow does not repeat any of it, so a release ships
+a commit CI has already checked. `ci.yml` triggers on branches, not tags, so cut
+tags from a commit that is already green on `main`.
 
 ## The trigger is a tag, and only a tag
 

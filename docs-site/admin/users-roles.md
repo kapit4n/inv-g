@@ -17,10 +17,24 @@ Manage user accounts, roles, and permissions for role-based access control (RBAC
 3. Fill in:
    - **Username** (required)
    - **Email** (required)
-   - **Password** (required)
-   - **Full Name**
-   - **Role** (select from dropdown)
+   - **Full Name** (required)
+   - **Phone / Role / Notes** (optional)
 4. Click **Save**
+
+Only users with the **Owner** or **Administrator** role can create users. For
+everyone else the Users section is hidden and the routes return an "access
+denied" message.
+
+### Default Password
+
+There is no password step when creating a user:
+
+- Every new account starts with the shared default password **`CHANGEPASSWORD`**
+- The first time the user signs in, the app forces them to change it before
+  going anywhere else
+- The default password also expires 90 days after creation
+- Because the default is shared across accounts, never let a new user work
+  before they have replaced it; the forced change happens automatically
 
 ### User Management
 
@@ -71,6 +85,7 @@ Manage user accounts, roles, and permissions for role-based access control (RBAC
 - Changes to permissions take effect on next login
 - Each user has one active role
 - Permission changes are audited
+- Only Owner and Administrator roles may create users (permission `admin.users.manage`); the backend rejects any other creator
 
 ## Related
 

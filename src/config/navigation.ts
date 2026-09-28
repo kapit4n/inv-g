@@ -13,6 +13,8 @@ export interface NavChildConfig {
   nameKey: string
   href: string
   icon?: ComponentType<{ className?: string }>
+  /** Only render the entry for users carrying this permission. */
+  permission?: string
 }
 
 export interface NavItemConfig {
@@ -34,6 +36,7 @@ export const navigation: NavItemConfig[] = [
       { nameKey: "sales.cashRegister", href: "/sales/register", icon: DollarSign },
       { nameKey: "sales.receipts", href: "/sales/receipts", icon: Printer },
       { nameKey: "sales.dailyCloseout", href: "/sales/closeout", icon: BarChart3 },
+      { nameKey: "sales.customers", href: "/sales/customers", icon: Users },
     ],
   },
   {
@@ -104,7 +107,7 @@ export const secondaryNavigation: NavItemConfig[] = [
     nameKey: "admin.title", href: "/admin", icon: Shield,
     children: [
       { nameKey: "admin.dashboard", href: "/admin", icon: Monitor },
-      { nameKey: "admin.users", href: "/admin/users", icon: Users },
+      { nameKey: "admin.users", href: "/admin/users", icon: Users, permission: "admin.users.manage" },
       { nameKey: "admin.roles", href: "/admin/roles", icon: ShieldCheck },
       { nameKey: "admin.permissions", href: "/admin/roles", icon: Shield },
       { nameKey: "admin.settings", href: "/admin/settings", icon: Settings },
@@ -113,6 +116,7 @@ export const secondaryNavigation: NavItemConfig[] = [
       { nameKey: "admin.backups", href: "/admin/backups", icon: HardDrive },
       { nameKey: "admin.restore", href: "/admin/restore", icon: RotateCcw },
       { nameKey: "admin.database", href: "/admin/database", icon: Database },
+      { nameKey: "admin.salesReset", href: "/admin/sales-reset", icon: RotateCcw },
       { nameKey: "admin.diagnostics", href: "/admin/diagnostics", icon: Activity },
       { nameKey: "admin.audit", href: "/admin/audit", icon: FileText },
       { nameKey: "admin.updates", href: "/admin/updates", icon: Wifi },

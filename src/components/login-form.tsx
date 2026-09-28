@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react"
+import { useEffect, useState, type FormEvent } from "react"
 import { useTranslation } from "react-i18next"
 import { Eye, EyeOff, Loader2, LogIn, Bug, Shield, User, Store, Wrench, Database } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -7,18 +7,43 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { useAuth } from "@/hooks"
+import { getQuickLoginRoles } from "@/lib/tauri"
 
 interface LoginFormProps {
   onSuccess?: () => void
 }
 
-const TEST_ROLES = [
-  { name: "owner", icon: Shield, color: "text-red-500" },
-  { name: "admin", icon: Wrench, color: "text-orange-500" },
-  { name: "cashier", icon: User, color: "text-blue-500" },
-  { name: "warehouse", icon: Store, color: "text-green-500" },
-  { name: "viewer", icon: Database, color: "text-gray-500" },
-]
+/**
+ * Presentation for the quick-login buttons: icon and colour per role.
+ *
+ * These names are matched against `roles.name` exactly — SQLite `=` is
+ * case-sensitive — so they must match what the seeder inserts. `administrator`
+ * was previously listed as `admin`, which is not a role at all, so that button
+ * always failed with "Role 'admin' not found".
+ *
+ * Whether a role is *offered* is not decided here. `getQuickLoginRoles` reports
+ * the roles the backend will actually accept, and the list is filtered against
+ * that below.
+ */
+const QUICK_LOGIN_PRESENTATION: Record<string, { icon: typeof Shield; color: string }> = {
+  owner: { icon: Shield, color: "text-red-500" },
+  administrator: { icon: Wrench, color: "text-orange-500" },
+  cashier: { icon: User, color: "text-blue-500" },
+  warehouse: { icon: Store, color: "text-green-500" },
+  purchasing: { icon: Wrench, color: "text-teal-500" },
+  viewer: { icon: Database, color: "text-gray-500" },
+}
+
+/**
+ * Presentation for a role, with a neutral default.
+ *
+ * The fallback is what lets the filter and the lookup disagree safely: a role the
+ * backend enabled that this component has no styling for still gets a working
+ * button instead of a crash or a blank slot.
+ */
+function quickLoginPresentation(name: string): { icon: typeof Shield; color: string } {
+  return QUICK_LOGIN_PRESENTATION[name] ?? { icon: User, color: "text-gray-500" }
+}
 
 export function LoginForm({ onSuccess }: LoginFormProps) {
   const { t } = useTranslation()
@@ -30,6 +55,25 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [testingOpen, setTestingOpen] = useState(false)
+  const [quickLoginRoles, setQuickLoginRoles] = useState<string[]>([])
+
+  // Which roles can sign in without a password is server state, not a constant.
+  // Fetched once when the form mounts so a role an administrator has switched off
+  // does not appear, and so a role they have switched on appears without a
+  // rebuild.
+  useEffect(() => {
+    let cancelled = false
+    getQuickLoginRoles()
+      .then((roles) => {
+        if (!cancelled) setQuickLoginRoles(roles)
+      })
+      .catch(() => {
+        // No quick login available, or the backend is unreachable: show none
+        // rather than buttons that are guaranteed to fail.
+        if (!cancelled) setQuickLoginRoles([])
+      })
+    return () => { cancelled = true }
+  }, [])
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -131,6 +175,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         {loading ? t("auth.signingIn") : t("auth.signIn")}
       </Button>
 
+      {quickLoginRoles.length > 0 && (
       <Collapsible open={testingOpen} onOpenChange={setTestingOpen}>
         <CollapsibleTrigger asChild>
           <Button type="button" variant="outline" size="sm" className="w-full gap-2 text-xs text-muted-foreground">
@@ -141,26 +186,27 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         <CollapsibleContent className="space-y-2 pt-2">
           <p className="text-xs text-muted-foreground">Click a role to log in as the first active user with that role:</p>
           <div className="grid grid-cols-2 gap-2">
-            {TEST_ROLES.map((r) => {
-              const Icon = r.icon
+            {quickLoginRoles.map((name) => {
+              const { icon: Icon, color } = quickLoginPresentation(name)
               return (
                 <Button
-                  key={r.name}
+                  key={name}
                   type="button"
                   variant="outline"
                   size="sm"
                   disabled={loading}
-                  onClick={() => handleRoleLogin(r.name)}
+                  onClick={() => handleRoleLogin(name)}
                   className="justify-start gap-2"
                 >
-                  <Icon className={`h-4 w-4 ${r.color}`} />
-                  <span className="capitalize">{r.name}</span>
+                  <Icon className={`h-4 w-4 ${color}`} />
+                  <span className="capitalize">{name}</span>
                 </Button>
               )
             })}
           </div>
         </CollapsibleContent>
       </Collapsible>
+      )}
     </form>
   )
 }

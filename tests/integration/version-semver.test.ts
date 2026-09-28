@@ -329,11 +329,15 @@ describe("CRLF checkouts", () => {
     writeFileSync(join(sandbox, "package.json"), JSON.stringify(pkg, null, 2) + "\n")
     crlf("src-tauri/Cargo.lock")
 
+    // The sandbox mirrors the real checkout, whose version can drift between
+    // releases; the reported mismatch has to name that live version.
+    const cargoVersion = sandboxText("src-tauri/Cargo.toml").match(/^version\s*=\s*"([^"]+)"/m)![1]
+
     const { code, stderr } = run("check")
 
     expect(code).toBe(1)
     expect(stderr).toContain("src-tauri/Cargo.lock")
-    expect(stderr).toContain('"1.0.0-alpha.3" != package.json "9.9.9-rc.1"')
+    expect(stderr).toContain(`"${cargoVersion}" != package.json "9.9.9-rc.1"`)
     expect(stderr).not.toContain("undefined")
   })
 

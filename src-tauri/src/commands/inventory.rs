@@ -1,4 +1,4 @@
-use rusqlite::params;
+use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 use crate::db::DbState;
@@ -84,8 +84,17 @@ pub struct Warehouse {
     pub manager: Option<String>,
     pub phone: Option<String>,
     pub is_active: bool,
+    pub is_default: bool,
     pub created_at: String,
     pub updated_at: String,
+}
+
+/// A dependent record type that blocks physically deleting a store.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoreDependency {
+    pub entity: String,
+    pub count: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -477,39 +486,69 @@ pub fn archive_supplier(state: State<DbState>, id: i64) -> Result<(), String> {
 
 // ── Warehouses ──
 
+/// Stable error codes, mapped to i18n keys by `lib/business-errors.ts`.
+pub const ERR_LAST_ACTIVE_STORE: &str = "ERROR_LAST_ACTIVE_STORE";
+pub const ERR_STORE_HAS_DEPENDENCIES: &str = "ERROR_STORE_HAS_DEPENDENCIES";
+
+/// Re-reads a warehouse row into a `Warehouse`.
+///
+/// The SELECT is written out because rusqlite row indices are positional: the
+/// column list, the mapper and this function all have to agree, and `is_default`
+/// appended at the end keeps the existing indices valid.
+fn mapper_warehouse(row: &rusqlite::Row<'_>) -> rusqlite::Result<Warehouse> {
+    Ok(Warehouse {
+        id: row.get(0)?,
+        name: row.get(1)?,
+        code: row.get(2)?,
+        address: row.get(3)?,
+        city: row.get(4)?,
+        state: row.get(5)?,
+        country: row.get(6)?,
+        manager: row.get(7)?,
+        phone: row.get(8)?,
+        is_active: row.get::<_, i64>(9)? != 0,
+        is_default: row.get::<_, i64>(10)? != 0,
+        created_at: row.get(11)?,
+        updated_at: row.get(12)?,
+    })
+}
+
+const WAREHOUSE_COLUMNS: &str =
+    "id, name, code, address, city, state, country, manager, phone, is_active, is_default, created_at, updated_at";
+
 #[tauri::command]
 pub fn get_warehouses(state: State<DbState>) -> Result<Vec<Warehouse>, String> {
     let conn = get_conn(&state)?;
-    let mut stmt = conn.prepare("SELECT * FROM warehouses ORDER BY name").map_err(|e| e.to_string())?;
-    let rows = stmt.query_map([], |row| {
-        Ok(Warehouse {
-            id: row.get(0)?, name: row.get(1)?, code: row.get(2)?,
-            address: row.get(3)?, city: row.get(4)?, state: row.get(5)?,
-            country: row.get(6)?, manager: row.get(7)?, phone: row.get(8)?,
-            is_active: row.get::<_, i64>(9)? != 0, created_at: row.get(10)?, updated_at: row.get(11)?,
-        })
-    }).map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare(&format!("SELECT {} FROM warehouses ORDER BY name", WAREHOUSE_COLUMNS))
+        .map_err(|e| e.to_string())?;
+    let rows = stmt.query_map([], mapper_warehouse).map_err(|e| e.to_string())?;
     let mut result = Vec::new();
-    for row in rows { result.push(row.map_err(|e| e.to_string())?); }
+    for row in rows {
+        result.push(row.map_err(|e| e.to_string())?);
+    }
     Ok(result)
 }
 
 #[tauri::command]
-pub fn create_warehouse(state: State<DbState>, name: String, code: String, address: Option<String>, city: Option<String>, state_province: Option<String>, country: Option<String>, manager: Option<String>, phone: Option<String>) -> Result<Warehouse, String> {
+pub fn create_warehouse(state: State<DbState>, name: String, code: String, address: Option<String>, city: Option<String>, state_province: Option<String>, country: Option<String>, manager: Option<String>, phone: Option<String>, is_active: Option<bool>) -> Result<Warehouse, String> {
     let conn = get_conn(&state)?;
     let state = state_province;
-    conn.execute("INSERT INTO warehouses (name, code, address, city, state, country, manager, phone) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-        params![name, code, address, city, state, country, manager, phone]).map_err(|e| e.to_string())?;
+    // A new store can be created already deactivated, so the "at least one
+    // active store" invariant is only at risk when there is nothing else. The
+    // first store in an empty database must be usable.
+    let active_count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM warehouses WHERE is_active = 1", [], |row| row.get(0))
+        .unwrap_or(0);
+    let is_active = is_active.unwrap_or(true) || active_count == 0;
+
+    conn.execute("INSERT INTO warehouses (name, code, address, city, state, country, manager, phone, is_active) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        params![name, code, address, city, state, country, manager, phone, if is_active { 1 } else { 0 }]).map_err(|e| e.to_string())?;
     let id = conn.last_insert_rowid();
-    let mut stmt = conn.prepare("SELECT * FROM warehouses WHERE id = ?1").map_err(|e| e.to_string())?;
-    stmt.query_row(params![id], |row| {
-        Ok(Warehouse {
-            id: row.get(0)?, name: row.get(1)?, code: row.get(2)?,
-            address: row.get(3)?, city: row.get(4)?, state: row.get(5)?,
-            country: row.get(6)?, manager: row.get(7)?, phone: row.get(8)?,
-            is_active: row.get::<_, i64>(9)? != 0, created_at: row.get(10)?, updated_at: row.get(11)?,
-        })
-    }).map_err(|e| e.to_string())
+    let mut stmt = conn
+        .prepare(&format!("SELECT {} FROM warehouses WHERE id = ?1", WAREHOUSE_COLUMNS))
+        .map_err(|e| e.to_string())?;
+    stmt.query_row(params![id], mapper_warehouse).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -518,16 +557,169 @@ pub fn update_warehouse(state: State<DbState>, id: i64, name: String, code: Stri
     let state = state_province;
     conn.execute("UPDATE warehouses SET name=?1, code=?2, address=?3, city=?4, state=?5, country=?6, manager=?7, phone=?8, updated_at=datetime('now') WHERE id=?9",
         params![name, code, address, city, state, country, manager, phone, id]).map_err(|e| e.to_string())?;
-    let mut stmt = conn.prepare("SELECT * FROM warehouses WHERE id = ?1").map_err(|e| e.to_string())?;
-    stmt.query_row(params![id], |row| {
-        Ok(Warehouse {
-            id: row.get(0)?, name: row.get(1)?, code: row.get(2)?,
-            address: row.get(3)?, city: row.get(4)?, state: row.get(5)?,
-            country: row.get(6)?, manager: row.get(7)?, phone: row.get(8)?,
-            is_active: row.get::<_, i64>(9)? != 0, created_at: row.get(10)?, updated_at: row.get(11)?,
-        })
-    }).map_err(|e| e.to_string())
+    let mut stmt = conn
+        .prepare(&format!("SELECT {} FROM warehouses WHERE id = ?1", WAREHOUSE_COLUMNS))
+        .map_err(|e| e.to_string())?;
+    stmt.query_row(params![id], mapper_warehouse).map_err(|e| e.to_string())
 }
+
+/// Activates or deactivates a store.
+///
+/// Deactivating the last active store is refused: the app resolves a store on
+/// every POS sale, inventory read and stock movement, so a database with zero
+/// active stores has no valid state to operate in. The user deactivates a
+/// surplus store instead, or adds a replacement first.
+#[tauri::command]
+pub fn set_warehouse_active(state: State<DbState>, id: i64, is_active: bool) -> Result<Warehouse, String> {
+    let conn = get_conn(&state)?;
+
+    let currently_active: bool = conn
+        .query_row("SELECT is_active FROM warehouses WHERE id = ?1", params![id], |row| {
+            Ok(row.get::<_, i64>(0)? != 0)
+        })
+        .map_err(|_| crate::commands::business::ERR_STORE_NOT_FOUND.to_string())?;
+
+    if currently_active && !is_active {
+        let active_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM warehouses WHERE is_active = 1", [], |row| row.get(0))
+            .map_err(|e| e.to_string())?;
+        if active_count <= 1 {
+            return Err(ERR_LAST_ACTIVE_STORE.to_string());
+        }
+    }
+
+    conn.execute(
+        "UPDATE warehouses SET is_active = ?1, updated_at = datetime('now') WHERE id = ?2",
+        params![if is_active { 1 } else { 0 }, id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    let mut stmt = conn
+        .prepare(&format!("SELECT {} FROM warehouses WHERE id = ?1", WAREHOUSE_COLUMNS))
+        .map_err(|e| e.to_string())?;
+    stmt.query_row(params![id], mapper_warehouse).map_err(|e| e.to_string())
+}
+
+/// Marks a store as the one the app falls back to.
+///
+/// The partial unique index allows only one default, so the previous one is
+/// cleared in the same transaction.
+#[tauri::command]
+pub fn set_default_warehouse(state: State<DbState>, id: i64) -> Result<Warehouse, String> {
+    let conn = get_conn(&state)?;
+
+    let exists: i64 = conn
+        .query_row("SELECT COUNT(*) FROM warehouses WHERE id = ?1", params![id], |row| row.get(0))
+        .map_err(|e| e.to_string())?;
+    if exists == 0 {
+        return Err(crate::commands::business::ERR_STORE_NOT_FOUND.to_string());
+    }
+
+    conn.execute_batch("BEGIN").map_err(|e| e.to_string())?;
+    let result = (|| -> Result<(), String> {
+        conn.execute("UPDATE warehouses SET is_default = 0 WHERE is_default = 1", [])
+            .map_err(|e| e.to_string())?;
+        conn.execute(
+            "UPDATE warehouses SET is_default = 1, updated_at = datetime('now') WHERE id = ?1",
+            params![id],
+        )
+        .map_err(|e| e.to_string())?;
+        Ok(())
+    })();
+    match result {
+        Ok(()) => {
+            conn.execute_batch("COMMIT").map_err(|e| e.to_string())?;
+        }
+        Err(e) => {
+            let _ = conn.execute_batch("ROLLBACK");
+            return Err(e);
+        }
+    }
+
+    let mut stmt = conn
+        .prepare(&format!("SELECT {} FROM warehouses WHERE id = ?1", WAREHOUSE_COLUMNS))
+        .map_err(|e| e.to_string())?;
+    stmt.query_row(params![id], mapper_warehouse).map_err(|e| e.to_string())
+}
+
+/// Counts the rows that would be orphaned by deleting a store.
+///
+/// A store with history is never physically deleted: sales, purchase receipts,
+/// stock movements and stock levels all point at it, and removing it would
+/// either fail on the foreign key or leave those rows describing a store that no
+/// longer exists. The UI surfaces the count and the user deactivates instead.
+///
+/// Fails closed. A dropped `.ok()` here would turn a renamed column or table into
+/// "no dependencies found" and allow a destructive delete, so a query that cannot
+/// be evaluated is reported as an error and the delete is refused rather than
+/// treated as safe.
+fn store_dependency_counts(conn: &Connection, id: i64) -> Result<Vec<(&'static str, i64)>, String> {
+    let checks: [(&'static str, &'static str); 5] = [
+        ("products", "SELECT COUNT(*) FROM products WHERE warehouse_id = ?1"),
+        ("sales", "SELECT COUNT(*) FROM sales WHERE warehouse_id = ?1"),
+        ("purchaseOrders", "SELECT COUNT(*) FROM purchase_orders WHERE warehouse_id = ?1"),
+        ("inventoryMovements", "SELECT COUNT(*) FROM inventory_movements WHERE warehouse_id = ?1"),
+        ("storageLocations", "SELECT COUNT(*) FROM storage_locations WHERE warehouse_id = ?1"),
+    ];
+
+    let mut counts = Vec::new();
+    for (label, sql) in checks {
+        let count: i64 = conn
+            .query_row(sql, params![id], |row| row.get(0))
+            .map_err(|e| format!("Cannot verify store dependencies ({label}): {e}"))?;
+        if count > 0 {
+            counts.push((label, count));
+        }
+    }
+    Ok(counts)
+}
+
+/// Deletes a store, but only when that cannot lose business data.
+#[tauri::command]
+pub fn delete_warehouse(state: State<DbState>, id: i64) -> Result<(), String> {
+    let conn = get_conn(&state)?;
+
+    let exists: i64 = conn
+        .query_row("SELECT COUNT(*) FROM warehouses WHERE id = ?1", params![id], |row| row.get(0))
+        .map_err(|e| e.to_string())?;
+    if exists == 0 {
+        return Err(crate::commands::business::ERR_STORE_NOT_FOUND.to_string());
+    }
+
+    let is_active: bool = conn
+        .query_row("SELECT is_active FROM warehouses WHERE id = ?1", params![id], |row| {
+            Ok(row.get::<_, i64>(0)? != 0)
+        })
+        .map_err(|e| e.to_string())?;
+    if is_active {
+        let active_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM warehouses WHERE is_active = 1", [], |row| row.get(0))
+            .map_err(|e| e.to_string())?;
+        if active_count <= 1 {
+            return Err(ERR_LAST_ACTIVE_STORE.to_string());
+        }
+    }
+
+    let dependencies = store_dependency_counts(&conn, id)?;
+    if !dependencies.is_empty() {
+        return Err(ERR_STORE_HAS_DEPENDENCIES.to_string());
+    }
+
+    conn.execute("DELETE FROM warehouses WHERE id = ?1", params![id]).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Reports which dependent records block deletion, for the confirmation dialog.
+#[tauri::command]
+pub fn get_store_dependencies(state: State<DbState>, id: i64) -> Result<Vec<StoreDependency>, String> {
+    let conn = get_conn(&state)?;
+    let counts = store_dependency_counts(&conn, id)?;
+    Ok(counts
+        .into_iter()
+        .map(|(entity, count)| StoreDependency { entity: entity.to_string(), count })
+        .collect())
+}
+
 
 // ── Storage Locations ──
 

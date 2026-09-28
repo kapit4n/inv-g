@@ -133,8 +133,38 @@ describe("windows installer release workflow", () => {
     expect(guard).not.toMatch(/version:set/)
   })
 
-  it("keeps the quality gate in front of the installer", () => {
-    for (const step of ["Verify version sync", "TypeScript check", "Lint", "Frontend tests", "Rust tests"]) {
+  it("keeps the quality gate in ci.yml and out of the installer workflow", () => {
+    // This used to assert the opposite: that the installer workflow contained
+    // "TypeScript check", "Lint", "Frontend tests" and "Rust tests" of its own.
+    // Those four steps duplicated ci.yml, which already runs all of them on every
+    // push and pull request, and roughly doubled the wall time of a release
+    // without ever testing a commit CI had not already tested.
+    //
+    // The guarantee worth protecting is not *which file* runs the tests but that
+    // they still run somewhere, and that the release path does not repeat them.
+    // So this asserts both halves: ci.yml keeps every gate, and the installer
+    // workflow has no copy of them. Deleting a gate from ci.yml now fails here
+    // just as loudly as adding one back to the installer workflow would.
+    const ci = read(CI_WORKFLOW)
+    for (const step of ["TypeScript check", "Lint", "Unit & Integration Tests", "Coverage", "Rust Tests"]) {
+      expect(stepBody(ci, step), `ci.yml is missing quality step: ${step}`).not.toBe("")
+    }
+    expect(ci).toMatch(/cargo test/)
+
+    for (const step of ["TypeScript check", "Lint", "Frontend tests", "Rust tests"]) {
+      expect(source, `installer workflow duplicates the quality gate: ${step}`)
+        .not.toMatch(new RegExp(`- name: ${step}\\b`))
+    }
+    // Nothing that runs a test suite or a linter, in the spelling a `run:` line
+    // would use. The check is case-sensitive on purpose and the comments in the
+    // workflow are worded to avoid these literal strings: a loose match would
+    // also trip over prose explaining *why* the steps are gone, and someone
+    // "tidying" that wording back to `cargo test` would silently disarm this
+    // assertion.
+    expect(source).not.toMatch(/cargo test|vitest|npm test|npm run lint|jest|coverage|playwright/)
+
+    // The release path still ends in a real installer.
+    for (const step of ["Verify version sync", "Verify tag matches app version", "Build NSIS installer"]) {
       expect(stepBody(source, step), `missing step: ${step}`).not.toBe("")
     }
   })

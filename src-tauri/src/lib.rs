@@ -2,6 +2,7 @@ mod commands;
 mod config;
 mod db;
 mod error;
+mod installer_config;
 mod pricing;
 mod startup;
 
@@ -73,6 +74,9 @@ pub fn run() {
             commands::auth::check_session,
             commands::auth::get_user_permissions_list,
             commands::auth::login_by_role,
+            commands::auth::change_password,
+            commands::auth::get_quick_login_roles,
+            commands::auth::set_role_quick_login,
             commands::settings::get_settings,
             commands::settings::get_setting,
             commands::settings::update_setting,
@@ -96,6 +100,10 @@ pub fn run() {
             commands::inventory::get_warehouses,
             commands::inventory::create_warehouse,
             commands::inventory::update_warehouse,
+            commands::inventory::set_warehouse_active,
+            commands::inventory::set_default_warehouse,
+            commands::inventory::delete_warehouse,
+            commands::inventory::get_store_dependencies,
             commands::inventory::get_storage_locations,
             commands::inventory::create_storage_location,
             commands::inventory::update_storage_location,
@@ -358,6 +366,10 @@ pub fn run() {
             commands::admin::check_database_integrity,
             commands::admin::get_migration_status,
             commands::admin::reindex_database,
+            commands::admin::get_sales_reset_preview,
+            commands::admin::reset_sales,
+            commands::admin::get_initial_data_reset_preview,
+            commands::admin::reset_to_initial_data,
             commands::admin::get_printers,
             commands::admin::create_printer,
             commands::admin::update_printer,

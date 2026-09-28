@@ -259,6 +259,23 @@ producción, y CI en Windows. Ver `docs/progress/MILESTONE_17.md` y
 - [x] Tests: Rust (pricing/import migrations) + Vitest (pricing domain, Product 360 tabs); `npm test` 452 green
 - [x] Docs: products.md, import-export.md, CHANGELOG, IMPLEMENTATION_STATUS, `MILESTONE_15.md`
 
+## Milestone 18: Database Lifecycle — First-Launch Initialization & Restore-Initial-Data ✅
+**Status:** Implemented (pending live app check on Windows; see `docs-site/admin/database.md`)
+**Complexity:** Medium
+**Dependencies:** Milestones 3, 16, 17 (database init, installer, pre-configured users)
+
+### Tasks
+- [x] First launch initializes once (migrations + seed gated on `users` empty); restarts and
+      updates never re-seed or delete; `database_initialized` marker recorded in settings
+- [x] Admin-only "Restaurar datos iniciales" (Admin → Database): preview, two-step confirm
+      (`RESTAURAR` token + dialog), auto pre-reset backup before the wipe, transactional
+      DELETE-all + full first-launch re-seed, audit entry, forced sign-out
+- [x] Backend gated on `admin.database.manage`; 4 Rust unit tests; `cargo check --tests` green
+- [x] Seeds Bolivian defaults: currency value + option `BOB` (validator accepts it)
+- [x] Frontend card + wrappers + typings + i18n (en/es); `tsc --noEmit` green
+- [x] Docs: `docs-site/admin/database.md` (lifecycle + restore + manual checklist A–D), CHANGELOG,
+      IMPLEMENTATION_STATUS
+
 ---
 
 ## Current & Planned Work

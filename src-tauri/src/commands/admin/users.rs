@@ -2,6 +2,15 @@ use serde::{Deserialize, Serialize};
 use crate::DB_STATE;
 use bcrypt::{hash, DEFAULT_COST};
 
+/// Password every new user is created with. It is a shared password until the
+/// account's owner replaces it: creation always sets `password_change_required`,
+/// so the first login is held on the change-password screen.
+pub const DEFAULT_USER_PASSWORD: &str = "CHANGEPASSWORD";
+
+/// Permission an administrator needs to create users. Both the `owner` and the
+/// `administrator` roles carry it.
+pub const USER_MANAGE_PERMISSION: &str = "admin.users.manage";
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdminUser {
@@ -154,7 +163,10 @@ pub fn get_admin_users(
 pub fn get_admin_user(id: i64) -> Result<AdminUser, String> {
     let db = DB_STATE.get().ok_or("Database not initialized")?;
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
+    fetch_admin_user(&conn, id)
+}
 
+fn fetch_admin_user(conn: &rusqlite::Connection, id: i64) -> Result<AdminUser, String> {
     conn.query_row(
         "SELECT u.id, u.username, u.email, u.full_name, u.phone, u.role_id,
                 COALESCE(r.name, '') AS role_name, u.is_active, u.is_locked,
@@ -171,16 +183,54 @@ pub fn get_admin_user(id: i64) -> Result<AdminUser, String> {
     ).map_err(|e| format!("User not found: {}", e))
 }
 
+/// Whether a user's role grants the given permission key.
+pub(crate) fn user_has_permission(conn: &rusqlite::Connection, user_id: i64, key: &str) -> Result<bool, String> {
+    let count: i64 = conn.query_row(
+        "SELECT COUNT(*)
+         FROM users u
+         JOIN role_permissions rp ON rp.role_id = u.role_id
+         JOIN permissions p ON p.id = rp.permission_id
+         WHERE u.id = ?1 AND p.key = ?2",
+        rusqlite::params![user_id, key],
+        |row| row.get(0),
+    ).map_err(|e| e.to_string())?;
+    Ok(count > 0)
+}
+
 #[tauri::command]
 pub fn create_admin_user(input: CreateUserInput, created_by: i64) -> Result<AdminUser, String> {
     let db = DB_STATE.get().ok_or("Database not initialized")?;
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
+    create_admin_user_inner(&conn, input, created_by)
+}
 
-    let password_hash = hash(&input.password, DEFAULT_COST).map_err(|e| e.to_string())?;
+/// Pure, DB_STATE-free core of `create_admin_user`, so the defaults and the
+/// permission gate can be tested against a disposable connection.
+pub fn create_admin_user_inner(
+    conn: &rusqlite::Connection,
+    input: CreateUserInput,
+    created_by: i64,
+) -> Result<AdminUser, String> {
+    if !user_has_permission(conn, created_by, USER_MANAGE_PERMISSION)? {
+        return Err("No tienes permiso para crear usuarios.".to_string());
+    }
 
+    // An empty password means "give the user the default shared password".
+    // `CHANGEPASSWORD` is not a secret: it is the same for every account until
+    // the owner of the account replaces it on their first login.
+    let password = if input.password.trim().is_empty() {
+        DEFAULT_USER_PASSWORD.to_string()
+    } else {
+        input.password
+    };
+
+    let password_hash = hash(&password, DEFAULT_COST).map_err(|e| e.to_string())?;
+
+    // New users always start on the change-password screen: the default
+    // password is shared, so it has to be replaced before the account is used.
     conn.execute(
-        "INSERT INTO users (username, email, password_hash, full_name, phone, role_id, notes, created_by)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        "INSERT INTO users (username, email, password_hash, full_name, phone, role_id, notes, created_by, password_change_required, password_expires_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 1, datetime('now', '+90 days'))",
         rusqlite::params![
             input.username, input.email, password_hash, input.full_name,
             input.phone, input.role_id, input.notes, created_by
@@ -195,8 +245,7 @@ pub fn create_admin_user(input: CreateUserInput, created_by: i64) -> Result<Admi
         rusqlite::params![created_by, id.to_string()],
     ).ok();
 
-    drop(conn);
-    get_admin_user(id)
+    fetch_admin_user(conn, id)
 }
 
 #[tauri::command]
@@ -379,4 +428,124 @@ pub fn get_total_user_count() -> Result<i64, String> {
     ).map_err(|e| e.to_string())?;
 
     Ok(count)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::PROFILE_SINGLE_STORE;
+    use crate::db::init_database_with_profile;
+
+    fn test_db() -> rusqlite::Connection {
+        let dir = std::env::temp_dir().join(format!("ig_users_test_{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).expect("create temp dir");
+        let path = dir.join("users.db");
+        init_database_with_profile(path.to_str().unwrap(), PROFILE_SINGLE_STORE).expect("init db")
+    }
+
+    fn user_id(conn: &rusqlite::Connection, username: &str) -> i64 {
+        conn.query_row(
+            "SELECT id FROM users WHERE username = ?1",
+            rusqlite::params![username],
+            |r| r.get(0),
+        )
+        .expect("seed user")
+    }
+
+    fn create_with_password(
+        conn: &rusqlite::Connection,
+        username: &str,
+        password: &str,
+        created_by: i64,
+    ) -> Result<AdminUser, String> {
+        create_admin_user_inner(
+            conn,
+            CreateUserInput {
+                username: username.to_string(),
+                email: format!("{}@test.inv", username),
+                password: password.to_string(),
+                full_name: "Nuevo Usuario".to_string(),
+                phone: None,
+                role_id: None,
+                notes: None,
+            },
+            created_by,
+        )
+    }
+
+    fn stored_password(conn: &rusqlite::Connection, username: &str) -> String {
+        conn.query_row(
+            "SELECT password_hash FROM users WHERE username = ?1",
+            rusqlite::params![username],
+            |r| r.get(0),
+        )
+        .expect("read password hash")
+    }
+
+    #[test]
+    fn blank_password_becomes_the_default_and_forces_a_change() {
+        let conn = test_db();
+        let admin = user_id(&conn, "admin");
+
+        let user = create_with_password(&conn, "nuevo1", "", admin).expect("create succeeds");
+
+        assert_eq!(user.username, "nuevo1");
+        assert_eq!(user.created_by, Some(admin));
+        assert!(user.password_change_required, "new user must change the password");
+        assert!(user.password_expires_at.is_some(), "default password should expire");
+        assert!(
+            bcrypt::verify(DEFAULT_USER_PASSWORD, &stored_password(&conn, "nuevo1"))
+                .expect("verify hash"),
+            "account must log in with CHANGEPASSWORD"
+        );
+    }
+
+    #[test]
+    fn explicit_password_is_kept_but_still_forces_a_change() {
+        let conn = test_db();
+        let admin = user_id(&conn, "admin");
+
+        create_with_password(&conn, "nuevo2", "M1PasswordPropio", admin).expect("create succeeds");
+
+        assert!(
+            bcrypt::verify("M1PasswordPropio", &stored_password(&conn, "nuevo2"))
+                .expect("verify hash"),
+            "an explicit password is used as given"
+        );
+        let required: i64 = conn
+            .query_row(
+                "SELECT password_change_required FROM users WHERE username = 'nuevo2'",
+                [],
+                |r| r.get(0),
+            )
+            .expect("flag");
+        assert_eq!(required, 1, "creation always forces the first change");
+    }
+
+    #[test]
+    fn non_administrator_cannot_create_users() {
+        let conn = test_db();
+        // `cashier` has no admin.users.manage.
+        let cashier = user_id(&conn, "cashier");
+
+        let err = create_with_password(&conn, "nuevo3", "", cashier).expect_err("must be rejected");
+
+        assert!(
+            err.contains("permiso"),
+            "error should explain the missing permission, got: {err}"
+        );
+    }
+
+    #[test]
+    fn owner_and_administrator_both_may_create_users() {
+        let conn = test_db();
+        let owner = user_id(&conn, "owner");
+        let administrator = user_id(&conn, "admin");
+
+        let a = create_with_password(&conn, "nuevo4", "", owner).expect("owner creates");
+        let b = create_with_password(&conn, "nuevo5", "", administrator).expect("administrator creates");
+
+        assert_eq!(a.created_by, Some(owner));
+        assert_eq!(b.created_by, Some(administrator));
+    }
 }

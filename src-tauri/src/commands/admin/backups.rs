@@ -66,7 +66,7 @@ pub struct RestoreInput {
 // ── Pure helpers (testable without DB_STATE) ────────────────────────────────
 
 /// Backups live in `<database directory>/backups`.
-fn backup_dir_from_db_path(db_path: &Path) -> PathBuf {
+pub(crate) fn backup_dir_from_db_path(db_path: &Path) -> PathBuf {
     db_path
         .parent()
         .map(|p| p.join("backups"))
@@ -106,7 +106,7 @@ fn to_hex(bytes: &[u8]) -> String {
 }
 
 /// Streaming SHA-256 of a file, hex-encoded (lowercase).
-fn checksum_file(path: &Path) -> Result<String, String> {
+pub(crate) fn checksum_file(path: &Path) -> Result<String, String> {
     let mut file = fs::File::open(path).map_err(|e| format!("Failed to open file: {e}"))?;
     let mut hasher = Sha256::new();
     let mut buf = [0u8; 64 * 1024];
@@ -122,7 +122,7 @@ fn checksum_file(path: &Path) -> Result<String, String> {
 
 /// Create a consistent snapshot copy of `src` into a new database file at `dest`.
 /// Uses the SQLite online backup API so the snapshot includes committed WAL data.
-fn write_backup(src: &Connection, dest: &Path) -> Result<(), String> {
+pub(crate) fn write_backup(src: &Connection, dest: &Path) -> Result<(), String> {
     if let Some(parent) = dest.parent() {
         fs::create_dir_all(parent).map_err(|e| format!("Failed to create backup directory: {e}"))?;
     }

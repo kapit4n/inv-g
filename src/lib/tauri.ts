@@ -10,10 +10,12 @@ import type {
   DiagnosticCheck, DiagnosticReport,
   AuditEvent, AuditFilter,
   SystemUpdate, LicenseInfo, MaintenanceLog,
+  SalesResetPreview, SalesResetResult,
+  InitialDataPreview, InitialDataResetResult,
 } from "@/types"
 import type {
   InventoryCategory, Brand, Manufacturer, InventorySupplier,
-  Warehouse, StorageLocation, InventoryProduct, ProductImage,
+  Warehouse, StoreDependency, StorageLocation, InventoryProduct, ProductImage,
   ProductCompatibility, InventoryMovement, DashboardStats, InventoryPaginatedResult,
   ImportPreview, ImportResult, ImportHistoryRow, ExportResult, ExportScope, ImportMode,
 } from "@/types/inventory"
@@ -102,6 +104,29 @@ export async function login(username: string, password: string): Promise<LoginRe
 
 export async function loginByRole(roleName: string): Promise<LoginResponse> {
   return invoke<LoginResponse>("login_by_role", { roleName })
+}
+
+/**
+ * Replaces the signed-in user's password and clears the forced-change flag.
+ *
+ * `currentPassword` is required by the backend, not merely sent: a valid session
+ * token on its own must not be enough to take over an account.
+ */
+export async function changePassword(
+  token: string,
+  currentPassword: string,
+  newPassword: string
+): Promise<void> {
+  return invoke<void>("change_password", { token, currentPassword, newPassword })
+}
+
+/** Roles that allow passwordless quick login, for the buttons on the login screen. */
+export async function getQuickLoginRoles(): Promise<string[]> {
+  return invoke<string[]>("get_quick_login_roles")
+}
+
+export async function setRoleQuickLogin(roleName: string, enabled: boolean): Promise<void> {
+  return invoke<void>("set_role_quick_login", { roleName, enabled })
 }
 
 export async function logout(token: string): Promise<void> {
@@ -224,7 +249,8 @@ export async function getWarehouses(): Promise<Warehouse[]> {
 
 export async function createWarehouse(data: {
   name: string; code: string; address?: string; city?: string;
-  stateProvince?: string; country?: string; manager?: string; phone?: string
+  stateProvince?: string; country?: string; manager?: string; phone?: string;
+  isActive?: boolean
 }): Promise<Warehouse> {
   return invoke<Warehouse>("create_warehouse", data)
 }
@@ -234,6 +260,33 @@ export async function updateWarehouse(data: {
   stateProvince?: string; country?: string; manager?: string; phone?: string
 }): Promise<Warehouse> {
   return invoke<Warehouse>("update_warehouse", data)
+}
+
+/**
+ * Activates or deactivates a store. The backend refuses to deactivate the last
+ * active one with ERROR_LAST_ACTIVE_STORE.
+ */
+export async function setWarehouseActive(id: number, isActive: boolean): Promise<Warehouse> {
+  return invoke<Warehouse>("set_warehouse_active", { id, isActive })
+}
+
+/** Marks the store the app falls back to. The backend keeps this unique. */
+export async function setDefaultWarehouse(id: number): Promise<Warehouse> {
+  return invoke<Warehouse>("set_default_warehouse", { id })
+}
+
+/**
+ * Deletes a store. The backend refuses with ERROR_STORE_HAS_DEPENDENCIES when
+ * any business record still points at it, and with ERROR_LAST_ACTIVE_STORE when
+ * it is the only active one.
+ */
+export async function deleteWarehouse(id: number): Promise<void> {
+  return invoke<void>("delete_warehouse", { id })
+}
+
+/** The record types and counts that block deleting a store. */
+export async function getStoreDependencies(id: number): Promise<StoreDependency[]> {
+  return invoke<StoreDependency[]>("get_store_dependencies", { id })
 }
 
 // ── Storage Locations ──
@@ -1327,6 +1380,26 @@ export async function getMigrationStatus(): Promise<MigrationInfo[]> {
 
 export async function reindexDatabase(): Promise<string> {
   return invoke<string>("reindex_database")
+}
+
+// ── Admin Sales Reset ──
+
+export async function getSalesResetPreview(): Promise<SalesResetPreview> {
+  return invoke<SalesResetPreview>("get_sales_reset_preview")
+}
+
+export async function resetSales(confirm: string, createdBy?: number): Promise<SalesResetResult> {
+  return invoke<SalesResetResult>("reset_sales", { confirm, createdBy })
+}
+
+// ── Admin Initial-Data Reset ──
+
+export async function getInitialDataResetPreview(): Promise<InitialDataPreview> {
+  return invoke<InitialDataPreview>("get_initial_data_reset_preview")
+}
+
+export async function resetToInitialData(confirm: string, actorId?: number): Promise<InitialDataResetResult> {
+  return invoke<InitialDataResetResult>("reset_to_initial_data", { confirm, actorId })
 }
 
 // ── Admin Diagnostics ──

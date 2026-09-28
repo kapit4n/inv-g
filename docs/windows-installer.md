@@ -61,9 +61,18 @@ The tag must match the app version or the run fails on purpose. The full release
 process, including how to recover from a failed run, is in
 [Release Management](./release-management.md).
 
-The workflow runs the full quality gate first (typecheck, lint, Vitest, cargo
-test) and **fails the build if the NSIS bundle directory or the `.exe` is
-missing** — so a "successful" CI run always has a real installer behind it.
+It **fails the build if the NSIS bundle directory or the `.exe` is missing** — so a
+"successful" CI run always has a real installer behind it.
+
+The installer workflow deliberately does **not** run the quality gate. Typecheck,
+lint, Vitest and `cargo test` all live in the `CI` workflow, which runs on every
+push and pull request, and the installer workflow used to repeat all four. A
+release therefore ships a commit that CI has already checked. Because `CI`
+triggers on branches rather than tags, cut tags from a commit that is already
+green on `main` — a tag on an untested commit produces an installer with no CI
+behind it. `npm run build` still runs as part of `tauri build` (via
+`beforeBuildCommand`), so the frontend is still typechecked and built on the way
+to the installer; what is gone is the duplicate pass, not the check.
 
 ### Locally on Windows
 
@@ -261,15 +270,137 @@ Run `npm run version:check`. `Cargo.toml` and `package.json` must agree.
 
 ---
 
+## Pre-configured users
+
+`installer-config.json` decides which accounts an installation ships with. It is
+read **once**, on the machine's first launch, to seed the `users` table; after
+that the file is ignored and the database is the only source of truth.
+
+The file is bundled with the installer, so it lands next to the executable. It is
+found in this order:
+
+1. `IG_INSTALLER_CONFIG` — an explicit path, for testing a configuration without
+   rebuilding
+2. Beside the executable — the bundled copy
+3. The repository root — so `tauri dev` and a fresh clone behave the same
+
+### Preparing a release
+
+`installer-config.json` is committed to the repository, and the release build uses
+whatever is committed — the workflow does not generate or modify it. Set the
+accounts before you tag:
+
+```bash
+npm run installer-config:add maria maria@tienda.bo 'Mariposa123' owner 'María Flores'
+npm run installer-config:add luis  luis@tienda.bo  'Luis2026x'
+npm run installer-config:quick-login cashier on
+npm run installer-config:list
+npm run installer-config:validate                   # run this before tagging
+```
+
+Use `npm run installer-config:init` only if the file is missing, and
+`npm run installer-config:remove <username>` to drop an account.
+
+Two consequences of committing it, both worth knowing before a release goes out.
+The passwords land in git history permanently, so rotate them by editing the file
+and re-tagging rather than by deleting the commit. And every artifact built from
+that commit ships those passwords, so treat the repository as holding production
+credentials: no personal passwords, and a separate repository or branch per
+customer if two installations need different starting owners.
+
+`role` defaults to `owner`, and `passwordChangeRequired` is on for every user
+added this way, because a password written in a config file is a shared password
+until the person it belongs to replaces it. `validate` applies the same rules as
+the backend — length, uniqueness, known role names — so a typo fails at your
+terminal instead of on a customer's first launch.
+
+### The shape of the file
+
+```json
+{
+  "users": [
+    {
+      "username": "maria",
+      "email": "maria@tienda.bo",
+      "fullName": "María Flores",
+      "password": "Mariposa123",
+      "role": "owner",
+      "passwordChangeRequired": true,
+      "active": true
+    }
+  ],
+  "quickLoginRoles": ["cashier"]
+}
+```
+
+`role` must match a `roles.name` exactly — `owner`, `administrator`, `cashier`,
+`warehouse`, `purchasing`, `viewer`. An unknown name fails the seed rather than
+creating a user with no role and no permissions.
+
+`password` is hashed with bcrypt on the way in. A value that already starts with
+`$2` is stored as-is, so a pre-hashed password can be used.
+
+### Forced password change
+
+Every configured user is flagged `passwordChangeRequired` and cannot reach the
+app until they replace it. The app shows a change-password form **in place of**
+the whole interface, so there is no URL, back button or deep link that gets past
+it — signing out is the only exit. The flag is returned by every login path and
+re-read when a stored session is restored, so it applies on a later launch too,
+not only the first.
+
+Changing a password requires the current one even though the session is already
+valid, so a token found on a machine is not enough to take the account over. It
+also signs out that user's other sessions and resets the failed-attempt counter.
+
+### Quick login by role
+
+`quickLoginRoles` lists the roles that may sign in from the login screen by
+tapping a role button, with no password. Everything not listed is refused by the
+backend, so a missing entry means off rather than on.
+
+- The flag lives on `roles.quick_login_enabled` and defaults to `0`, so a database
+  that predates the column gains no new way in.
+- **`owner` is refused.** An owner password is the last control on the data;
+  handing it away from a role alone is not a trade most installations want.
+  Owners use the normal form.
+- The login screen hides the panel entirely when no role is enabled, and shows
+  only the roles the backend will accept.
+- Changing this later is an administrative action, not a config re-read: editing
+  the file after first launch will not re-open access that was closed.
+
+### ⚠️ The config file is plaintext
+
+`installer-config.json` holds the passwords a machine ships with, and bcrypt does
+not help here — the file is the plaintext, and the app has to be able to create
+those accounts without knowing anything else. It is committed so that a release
+built by GitHub Actions picks it up.
+
+Two consequences worth deciding deliberately:
+
+- Anyone with read access to the repository can read those passwords. That is
+  acceptable only if every configured user is forced to change the password on
+  first login, which is the default. If you would rather not commit them, remove
+  the file from version control and build the installer locally, where the
+  backend will still find it beside the executable.
+- The passwords end up in the repository's history even after they are changed in
+  the running application. Rotating a password at runtime does not rewrite git.
+
+---
+
 ## Default password warning
 
-The first launch seeds demo data, which includes **6 user accounts whose
-password is `123456`** (including admin accounts). This is intended for
-evaluation, not production use.
+With no `installer-config.json`, the first launch seeds demo data including **6
+user accounts whose password is `123456`**, two of which are administrative. This
+is intended for evaluation, not production use.
 
-Before deploying to a real store, either change the seeded credentials or clear
-them, and confirm the default admin password is changed on first run. The seed
-itself is safe and idempotent — it only populates an empty `users` table.
+The startup log now says so explicitly when it happens, because the only other
+signal was a login screen offering known credentials.
+
+These accounts are flagged `passwordChangeRequired` as well, so the app forces a
+change before they can be used — but the password is still in the source code, so
+treat it as public. The seed itself is safe and idempotent: it only populates an
+empty `users` table, and never touches one that already has users.
 
 ---
 
@@ -278,6 +409,8 @@ itself is safe and idempotent — it only populates an empty `users` table.
 - [ ] `npm run verify` green (typecheck, lint, Vitest, version sync, cargo test)
 - [ ] `npm run version:set <version>` — bumps `package.json` + `Cargo.toml`
 - [ ] Final icon artwork replaces the placeholder (`npm run icons:generate`)
+- [ ] `npm run installer-config:validate` — the accounts this installer ships with
+- [ ] Every configured user is `passwordChangeRequired` (the default)
 - [ ] `git tag v<version> && git push origin v<version>` → CI builds the installer
 - [ ] Download the artifact and **test on a clean Windows machine** (see below)
 - [ ] Test upgrade over a previous version with real data present

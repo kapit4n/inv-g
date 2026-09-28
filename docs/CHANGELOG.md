@@ -8,7 +8,188 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- **Database lifecycle: first-launch initialization & "Restore initial data."** The
+  database is initialized exactly once — schema migrations on startup plus an
+  idempotent seed that only runs while there are no users — and restarting or
+  updating the app never re-seeds or deletes data. A `database_initialized`
+  marker in the settings table records the completed initialization. An
+  admin-only **Restaurar datos iniciales** tool (Admin → Database,
+  `admin.database.manage` permission) wipes every data table inside a
+  transaction and re-runs the first-launch seed, after first writing an
+  automatic pre-reset backup (`inventory-gear-backup-<timestamp>.sqlite`) that
+  keeps the previous state restorable. It requires the literal confirm token
+  `RESTAURAR` in a two-step dialog and signs the operator out afterwards
+  because their account no longer exists. Bolivian startup defaults: the
+  currency is seeded as **BOB** and BOB is added to the allowed currency
+  options. Documented in `docs-site/admin/database.md` (lifecycle, restore
+  section, manual checklist Scenarios A–D).
+- **Admin-only user creation with a forced default password.** Creating users in
+  **Admin → Users** is now restricted to `owner`/`administrator` roles: the
+  backend rejects creators without `admin.users.manage`, the sidebar entry and
+  the Users routes are permission-gated, and the creator is recorded from the
+  logged-in session instead of a hardcoded id. The new-user form no longer asks
+  for a password — accounts start with the shared default **`CHANGEPASSWORD`**,
+  are flagged `password_change_required`, and the password also expires 90 days
+  out, so the first login lands on the change-password screen. Explicit
+  passwords are still honored if one is ever passed. Docs updated in
+  `docs-site/admin/users-roles.md`.
+- **`npm run release:alpha`** (`scripts/release-alpha.mjs`): cuts the next alpha
+  version in one shot from a clean tree — computes the next `-alpha.N`, runs
+  `version:set` + `version:check`, commits `chore: release <v>`, tags
+  `v<version>` and pushes branch + tag. `--dry-run` (or `release:alpha:dry`)
+  previews the bump and restores the tree; `RELEASE_BRANCH` overrides the push
+  target (defaults to the current branch).
+- **First-launch `admin` account.** The shipped `installer-config.json` (and the
+  local `installer-config.dev.json` used by `first-launch.sh`) now pre-create an
+  `admin` account with the `administrator` role alongside the owner, both with
+  `passwordChangeRequired` on — the admin is forced to set its own password on
+  first login exactly like the existing owner.
+- **Admin → Reset All Sales.** A hidden, opt-in tool that erases every selling
+  record (sales with their items/payments/receipts, quotes, held sales, cash
+  register sessions, daily closings, and sale/refund stock movements) while
+  keeping clients, products, stock quantities, suppliers, purchases, credit
+  accounts and warranties intact. Gated by the `enable_sales_reset` flag in the
+  new **Admin** settings group (off by default, fails closed) and by the
+  `admin.database.manage` permission; requires typing `RESET` to run. Backend
+  runs in one transaction and writes a `reset_sales` audit entry; the page shows
+  a live preview of the blast radius and invalidates every selling-derived view
+  afterwards. Five backend and five frontend tests added.
+- **`npm run second-launch`** (scripts/second-launch.sh) boots the app against
+  the database a previous `first-launch.sh` created, without resetting or
+  re-seeding anything: users and their already-changed passwords are kept, so
+  the forced first-login password change never comes back on subsequent starts.
+  `--check` verifies the active profile database without launching. Documented
+  in the developer guide.
+
 ### Fixed
+- **The Cash Register ("Caja registradora") now reflects every same-day sale.**
+  `get_daily_closeout`, `close_cash_register`, and `close_daily_shift` compared
+  the local `today_date()` against the UTC `date(created_at)` of each sale, so on
+  offset timezones (UTC-4, Bolivia) cash sales made from ~8pm local onward were
+  stamped with the next UTC day and dropped out of "today". The closeout and
+  register now use the same local-day-into-UTC-bounds translation the sales KPIs
+  already used (`daily_closeout_for`, filtering `created_at BETWEEN <utc bounds>`),
+  and the session's expected balance reuses the corrected live closeout so the two
+  always agree. Three regression tests added; Rust suite 168 → 171.
+- **`cargo test` is deterministic again.** Test binaries no longer read the
+  developer's live `installer-config.json` from the repo root (`cfg!(not(test))`
+  drops that candidate), so user-seeding tests always use the built-in demo
+  accounts no matter which config is checked out. Three further stale contracts
+  were corrected: the empty profile now always owns one default store (the
+  store-management invariant), the import test fixture resolves its warehouse and
+  location ids instead of assuming 1/1, and the two additive-migration fixtures
+  create the `warehouses` and `roles` tables the v15→v17 replay now touches.
+  Rust suite is 168/168.
+- **The four failing CI vitest tests now pass.** The IPC runtime-contract test
+  asserted a stale wrapper count (327; the module had grown to 334 with the
+  store-management and installer-config commands) and the settings-page test
+  hand-mocked `@/lib/tauri` with only `updateAppSetting`, so `StoreManagementCard`
+  crashed on the unmocked `getWarehouses`. The contract test asserts the real
+  count and the settings-page test now auto-stubs every export the same way
+  `tests/helpers/setup.ts` already does. Frontend suite is 1631/1631 green and
+  coverage is back above every threshold (statements/branches/functions/lines).
+- **`Sales → Customers` is now unit-tested.** Seven tests cover the summary cards,
+  the debounced search, the empty state, and the row/action navigation that must
+  not be swallowed by the `/sales/:id` catch-all.
+
+### Added
+- **Customer list inside Sales.** New `Sales → Customers` page
+  (`/sales/customers`) lists every customer registered in the system so the user
+  can confirm a customer exists before attaching them to an invoice. Shows
+  total / active / inactive / new-this-month summary cards, a debounced search
+  over name, email, and phone, and a table of name, email, phone, city,
+  registration date, and status; clicking a row opens the customer record. The
+  route is registered above the `sales/:id` catch-all so it is not swallowed as
+  a sale id. Read-only — creating and editing customers still happens in CRM.
+- **Pre-configured users per installation, set before a release is cut.**
+  `installer-config.json` lists the accounts an installer ships with, and is read
+  once on the machine's first launch to seed the `users` table. Every user
+  defaults to the `owner` role and to `passwordChangeRequired`. Previously the
+  only accounts that could exist were six hardcoded demo users sharing the
+  password `123456`, with no way to choose who was in them.
+  `scripts/installer-config.mjs` (`npm run installer-config:add`, `:list`,
+  `:validate`, ...) is the editor, and it applies the same rules as the backend so
+  a bad configuration fails at the terminal rather than on a customer's first
+  launch. A malformed config, an unknown role name or a short password now fails
+  the seed outright instead of quietly creating fewer users than were asked for.
+- **A forced password change on first login.** `users.password_change_required`
+  has existed since the users table was created and was written by the admin reset
+  path -- but nothing ever read it, so it had no effect. It is now returned by
+  `login`, `login_by_role` and `get_current_user`, and `AuthenticatedRoute`
+  renders a change-password form *in place of* the app while it is set, so there
+  is no route, deep link or back button that reaches the rest of the app. The
+  session is re-read on startup, so it applies on later launches too. There was
+  no self-service password change at all before this; `change_password` is new and
+  requires the current password even though the session is already valid, signs
+  out the account's other sessions, and clears the failed-attempt counter.
+- **Quick login can be enabled or disabled per role.** The `login_by_role`
+  command signed a user in from their role alone with no password, and it was
+  registered in production with no way to turn it off. `roles.quick_login_enabled`
+  (schema v17, default `0`) is now checked inside the command, so every role is
+  denied until it is switched on deliberately, and the login screen shows only the
+  roles the backend will accept. `owner` is refused outright. The audit action is
+  renamed from `login_test` to `quick_login`, since it is a real feature now.
+- `set_role_quick_login` for changing the toggles after installation, without
+  rebuilding an installer.
+
+
+- **Store (almacén) management in Settings.** Create, edit, activate, deactivate
+  and delete stores from **Settings → Tiendas y almacenes**, gated by the existing
+  *Gestionar Almacenes* permission. The store concept already existed as the
+  `warehouses` table, so this completes it rather than adding a second one: there
+  was no way to change `is_active` and no delete command at all.
+- **Store rules, enforced on the backend.** The last active store can be neither
+  deactivated nor deleted, and a store that still has products, sales, purchase
+  orders, stock movements or storage locations is never physically deleted — the
+  confirmation dialog lists what blocks it and the user deactivates instead.
+- **Default store.** A store can be designated as the one the app falls back to,
+  held unique by a partial index. A database with no stores — including the
+  `empty` profile, which seeds none — gets **Tienda Principal** created and
+  activated on startup.
+- **System currency configuration.** Pick the currency in Settings;
+  **Boliviano (BOB / Bs)** is supported alongside USD, EUR, MXN, COP, ARS, CLP,
+  PEN, UYU, PYG, GBP, CHF, JPY and BRL. It changes display only: no stored price
+  is converted.
+
+### Changed
+
+- **The currency formatter is now centralised.** `formatCurrency` reads the
+  configured currency instead of hardcoding USD, so point of sale, sales,
+  products, inventory, the dashboard, payments and reports all follow the
+  setting. The symbol is rendered with `narrowSymbol` so the app shows `Bs`
+  rather than the `BOB` code in an English locale.
+
+- **The Windows installer workflow no longer re-runs the test suite.** It
+  repeated typecheck, lint, the full Vitest suite and `cargo test` — all four
+  already run in `ci.yml` on every push and pull request — which roughly doubled
+  release wall time without ever testing a commit CI had not already tested. The
+  release path is now validate version → install → build → bundle → upload →
+  release, and `ci.yml` is unchanged: it remains the single place quality is
+  enforced, with typecheck, lint, Vitest, coverage and `cargo test` all intact.
+  The installer is still produced by `tauri build --bundles nsis`, which still
+  compiles the full Rust release profile and still runs `tsc -b` through
+  `beforeBuildCommand`, and every version gate (`version:check`, `version:tag`)
+  still fails the run on a mismatch.
+
+- **Caching in the installer workflow moved before the build and covers the Cargo
+  registry.** The build cache step sat *after* the test steps, so it saved and
+  restored `target/debug` while `tauri build` compiles `target/release` — a
+  profile the installer never reads. The release build therefore started cold
+  every time. The cache is now restored first and keyed on the Cargo.lock hash
+  plus the `rustc` version, with a second cache for `~/.cargo/registry` and
+  `~/.cargo/git` to skip repeated crate downloads. Cargo re-fingerprints
+  everything it restores, so a stale cache costs restore time, never correctness.
+
+- **The Windows Defender exclusion now actually applies.** The step guards each
+  path with `Test-Path`, and it ran before `npm ci` and before any Cargo
+  command, so neither `node_modules` nor `src-tauri/target` existed yet and both
+  guards silently failed. It runs after the caches are restored, so the build
+  tree it is meant to protect exists before Cargo writes into it.
+- **Schema v16** adds `warehouses.is_default` and a single-default unique index.
+  The additive migration window was widened from two versions to three so
+  databases on v13 keep their data instead of falling through to the older
+  path that drops tables.
 
 - **Screenshot generation now installs its own dependencies, and no longer
   reports success when it produced nothing.** `scripts/screenshots` is a
@@ -167,6 +348,23 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   setup, which no test needed until one opened a `Popover` under jsdom.
 
 ---
+
+
+### Fixed
+
+- **The administrator quick-login button could never work.** The login screen
+  listed the role as `admin`, but the seeded role is `administrator` and SQLite
+  string comparison is exact, so the button always failed with "Role 'admin' not
+  found". The `purchasing` role had no button at all.
+- **The additive migration window was one version too narrow.** Bumping
+  `SCHEMA_VERSION` slides the threshold, so the first column added after the
+  window was last widened would have pushed v13 databases onto the legacy path
+  that starts with `DROP TABLE` and silently lost their products and pricing. The
+  window is now four versions wide, with a comment saying to widen it on every
+  bump rather than shrink it to the steps just written.
+- **Startup now warns when no `installer-config.json` is found**, naming the
+  consequence: the six `123456` demo accounts are about to be created. The only
+  previous signal was a login screen offering known credentials.
 
 ## [Unreleased] - Prerelease Version Support
 

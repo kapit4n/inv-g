@@ -1,0 +1,14 @@
+{
+  "users": [
+    {
+      "username": "maria",
+      "email": "maria@tienda.bo",
+      "fullName": "María Flores",
+      "password": "CHANGE-ME-123",
+      "role": "owner",
+      "passwordChangeRequired": true,
+      "active": true
+    }
+  ],
+  "quickLoginRoles": ["cashier"]
+}

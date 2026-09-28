@@ -1,4 +1,4 @@
-import { login as tauriLogin, loginByRole as tauriLoginByRole, logout as tauriLogout, getCurrentUser, checkSession } from "@/lib/tauri"
+import { login as tauriLogin, loginByRole as tauriLoginByRole, logout as tauriLogout, getCurrentUser, checkSession, changePassword as tauriChangePassword } from "@/lib/tauri"
 import type { User, SessionInfo } from "@/types"
 
 const SESSION_KEY = "inventory-gear-session"
@@ -30,6 +30,17 @@ export const AuthService = {
     }
     localStorage.setItem(SESSION_KEY, JSON.stringify(session))
     return session
+  },
+
+  /**
+   * Replaces the signed-in user's password.
+   *
+   * Wraps the raw command in a service so the forced-change screen does not have
+   * to know about tokens, and so there is one place that does this if another
+   * caller appears.
+   */
+  async changePassword(token: string, currentPassword: string, newPassword: string): Promise<void> {
+    await tauriChangePassword(token, currentPassword, newPassword)
   },
 
   async logout(): Promise<void> {

@@ -74,6 +74,7 @@ export default defineConfig({
           { text: "Returns", link: "/sales/returns" },
           { text: "Cash Register", link: "/sales/cash-register" },
           { text: "Receipts & Closeout", link: "/sales/receipts-closeout" },
+          { text: "Customers", link: "/sales/customers" },
         ],
       },
       {
@@ -124,6 +125,7 @@ export default defineConfig({
           { text: "Users & Roles", link: "/admin/users-roles" },
           { text: "System Settings", link: "/admin/settings" },
           { text: "Database & Backups", link: "/admin/database" },
+          { text: "Reset All Sales", link: "/admin/sales-reset" },
           { text: "Diagnostics & Audit", link: "/admin/diagnostics" },
         ],
       },

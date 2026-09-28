@@ -12,6 +12,7 @@ import { useLanguageStore, useAppSettingsStore, useThemeStore, useBusinessStore 
 import { usePermission } from "@/hooks"
 import { updateAppSetting, switchDatabaseProfile } from "@/lib/tauri"
 import { useNotification } from "@/hooks/use-notification"
+import { CurrencyCard, StoreManagementCard } from "@/features/settings"
 import type { DatabaseProfile } from "@/types"
 
 const PROFILE_OPTIONS: DatabaseProfile[] = ["default", "single-store", "multi-store", "empty"]
@@ -129,6 +130,10 @@ export function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <CurrencyCard />
+
+      <StoreManagementCard />
 
       <div className="space-y-4">
         {settingGroups.map((group) => (

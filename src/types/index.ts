@@ -6,6 +6,12 @@ export interface User {
   roleId?: number
   roleName?: string
   isActive: boolean
+  /**
+   * True while the account still carries its provisioned password. The app is
+   * held on the change-password screen until this clears, so it has to be treated
+   * as authoritative on every session, not only on a fresh login.
+   */
+  passwordChangeRequired: boolean
   lastLoginAt?: string
   createdAt: string
 }
@@ -1928,3 +1934,57 @@ export interface MaintenanceLog {
   createdByName?: string
   createdAt: string
 }
+
+export interface SalesResetPreview {
+  sales: number
+  salesRevenue: number
+  saleItems: number
+  salePayments: number
+  receipts: number
+  quotes: number
+  quoteItems: number
+  heldSales: number
+  heldSaleItems: number
+  cashRegisterSessions: number
+  dailyClosings: number
+  inventoryMovements: number
+}
+
+export interface SalesResetResult {
+  deletedSales: number
+  deletedSaleItems: number
+  deletedSalePayments: number
+  deletedReceipts: number
+  deletedQuotes: number
+  deletedQuoteItems: number
+  deletedHeldSales: number
+  deletedHeldSaleItems: number
+  deletedCashRegisterSessions: number
+  deletedDailyClosings: number
+  deletedInventoryMovements: number
+}
+
+export interface InitialDataPreview {
+  users: number
+  roles: number
+  permissions: number
+  products: number
+  warehouses: number
+  customers: number
+  sales: number
+  purchaseOrders: number
+  quotes: number
+  inventoryMovements: number
+  backupCount: number
+}
+
+export interface InitialDataResetResult {
+  backupFile: string
+  deletedRows: number
+  usersRestored: number
+  rolesRestored: number
+  productsRestored: number
+  warehousesRestored: number
+}
+
+export const INITIAL_DATA_CONFIRM_TEXT = "RESTAURAR"
