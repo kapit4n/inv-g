@@ -130,5 +130,21 @@
   "type": "Tipo",
   "monthSales": "Ventas del Mes",
   "noSales": "Sin ventas",
-  "searchSales": "Buscar ventas..."
+  "searchSales": "Buscar ventas...",
+  "customers": "Clientes",
+  "registeredCustomers": "Clientes registrados en el sistema",
+  "manageCustomers": "Gestionar clientes",
+  "searchCustomers": "Buscar clientes...",
+  "totalCustomers": "Total de Clientes",
+  "activeCustomers": "Activos",
+  "inactiveCustomers": "Inactivos",
+  "newThisMonth": "Nuevos este mes",
+  "noCustomersFound": "No se encontraron clientes",
+  "customerName": "Nombre del Cliente",
+  "email": "Correo",
+  "phone": "Teléfono",
+  "city": "Ciudad",
+  "registeredOn": "Registrado",
+  "active": "Activo",
+  "inactive": "Inactivo"
 }

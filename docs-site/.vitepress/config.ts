@@ -74,6 +74,7 @@ export default defineConfig({
           { text: "Returns", link: "/sales/returns" },
           { text: "Cash Register", link: "/sales/cash-register" },
           { text: "Receipts & Closeout", link: "/sales/receipts-closeout" },
+          { text: "Customers", link: "/sales/customers" },
         ],
       },
       {

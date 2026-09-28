@@ -130,5 +130,21 @@
   "type": "Type",
   "monthSales": "Month Sales",
   "noSales": "No sales",
-  "searchSales": "Search sales..."
+  "searchSales": "Search sales...",
+  "customers": "Customers",
+  "registeredCustomers": "Customers registered in the system",
+  "manageCustomers": "Manage customers",
+  "searchCustomers": "Search customers...",
+  "totalCustomers": "Total Customers",
+  "activeCustomers": "Active",
+  "inactiveCustomers": "Inactive",
+  "newThisMonth": "New this month",
+  "noCustomersFound": "No customers found",
+  "customerName": "Customer Name",
+  "email": "Email",
+  "phone": "Phone",
+  "city": "City",
+  "registeredOn": "Registered",
+  "active": "Active",
+  "inactive": "Inactive"
 }

@@ -9,6 +9,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **Customer list inside Sales.** New `Sales → Customers` page
+  (`/sales/customers`) lists every customer registered in the system so the user
+  can confirm a customer exists before attaching them to an invoice. Shows
+  total / active / inactive / new-this-month summary cards, a debounced search
+  over name, email, and phone, and a table of name, email, phone, city,
+  registration date, and status; clicking a row opens the customer record. The
+  route is registered above the `sales/:id` catch-all so it is not swallowed as
+  a sale id. Read-only — creating and editing customers still happens in CRM.
 - **Pre-configured users per installation, set before a release is cut.**
   `installer-config.json` lists the accounts an installer ships with, and is read
   once on the machine's first launch to seed the `users` table. Every user

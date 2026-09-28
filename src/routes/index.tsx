@@ -16,7 +16,7 @@ import {
   TransfersPage,
   ImportExportPage,
 } from "@/features/inventory"
-import { SalesPage, PosPage, SaleDetailPage, CloseoutPage, QuotesPage, QuoteDetailPage, QuoteFormPage, ReturnsPage, CashRegisterPage, ReceiptsPage } from "@/features/sales"
+import { SalesPage, PosPage, SaleDetailPage, CloseoutPage, QuotesPage, QuoteDetailPage, QuoteFormPage, ReturnsPage, CashRegisterPage, ReceiptsPage, SalesCustomersPage } from "@/features/sales"
 import {
   PurchasesPage,
   PurchaseOrdersPage,
@@ -128,6 +128,7 @@ export const router = createBrowserRouter([
       { path: "sales/returns", element: <ReturnsPage /> },
       { path: "sales/register", element: <CashRegisterPage /> },
       { path: "sales/receipts", element: <ReceiptsPage /> },
+      { path: "sales/customers", element: <SalesCustomersPage /> },
       { path: "sales/:id", element: <SaleDetailPage /> },
       { path: "purchases", element: <PurchasesPage /> },
       { path: "purchases/orders", element: <PurchaseOrdersPage /> },

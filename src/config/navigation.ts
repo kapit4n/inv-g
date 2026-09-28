@@ -34,6 +34,7 @@ export const navigation: NavItemConfig[] = [
       { nameKey: "sales.cashRegister", href: "/sales/register", icon: DollarSign },
       { nameKey: "sales.receipts", href: "/sales/receipts", icon: Printer },
       { nameKey: "sales.dailyCloseout", href: "/sales/closeout", icon: BarChart3 },
+      { nameKey: "sales.customers", href: "/sales/customers", icon: Users },
     ],
   },
   {
