@@ -6,6 +6,50 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-27 — The CI test suite was red before the branch was touched
+
+**Symptom:** `ci.yml` failed on 4 vitest tests no branch change had anything to do
+with: `tauri-wrapper-runtime-contract.test.ts` ("exposes only wrapper functions")
+and three toggles in `settings-page.test.tsx` (low stock alert, auto backup, dark
+mode). The failures reproduced at the pre-work baseline commit, so they were
+sitting in the base branch and only surfaced once the pipeline actually ran the
+suite.
+
+**Investigation (so it is not repeated):**
+- The store-management commit added 7 IPC wrappers to `src/lib/tauri.ts` (to 334)
+  and introduced `getWarehouses`. Two parts of the test infrastructure were never
+  brought along:
+  - `tauri-wrapper-runtime-contract.test.ts:116` still asserted the old count
+    (`327`). The test's own docstring at line 8 repeated the stale number.
+  - `tests/helpers/setup.ts` auto-stubs every export, but `settings-page.test.tsx`
+    hand-writes its own `vi.mock("@/lib/tauri")` listing only `updateAppSetting`.
+    `StoreManagementCard` calls `getWarehouses` as its query function, so the
+    import was `undefined` and the page threw on render — the "No getWarehouses
+    export is defined on the mock" vitest error.
+- Both failures predate this branch: they reproduce at `4d100f9` (the base), and
+  `getWarehouses` arrived in `c4619e4` (store management), confirming the tests
+  broke there and simply were never run in CI until now.
+
+**Fix:** the contract test now asserts the real count (334, docstring updated) —
+the count assertion is a deliberate "review event" when wrappers are added, not a
+number to keep frozen — and `settings-page.test.tsx` mocks `@/lib/tauri` by
+spreading every real export as an auto-stub (the same pattern `setup.ts` already
+uses) and overriding `updateAppSetting`. One production file changed: none — the
+page was correct; only the test double was stale.
+
+**Affected files:** `tests/integration/tauri-wrapper-runtime-contract.test.ts`,
+`tests/unit/components/settings-page.test.tsx`, plus new
+`tests/unit/components/sales-customers-page.test.tsx` (coverage had also dropped
+below the vitest thresholds because the sales page was the only uncovered module).
+
+**Not fixed, decision pending:** `cargo test` still reads the real
+`installer-config.json` from the repo root, so Rust test results depend on the
+working tree (`fresh_db_seeds_users` asserts ≥6 users and fails whenever the
+committed config lists fewer). Root-cause fix is to point the suite at a fixed
+test fixture, independent of the working tree.
+
+---
+
 ### 2026-09-28 — The release validator passed a config that ships an unusable installer
 
 **Symptom:** `npm run installer-config:validate` printed `valid 0 user(s)` and

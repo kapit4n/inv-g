@@ -8,6 +8,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+- **The four failing CI vitest tests now pass.** The IPC runtime-contract test
+  asserted a stale wrapper count (327; the module had grown to 334 with the
+  store-management and installer-config commands) and the settings-page test
+  hand-mocked `@/lib/tauri` with only `updateAppSetting`, so `StoreManagementCard`
+  crashed on the unmocked `getWarehouses`. The contract test asserts the real
+  count and the settings-page test now auto-stubs every export the same way
+  `tests/helpers/setup.ts` already does. Frontend suite is 1631/1631 green and
+  coverage is back above every threshold (statements/branches/functions/lines).
+- **`Sales → Customers` is now unit-tested.** Seven tests cover the summary cards,
+  the debounced search, the empty state, and the row/action navigation that must
+  not be swallowed by the `/sales/:id` catch-all.
+
 ### Added
 - **Customer list inside Sales.** New `Sales → Customers` page
   (`/sales/customers`) lists every customer registered in the system so the user

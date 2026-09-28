@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
  *
  * ## Why this file exists
  *
- * `src/lib/tauri.ts` is 327 one-line `invoke()` wrappers — one per Rust
+ * `src/lib/tauri.ts` is 334 one-line `invoke()` wrappers — one per Rust
  * command — and it held 11% of the functions in this project at 0% coverage.
  * That was not an accident of the test suite: every other test in the repo
  * mocks `@/lib/tauri` wholesale, so the wrappers are never executed. The one
@@ -113,7 +113,7 @@ describe("src/lib/tauri.ts IPC contract", () => {
   it("exposes only wrapper functions", () => {
     const nonFunctions = Object.entries(tauri).filter(([, value]) => typeof value !== "function")
     expect(nonFunctions).toEqual([])
-    expect(wrappers.length).toBe(327)
+    expect(wrappers.length).toBe(334)
   })
 
   it("derives every command name mechanically, except reviewed exceptions", () => {

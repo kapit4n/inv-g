@@ -4,9 +4,15 @@ import { setupI18n } from "@/i18n"
 import { SettingsPage } from "@/features/settings/pages/settings-page"
 import { updateAppSetting } from "@/lib/tauri"
 
-vi.mock("@/lib/tauri", () => ({
-  updateAppSetting: vi.fn(),
-}))
+vi.mock("@/lib/tauri", async () => {
+  const actual = await vi.importActual<Record<string, unknown>>("@/lib/tauri")
+  const mock: Record<string, unknown> = {}
+  for (const command of Object.keys(actual)) {
+    mock[command] = vi.fn().mockResolvedValue(undefined)
+  }
+  mock.updateAppSetting = vi.fn()
+  return mock
+})
 
 setupI18n("en")
 
