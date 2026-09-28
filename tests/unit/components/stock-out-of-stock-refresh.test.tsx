@@ -7,7 +7,7 @@ import { DashboardPage } from "@/features/dashboard/pages/dashboard-page"
 import { PosPage } from "@/features/sales/pages/pos-page"
 import { PrintHost } from "@/components/print/print-host"
 import { NotificationCenter } from "@/components/notification-center"
-import { usePrintStore, useNotificationStore } from "@/stores"
+import { usePrintStore, useNotificationStore, useAuthStore } from "@/stores"
 import {
   getDashboardWidgets,
   getPurchaseDashboard,
@@ -160,6 +160,18 @@ describe("out-of-stock count after selling a product out", () => {
     usePrintStore.setState({ request: null })
     useNotificationStore.setState({ notifications: [], unreadCount: 0 })
     vi.spyOn(window, "print").mockImplementation(() => {})
+
+    // The dashboard only fetches `inventory-stats` (and only renders the
+    // out-of-stock alert) for a role that carries inventory.view, so the session
+    // has to be in place before the page mounts.
+    useAuthStore.getState().setSession(
+      {
+        id: 1, username: "admin", email: "admin@test.com", fullName: "Admin User",
+        roleId: 2, roleName: "Administrator", isActive: true, createdAt: "2025-01-01T00:00:00Z",
+      },
+      "token",
+      ["dashboard.view", "inventory.view", "sales.view", "sales.create", "purchases.view", "customers.create"],
+    )
 
     for (const fn of [
       getDashboardWidgets, getPurchaseDashboard, getCrmDashboard, getDashboardStats,

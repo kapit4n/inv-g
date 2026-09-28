@@ -138,6 +138,12 @@ via a bookmarked address, the command palette, or a hand-typed URL — sends the
 user to the access-denied screen. The shared tools that are not part of a
 business module (Part finder, Help, Manual) stay open.
 
+The [Dashboard](/dashboard/) is filtered the same way. A cashier finds the **New
+sale** action, today's revenue, the sales count and the recent-sales list, and
+nothing else: the purchasing, inventory and customer actions, tiles, alerts and
+the cross-store totals are not rendered, and the data behind them is not even
+fetched.
+
 Attaching a customer to a sale, and opening a new customer from the POS, remain
 part of the sale itself and are available to a cashier.
 
@@ -169,6 +175,10 @@ part of the sale itself and are available to a cashier.
 - A module is shown in the sidebar and may be opened only when the role carries
   that module's permission, so a cashier sees Sales only while an administrator
   sees everything
+- The dashboard applies the same rule per card, per tile and per section, using
+  the exact permission the action needs. A read-only role is therefore not
+  offered write shortcuts such as **New sale** or **New PO** even inside modules
+  it can read
 - A blocked URL redirects to the access-denied screen; it is not enough to hide
   the menu entry, because a bookmark or the command palette could still reach it
 - The seeded role permissions apply to **new** databases. On an existing

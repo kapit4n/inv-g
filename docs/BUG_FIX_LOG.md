@@ -6,6 +6,80 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-28 — Panel de Control offered a cashier functions it cannot open
+
+**Symptom:** Signed in as `cashier` (the seeded selling-only role), the dashboard
+still showed the full application: six quick-action cards, four summary tiles, the
+needs-attention list and — on a multi-store install — the per-store totals. Five
+of the six cards (receive PO, products, new customer, new PO, inventory) and three
+of the four tiles (low stock, new customers, and the purchasing/CRM alerts behind
+the attention list) led only to the access-denied screen. The sidebar was already
+filtered, so the dashboard looked like a permissions leak.
+
+**Investigation:** `src/features/dashboard/pages/dashboard-page.tsx` was the only
+page in the app with no permission awareness at all — it did not import
+`usePermissions`. Its only gates were `isEnabled("sales")` for the recent-sales
+section and `capabilities.crossStoreReports` for the per-store section, both
+module/capability checks rather than role checks. Everywhere else the rule was
+already in place and consistent:
+
+- `src/layouts/sidebar.tsx:62,88` filters both navigation trees with
+  `canAccessRoute(item.href)`.
+- `src/routes/index.tsx:73-82` wraps the whole authenticated tree in
+  `RoutePermissionGuard`, so a denied destination is a redirect to `/forbidden`.
+- The seeded `cashier` role (`src-tauri/src/db/seed.rs:142-145`) holds
+  `dashboard.view` + six sales permissions and nothing else.
+
+So the two facts the dashboard ignored are precisely the two facts the sidebar and
+the router enforce. There was also a second, quieter bug in the same list: the
+quick actions were never checked against the module flags either, despite the
+comment at the top of the file stating that a switched-off module "must not be
+advertised here" — a card for **Receive PO** dead-ended on the module guard even
+for an administrator.
+
+A third, finer point: the cards needed per-item permissions rather than the
+module's read permission. `canAccessRoute("/crm/customers/new")` resolves to
+`customers.view`, so route-prefix filtering would still have offered **Nuevo
+Cliente** to a read-only `viewer` role that may not create one.
+
+**Fix:** Filter the page on permissions, not on `roleName`, which is the codebase
+convention (the only role-name comparison in the whole frontend is the icon colour
+in `login-form.tsx`) and keeps custom roles correct without touching this file.
+Five derived booleans now drive every card, tile, section and query:
+
+- `salesVisible` = `enable_sales` + `sales.view`
+- `inventoryVisible` = `inventory.view`
+- `purchasingVisible` = `enable_purchasing` + `purchases.view`
+- `crmVisible` = `enable_crm` + `customers.view`
+- `perStoreVisible` = `crossStoreReports` + (`reports.view` or `inventory.view`)
+
+Each is also the `enabled` flag of the query that feeds the matching widget, so a
+cashier no longer pulls inventory, purchasing, CRM or cross-store numbers over IPC
+at all. Quick actions carry an explicit `permission` (the *write* permission, e.g.
+`sales.create`, `purchases.receive`) and an optional `module`, and are filtered by
+both. Sections that end up with nothing to show are not rendered: the
+needs-attention block disappears when the role can open none of inventory,
+purchasing or CRM, because a permanent "¡Todo listo!" would be claiming the
+business is healthy when the role simply cannot see the six alerts that feed it.
+The grid column count is derived from the number of surviving items so a partial
+row does not leave empty tracks.
+
+**Affected files:** `src/features/dashboard/pages/dashboard-page.tsx`,
+`tests/unit/components/dashboard-page.test.tsx`,
+`tests/unit/components/business-gating.test.tsx`,
+`tests/unit/components/stock-out-of-stock-refresh.test.tsx`,
+`docs-site/dashboard/index.md`, `docs-site/admin/users-roles.md`, `CHANGELOG.md`.
+
+The two other suites that mount `DashboardPage` had to start from a session too:
+they had been rendering with an empty permission list, which is exactly the state
+a signed-out visitor is in, so the page correctly showed nothing and the tests
+broke. They now sign in a full-permission user, which is what they were implicitly
+assuming before.
+
+**Commit:** TBD
+
+---
+
 ### 2026-09-28 — "Add/Edit employee" did nothing on the Employees page
 
 **Symptom:** On **Empleados**, the **Add employee** button was disabled and the

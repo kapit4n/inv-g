@@ -3,8 +3,8 @@ import { render, screen, fireEvent, waitFor } from "@tests/helpers/render"
 import { setupI18n } from "@/i18n"
 import { StoreSelector } from "@/components/store-selector"
 import { DashboardPage } from "@/features/dashboard/pages/dashboard-page"
-import { useBusinessStore } from "@/stores"
-import type { BusinessContext } from "@/types"
+import { useAuthStore, useBusinessStore } from "@/stores"
+import type { BusinessContext, User } from "@/types"
 
 vi.mock("@/lib/tauri", () => ({
   getDashboardWidgets: vi.fn(),
@@ -47,8 +47,24 @@ const singleStoreContext: BusinessContext = {
   capabilities: { multiStore: false, storeSelection: false, storeManagement: false, storeTransfers: false, crossStoreReports: false },
 }
 
+const user: User = {
+  id: 1, username: "admin", email: "admin@test.com", fullName: "Admin User",
+  roleId: 2, roleName: "Administrator", isActive: true, createdAt: "2025-01-01T00:00:00Z",
+}
+
+/**
+ * The cross-store section is gated on two independent things: the business
+ * profile (single-store installs have nothing to compare) and the role's
+ * permissions, since the totals are a management view. Both have to be in place
+ * for the section to appear, so these tests sign in a full-permission user and
+ * vary only the profile.
+ */
+const CROSS_STORE_PERMISSIONS = ["dashboard.view", "inventory.view", "reports.view", "sales.view"]
+
 beforeEach(() => {
   useBusinessStore.setState({ context: null, loaded: false, loading: false, currentStoreId: null })
+  useAuthStore.getState().clearSession()
+  vi.clearAllMocks()
 })
 
 describe("StoreSelector", () => {
@@ -76,12 +92,14 @@ describe("StoreSelector", () => {
 
 describe("DashboardPage store gating", () => {
   it("hides the per-store section on a single-store profile", () => {
+    useAuthStore.getState().setSession(user, "token", CROSS_STORE_PERMISSIONS)
     useBusinessStore.setState({ context: singleStoreContext, loaded: true, currentStoreId: 1 })
     render(<DashboardPage />)
     expect(screen.queryByText("Stores Overview")).not.toBeInTheDocument()
   })
 
   it("shows the per-store section on a multi-store profile", async () => {
+    useAuthStore.getState().setSession(user, "token", CROSS_STORE_PERMISSIONS)
     useBusinessStore.setState({ context: multiStoreContext, loaded: true, currentStoreId: 1 })
     render(<DashboardPage />)
     expect(screen.getByText("Stores Overview")).toBeInTheDocument()

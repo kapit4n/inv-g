@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+### Dashboard — role-aware content
+- The Panel de Control no longer shows functionality the signed-in role cannot
+  use: a cashier (dashboard + sales) now sees only the **Nueva Venta** action, the
+  revenue/sales-count tiles and the recent-sales list. The purchasing, inventory
+  and customer actions, tiles and alerts, plus the cross-store totals, are hidden
+- Quick actions are gated on the exact permission the action needs, so a read-only
+  role is no longer offered **Nueva Venta**, **Nueva OC** or **Nuevo Cliente**
+- A quick action whose module is switched off in Admin > Settings is hidden too,
+  instead of dead-ending on the module guard
+- Queries for inventory, purchasing, CRM and cross-store data are not issued at all
+  when the role cannot see them
+- The "Necesita Atención" section is dropped when the role can open none of the
+  modules its alerts come from, rather than showing a misleading "¡Todo listo!"
+- Card grids resize to the number of visible items, so a partial row does not leave
+  empty tracks
+- Docs: docs-site Dashboard (per-feature permission tables) and Admin → Users &
+  Roles (cashier section)
+
 ### Database Lifecycle — First-Launch Initialization & Restore-Initial-Data
 - Database is initialized once (schema + seed only when there are no users); restarts and
   updates never re-seed or delete data; `database_initialized` marker recorded in settings
