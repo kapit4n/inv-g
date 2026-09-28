@@ -8,6 +8,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+- **Employees screen now works for real.** The **Empleados** page was a static
+  mock (hardcoded rows, disabled Add button, no edit action); it is now wired to
+  the existing user-management backend. It lists real accounts from
+  `get_admin_users` (debounced search, loading/empty states), shows live
+  totals (employees, active, roles), and supports **Add employee**,
+  **Edit employee**, and **enable/disable** through the standard dialogs and
+  toasts — Add creates the account with the shared `CHANGEPASSWORD` default
+  (forced change on first login), Edit calls `update_admin_user`, and
+  enable/disable maps to `archive_admin_user`/`restore_admin_user`. The page is
+  restricted to `owner`/`administrator` (`admin.users.manage`), matching the
+  backend gate. Documented in `docs-site/admin/users-roles.md`.
+
 ### Added
 - **Database lifecycle: first-launch initialization & "Restore initial data."** The
   database is initialized exactly once — schema migrations on startup plus an
