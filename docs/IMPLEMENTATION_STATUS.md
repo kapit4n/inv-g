@@ -366,6 +366,7 @@ transmit by hand.
       `tests/unit/components/employees-page-reset-password.test.tsx` (5)
 - [x] Docs: `docs/CHANGELOG.md` (Added), `docs-site/admin/users-roles.md`
       (Employee reset walkthrough, Admin action table)
+- [x] Branch `feat/employee-reset-password` (`c4c920f`), pushed — not merged yet
 - [ ] Live app check: reset an employee, sign in with `CHANGEPASSWORD` and
       confirm the change-password screen appears before any other page
 - [ ] Decide whether the audit entry should also be surfaced in the Diagnostics
