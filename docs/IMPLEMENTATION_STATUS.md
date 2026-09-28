@@ -163,6 +163,8 @@ Feature marker: **implemented, not yet run in the app.**
 
 ### Status
 - [x] `installer-config.json` read once at first launch, bundled beside the executable
+- [x] Shipped config pre-creates `jhona` (owner) plus `admin` (administrator), both
+      `passwordChangeRequired`; dev `installer-config.dev.json` mirrors it
 - [x] Config editor CLI (`scripts/installer-config.mjs`, `npm run installer-config:*`)
 - [x] Seed N configured users; `role` defaults to `owner`, `passwordChangeRequired` on
 - [x] Config validation shared with the backend (length, uniqueness, known roles) and fails the seed

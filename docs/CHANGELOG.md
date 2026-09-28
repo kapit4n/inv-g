@@ -9,6 +9,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **First-launch `admin` account.** The shipped `installer-config.json` (and the
+  local `installer-config.dev.json` used by `first-launch.sh`) now pre-create an
+  `admin` account with the `administrator` role alongside the owner, both with
+  `passwordChangeRequired` on — the admin is forced to set its own password on
+  first login exactly like the existing owner.
 - **Admin → Reset All Sales.** A hidden, opt-in tool that erases every selling
   record (sales with their items/payments/receipts, quotes, held sales, cash
   register sessions, daily closings, and sale/refund stock movements) while

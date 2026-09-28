@@ -8,6 +8,15 @@
       "role": "owner",
       "passwordChangeRequired": true,
       "active": true
+    },
+    {
+      "username": "admin",
+      "email": "admin@inventorygear.com",
+      "fullName": "Administrador",
+      "password": "vWphGLbTE01z7q",
+      "role": "administrator",
+      "passwordChangeRequired": true,
+      "active": true
     }
   ],
   "quickLoginRoles": []
