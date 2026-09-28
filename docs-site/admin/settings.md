@@ -114,6 +114,14 @@ sidebar entry only exist while the flag is on. The action also requires the
 - A module whose switch has never been touched stays **enabled**. Only an
   explicit *off* hides a module, so an installation that predates these settings
   keeps working with every section visible.
+- If a value is refused, the message appears in the app's own language and
+  names the problem — *Debe tener al menos 3 caracteres*,
+  *El valor no está entre las opciones permitidas*. A message that names a
+  permission, storage or connection problem instead comes from the system itself
+  and is shown in full rather than summarised, because it needs the details.
+- The system currency on **Configuración** changes how every price in the app is
+  shown; it does not convert between currencies. If a change is refused, the
+  selector returns to the currency that is actually saved.
 
 ## Related
 

@@ -60,8 +60,27 @@ fn parse_options(raw: Option<&str>) -> Vec<String> {
         .collect()
 }
 
+/// Prefix a validation failure with a machine-readable code and its bound, so
+/// the frontend can translate it instead of showing this English sentence.
+///
+/// The shape is `<code>[:<param>]:<human message>`. The prose is kept after the
+/// second colon on purpose: anything that surfaces the raw string -- a log, a
+/// terminal, an older build of the app -- still reads as a sentence rather than
+/// as a bare code.
+///
+/// The codes are the ones the frontend already uses client-side in
+/// `validateSettingValue` (`src/lib/settings-utils.ts`) and already has
+/// translations for under `admin.settings.errors.*`, so this closes the gap
+/// rather than inventing a second vocabulary.
+fn coded(code: &str, param: Option<String>, message: String) -> String {
+    match param {
+        Some(p) => format!("{}:{}:{}", code, p, message),
+        None => format!("{}:{}", code, message),
+    }
+}
+
 /// Validate a setting value against its declared type, allowed options and
-/// numeric/length constraints. Returns a human-readable error on failure.
+/// numeric/length constraints. Returns a coded, human-readable error on failure.
 fn validate_value(
     setting_type: &str,
     value: &str,
@@ -71,28 +90,44 @@ fn validate_value(
     let trimmed = value.trim();
 
     if setting_type == "number" {
-        let num: f64 = trimmed
-            .parse()
-            .map_err(|_| format!("Value '{}' is not a valid number", value))?;
+        let num: f64 = trimmed.parse().map_err(|_| {
+            coded(
+                "notNumber",
+                None,
+                format!("Value '{}' is not a valid number", value),
+            )
+        })?;
         if let Some(raw) = validation {
             if let Ok(spec) = serde_json::from_str::<serde_json::Value>(raw) {
                 if let Some(min) = spec.get("min").and_then(|m| m.as_f64()) {
                     if num < min {
-                        return Err(format!("Value must be at least {}", min));
+                        return Err(coded(
+                            "min",
+                            Some(fmt_bound(min)),
+                            format!("Value must be at least {}", fmt_bound(min)),
+                        ));
                     }
                 }
                 if let Some(max) = spec.get("max").and_then(|m| m.as_f64()) {
                     if num > max {
-                        return Err(format!("Value must be at most {}", max));
+                        return Err(coded(
+                            "max",
+                            Some(fmt_bound(max)),
+                            format!("Value must be at most {}", fmt_bound(max)),
+                        ));
                     }
                 }
             }
         }
     } else if setting_type == "boolean" {
         if !matches!(trimmed, "true" | "false") {
-            return Err(format!(
-                "Value '{}' is not a valid boolean (expected 'true' or 'false')",
-                value
+            return Err(coded(
+                "notBoolean",
+                None,
+                format!(
+                    "Value '{}' is not a valid boolean (expected 'true' or 'false')",
+                    value
+                ),
             ));
         }
     }
@@ -100,10 +135,14 @@ fn validate_value(
     if !trimmed.is_empty() {
         let allowed = parse_options(options);
         if !allowed.is_empty() && !allowed.iter().any(|o| o == trimmed) {
-            return Err(format!(
-                "Value '{}' is not one of the allowed options: {}",
-                value,
-                allowed.join(", ")
+            return Err(coded(
+                "notAllowed",
+                None,
+                format!(
+                    "Value '{}' is not one of the allowed options: {}",
+                    value,
+                    allowed.join(", ")
+                ),
             ));
         }
     }
@@ -112,18 +151,36 @@ fn validate_value(
         if let Ok(spec) = serde_json::from_str::<serde_json::Value>(raw) {
             if let Some(min_len) = spec.get("minLength").and_then(|m| m.as_u64()) {
                 if (value.len() as u64) < min_len {
-                    return Err(format!("Value must be at least {} characters", min_len));
+                    return Err(coded(
+                        "minLength",
+                        Some(min_len.to_string()),
+                        format!("Value must be at least {} characters", min_len),
+                    ));
                 }
             }
             if let Some(max_len) = spec.get("maxLength").and_then(|m| m.as_u64()) {
                 if (value.len() as u64) > max_len {
-                    return Err(format!("Value must be at most {} characters", max_len));
+                    return Err(coded(
+                        "maxLength",
+                        Some(max_len.to_string()),
+                        format!("Value must be at most {} characters", max_len),
+                    ));
                 }
             }
         }
     }
 
     Ok(())
+}
+
+/// Render a numeric bound for both the code and the prose, so a whole bound
+/// reads as `5` rather than `5.0`. A genuine fraction is left as it is.
+fn fmt_bound(n: f64) -> String {
+    if n.fract() == 0.0 {
+        format!("{}", n as i64)
+    } else {
+        format!("{}", n)
+    }
 }
 
 /// Fetch a full setting row by key, or `None` when it does not exist.
@@ -451,5 +508,73 @@ mod tests {
         assert!(validate_value("string", "ab", None, Some(spec)).is_err());
         assert!(validate_value("string", &"x".repeat(31), None, Some(spec)).is_err());
         assert!(validate_value("string", "valid", None, Some(spec)).is_ok());
+    }
+
+    // ── coded errors ──────────────────────────────────────────────────
+    //
+    // The frontend resolves these with `translateSettingError` in
+    // `src/lib/settings-utils.ts`, so the shape `<code>[:<param>]:<prose>` is a
+    // contract, not a formatting preference.
+
+    #[test]
+    fn validation_errors_are_prefixed_with_a_known_code() {
+        const BOUNDED_CODES: [&str; 4] = ["min", "max", "minLength", "maxLength"];
+        let options = r#"{"options":["cash","card"]}"#;
+        let spec = r#"{"min":1,"max":10,"minLength":2,"maxLength":5}"#;
+
+        let cases: Vec<(String, &str)> = vec![
+            (validate_value("string", "crypto", Some(options), None).unwrap_err(), "notAllowed"),
+            (validate_value("number", "abc", None, None).unwrap_err(), "notNumber"),
+            (validate_value("boolean", "yes", None, None).unwrap_err(), "notBoolean"),
+            (validate_value("number", "0", None, Some(spec)).unwrap_err(), "min"),
+            (validate_value("number", "99", None, Some(spec)).unwrap_err(), "max"),
+            (validate_value("string", "a", None, Some(spec)).unwrap_err(), "minLength"),
+            (validate_value("string", &"x".repeat(9), None, Some(spec)).unwrap_err(), "maxLength"),
+        ];
+
+        for (message, expected) in cases {
+            assert!(
+                message.starts_with(&format!("{expected}:")),
+                "expected code {expected} in {message:?}"
+            );
+            // The prose survives after the code (and after the bound, for the
+            // four codes that carry one), so an untranslated surface still
+            // reads as a sentence.
+            let rest = message
+                .strip_prefix(&format!("{expected}:"))
+                .unwrap_or_default();
+            let prose = match BOUNDED_CODES.contains(&expected) {
+                true => rest.splitn(2, ':').nth(1).unwrap_or(""),
+                false => rest,
+            };
+            assert!(!prose.trim().is_empty(), "{message:?} lost its prose");
+        }
+    }
+
+    #[test]
+    fn bounded_errors_carry_the_bound_as_their_param() {
+        let spec = r#"{"min":2,"max":30,"minLength":3,"maxLength":30}"#;
+        assert!(validate_value("number", "1", None, Some(spec))
+            .unwrap_err()
+            .starts_with("min:2:"));
+        assert!(validate_value("number", "31", None, Some(spec))
+            .unwrap_err()
+            .starts_with("max:30:"));
+        assert!(validate_value("string", "ab", None, Some(spec))
+            .unwrap_err()
+            .starts_with("minLength:3:"));
+    }
+
+    #[test]
+    fn a_whole_number_bound_is_not_formatted_as_a_float() {
+        // `0.5` must survive intact while `5` reads as `5`, so the interpolation
+        // and the prose agree.
+        let spec = r#"{"max":0.5}"#;
+        let err = validate_value("number", "1", None, Some(spec)).unwrap_err();
+        assert!(err.starts_with("max:0.5:"), "got {err:?}");
+
+        let spec = r#"{"max":5}"#;
+        let err = validate_value("number", "6", None, Some(spec)).unwrap_err();
+        assert!(err.starts_with("max:5:"), "got {err:?}");
     }
 }

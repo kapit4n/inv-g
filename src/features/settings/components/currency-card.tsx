@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { SelectField } from "@/components/forms"
 import { CURRENCY_SETTING_KEY, SUPPORTED_CURRENCIES, getActiveCurrency, setActiveCurrency } from "@/lib/currency"
 import { updateAppSetting } from "@/lib/tauri"
+import { translateSettingError } from "@/lib/settings-utils"
 import { useNotification } from "@/hooks/use-notification"
 import { useAppSettingsStore } from "@/stores"
 
@@ -45,18 +46,27 @@ export function CurrencyCard() {
 
   const changeCurrency = useCallback(
     async (value: string) => {
-      // Optimistic: the selector has to react immediately, and the previous
-      // value is restored if the write fails.
+      // Captured before the optimistic write, not after. Reading `getValue` in
+      // the catch block returned the value we had just set, so the rollback
+      // restored the rejected currency onto itself: the app went on formatting
+      // every price in the new currency while the setting on disk still held
+      // the old one, until a restart put it back.
+      const previous = getValue(CURRENCY_SETTING_KEY) ?? getActiveCurrency().code
+
+      // Optimistic: the selector has to react immediately, and `previous` is
+      // restored if the write fails.
       setSettingValue(CURRENCY_SETTING_KEY, value)
       setActiveCurrency(value)
       try {
         await updateAppSetting(CURRENCY_SETTING_KEY, value)
         notification.success(t("common.success"), t("settings.currencies.systemCurrency"))
       } catch (err) {
-        const previous = getValue(CURRENCY_SETTING_KEY) ?? getActiveCurrency().code
         setSettingValue(CURRENCY_SETTING_KEY, previous)
         setActiveCurrency(previous)
-        notification.error(t("common.error"), String(err))
+        // The backend rejects a currency outside the setting's `options` column
+        // with an English sentence; `translateSettingError` turns the coded ones
+        // into the current language and leaves anything else verbatim.
+        notification.error(t("common.error"), translateSettingError(String(err), t))
       }
     },
     [getValue, notification, setSettingValue, t]

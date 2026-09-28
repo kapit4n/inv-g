@@ -2,9 +2,34 @@
 
 ## [Unreleased]
 
+### Settings — rejected values now speak your language, and the currency selector actually rolls back
+- A refused settings write no longer shows the backend's English sentence. The
+  command now returns a stable code (`notAllowed`, `notNumber`, `notBoolean`,
+  `min`, `max`, `minLength`, `maxLength`) and the UI resolves it through the
+  existing `admin.settings.errors.*` keys, so a Spanish installation gets
+  *El valor no está entre las opciones permitidas* instead of
+  `Value 'BOB' is not one of the allowed options: USD, MXN, ...`
+- Bounds are interpolated: *Debe tener al menos 3 caracteres* rather than a
+  sentence that has to be re-parsed client-side
+- Errors with no code — a permission refusal, a database failure, a message from
+  a future command — are still shown exactly as they arrive, because those are
+  the ones worth reading
+- **Fixed a rollback that never rolled back.** The currency card read the value
+  to restore *after* its optimistic write, so a refused write restored the
+  rejected currency onto itself: the app went on formatting every price in the
+  new currency while the setting on disk still held the old one, until a restart
+  reverted it. The value to restore is now captured before the write
+- Tauri commands report failures as plain strings, so the code travels inside the
+  message and the English prose is retained after it. A cross-cutting `AppError`
+  refactor was deliberately not done to fix one message
+- Adds a `currency-card` test suite that covers the translated toast, the uncoded
+  toast, the rollback and the success path
+
 ### Settings — Boliviano was rejected by the currency selector
 - Choosing *Boliviano (Bs)* in the system-currency card failed with
-  `Value 'BOB' is not one of the allowed options`, then rolled the selector back
+  `Value 'BOB' is not one of the allowed options`, and the rejected value stayed
+  selected. (It looked like it had rolled back; it had not — see the entry above,
+  where the rollback bug is fixed.)
 - The allowed-currency list is not hardcoded: the backend reads it from the
   `currency` row's `options` column, and no migration had ever updated that
   column. `seed_application_settings` inserts with `INSERT OR IGNORE`, so adding

@@ -6,6 +6,87 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-28 — Rejected settings spoke English, and the currency rollback never rolled back
+
+Follow-up to the entry below, in the same session. Two defects in the same
+handler, both visible in the one flow a user takes to hit them: changing the
+system currency on a **Spanish** Configuración.
+
+**Symptom 1 — the error was in the wrong language.** A refused settings write
+surfaced the backend's English sentence verbatim. A user whose app language was
+Spanish saw `Value 'BOB' is not one of the allowed options: USD, MXN, ...` in
+an otherwise Spanish toast, from `currency-card.tsx` and `admin-settings-page.tsx`
+both doing `String(err)`.
+
+**Symptom 2 — the rollback restored the value that had just been rejected.**
+Picking a currency the backend refuses left the whole app formatting every price
+in the new currency, while the setting on disk still held the old one. It looked
+like it reverted in the original report, and it does not: the discrepancy is only
+visible on a second look, and it disappeared on restart.
+
+**Root cause, symptom 1.** Tauri commands report failures as plain strings, so
+by the time the error reaches the UI the only machine-readable part is whatever
+prose the command wrote. `validate_value` had one hardcoded English message per
+failure mode and nothing that identified *which* mode it was, so the frontend had
+nothing to translate and fell back to printing the sentence. Both sides already
+had the vocabulary — `admin.settings.errors.min`/`notAllowed`/`minLength`/… exist
+in `en/admin.json` and `es/admin.json` and were used by the client-side
+`validateSettingValue` — but only for validation that never left the browser.
+
+**Root cause, symptom 2.** `changeCurrency` read the rollback target in the
+`catch` block:
+
+```ts
+setSettingValue(CURRENCY_SETTING_KEY, value)   // optimistic write, first
+...
+const previous = getValue(CURRENCY_SETTING_KEY) // by now, `value`
+```
+
+`getValue` returns the store, which the optimistic write had already set to the
+new value, so `previous` *was* the rejected currency. The two restore lines
+re-applied it and changed nothing. Found by the first version of the
+`currency-card` test, which asserted the post-failure state rather than the
+message.
+
+**Fix.**
+- `validate_value` now prefixes each rejection with a stable code through
+  `coded()`: `<code>:<prose>`, or `<code>:<bound>:<prose>` for the four bounded
+  codes. `fmt_bound` keeps `0.5` from being printed as `0.500000`.
+- `parseSettingError` / `translateSettingError` in `src/lib/settings-utils.ts`
+  map a code to its `admin.settings.errors.*` key. A code with no translation
+  falls back to the English prose, which is why the prose is kept after the colon.
+- The bound is read *only* for the four codes that carry one, and only from the
+  segment before the first colon. The prose contains colons of its own
+  (`...allowed options: USD, MXN`), so a split that did not know which codes take
+  a bound swallowed the sentence into the number and rendered `Minimum value is
+  undefined`.
+- `changeCurrency` captures `previous` before the optimistic write.
+- `String(err)` is kept for every uncoded failure — a permission refusal or a
+  database error is worth reading exactly as it arrived, and replacing it with a
+  generic "something went wrong" would be a regression.
+
+Deliberately *not* done: a cross-cutting `AppError` refactor to carry a code as
+structured data. Every command returns a string, so the code had to travel in the
+string. Fixing the one place that produced an untranslatable message was worth
+more than migrating the whole error surface.
+
+**Verification:** 3 Rust tests pinning the exact code, bound and prose formats;
+8 frontend tests for the parser, the interpolation, the prose fallback and the
+uncoded passthrough; 4 `currency-card` tests covering the translated toast, the
+uncoded toast, the rollback, and the success path. `npm run verify`: 1737
+frontend tests across 101 files, 195 Rust tests, 0 lint errors.
+
+**Affected files:** `src-tauri/src/commands/admin/settings.rs`,
+`src/lib/settings-utils.ts`,
+`src/features/settings/components/currency-card.tsx`,
+`src/features/admin/pages/admin-settings-page.tsx`,
+`tests/unit/lib/settings-utils.test.ts`,
+`tests/unit/components/currency-card.test.tsx`
+
+**Commit:** TBD
+
+---
+
 ### 2026-09-28 — Currency selector offered Boliviano; backend rejected it
 
 **Symptom:** On **Configuración**, choosing *Boliviano (Bs)* in the system-currency
@@ -67,11 +148,12 @@ Two traps found while writing the migration, both caught by the existing tests:
 migration, three tests), `src-tauri/src/db/seed.rs`,
 `scripts/screenshots/helpers/invoke-mock.ts`, `tests/unit/lib/currency.test.ts`.
 
-**Not fixed here:** `currency-card.tsx:59` still surfaces the raw backend
-sentence via `String(err)`, so this class of error is untranslated. It needs the
-command's errors to carry a code rather than prose.
+**Not fixed here:** `currency-card.tsx:59` surfaced the raw backend sentence via
+`String(err)`, so this class of error was untranslated. It needed the command's
+errors to carry a code rather than prose. Fixed in the entry above.
 
-**Commit:** TBD
+**Commit:** `011296f` on `main` (after the `v1.0.0-alpha.8` tag at `b5fad8a`, so
+the fix is not in that tag)
 
 ---
 
@@ -145,7 +227,7 @@ a signed-out visitor is in, so the page correctly showed nothing and the tests
 broke. They now sign in a full-permission user, which is what they were implicitly
 assuming before.
 
-**Commit:** TBD
+**Commit:** `ba433af` on `main`
 
 ---
 

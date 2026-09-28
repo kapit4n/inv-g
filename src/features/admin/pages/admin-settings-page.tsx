@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getAppSettings, getSettingCategories, updateAppSettingsBulk } from "@/lib/tauri"
-import { parseSettingOptions, parseSettingValidation, validateSettingValue } from "@/lib/settings-utils"
+import { parseSettingOptions, parseSettingValidation, translateSettingError, validateSettingValue } from "@/lib/settings-utils"
 import { useNotification } from "@/hooks"
 import { useAppSettingsStore, useAuthStore } from "@/stores"
 import type { AdminAppSetting } from "@/types"
@@ -89,7 +89,9 @@ export function AdminSettingsPage() {
       }
       notify.success(t("admin.settings.saved"))
     } catch (e) {
-      notify.error(t("admin.settings.saveError") + (e ? `: ${String(e)}` : ""))
+      // A coded validation failure is translated; anything else keeps its own
+      // wording, which is what a permission refusal or a database error needs.
+      notify.error(t("admin.settings.saveError") + (e ? `: ${translateSettingError(String(e), t)}` : ""))
     } finally {
       setSaving(false)
     }
