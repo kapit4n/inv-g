@@ -126,11 +126,16 @@ jobs:
       # not match. A mismatched cache therefore costs restore time, never
       # correctness. The rustc version is in the key so a toolchain bump starts a
       # new entry instead of repeatedly restoring artifacts it must discard.
+      # Resolved here, but NOT exported as `RUSTC`: that is a real,
+      # honoured environment variable that Cargo/Tauri use as the compiler
+      # path, and publishing the mangled `rustc --version` output under that
+      # name makes the build spawn a binary that does not exist
+      # (`program not found`). `RUSTC_KEY` is only ever read by the cache step.
       - name: Resolve Rust version for the cache key
         shell: pwsh
         run: |
           $v = (rustc --version) -replace '\s+', '-'
-          "RUSTC=$v" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "RUSTC_KEY=$v" | Out-File -FilePath $env:GITHUB_ENV -Append
           Write-Host "Rust toolchain: $v"
 
       # Crate sources rather than build output. Keyed on Cargo.lock so a dependency
@@ -151,9 +156,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: src-tauri/target
-          key: ${{ runner.os }}-nsis-${{ env.RUSTC }}-${{ hashFiles('src-tauri/Cargo.lock') }}
+          key: ${{ runner.os }}-nsis-${{ env.RUSTC_KEY }}-${{ hashFiles('src-tauri/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-nsis-${{ env.RUSTC }}-
+            ${{ runner.os }}-nsis-${{ env.RUSTC_KEY }}-
 
       # Windows Defender quarantines freshly-built unsigned Rust binaries and
       # can corrupt or stall the NSIS build, producing a broken installer that

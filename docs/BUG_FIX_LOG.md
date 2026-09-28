@@ -6,6 +6,42 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-28 — Windows installer build failed: `could not execute process rustc-1.98.1-(…)` program not found
+
+**Symptom:** The `npx tauri build --bundles nsis` step in
+`.github/workflows/windows-installer.yml` failed on the Windows runner with:
+
+```
+error: could not execute process `rustc-1.98.1-(48a229cea-2026-09-01) -vV` (never executed)
+Caused by:
+  program not found
+failed to build app: failed to build app
+```
+
+The frontend (`beforeBuildCommand`) had built fine; only the Rust toolchain probe broke.
+
+**Investigation:** The "Resolve Rust version for the cache key" step ran
+`(rustc --version) -replace '\s+','-'` → `rustc-1.98.1-(48a229cea-2026-09-01)`
+and exported it to `$env:GITHUB_ENV` under the name **`RUSTC`**. `RUSTC` is a
+real, honoured environment variable that Cargo, rustup and Tauri use as the
+compiler path. Every later step inherited it, so when the build spawned the
+compiler (`rustc -vV`) it tried to execute a binary literally named
+`rustc-1.98.1-(48a229cea-2026-09-01)`, which does not exist → `program not
+found`. The mangled name in the error matches the processed `rustc --version`
+output exactly, which pinned it down immediately. (The `Resolve` step itself ran
+earlier and was fine; only subsequent steps that honour `RUSTC` were affected.)
+
+**Fix:** Renamed the exported variable from `RUSTC` to `RUSTC_KEY` (used only as
+the cache-key component) in the `Resolve Rust version for the cache key` step
+and in the `Restore Rust build cache` key/restore-keys expressions. The real
+`RUSTC` flow is untouched.
+
+**Affected files:** `.github/workflows/windows-installer.yml`
+
+**Verification:** YAML lint passes; no stray `env.RUSTC` references remain.
+Re-run the workflow (manual `Workflow dispatch`) to confirm the installer
+builds.
+
 ### 2026-09-28 — Restore-Initial-Data reset failed with "FOREIGN KEY constraint failed"
 
 **Symptom:** `cargo test` failed 183 passed / 1 failed:
