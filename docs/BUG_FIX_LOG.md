@@ -6,6 +6,47 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-28 — NSIS installer seeded demo users instead of the configured accounts
+
+**Symptom:** A freshly installed alpha.5 Windows build could not log in with
+either configured account (`jhona` / `admin`). The startup log was decisive:
+
+```
+WARN  inventory_gear::db::seed] No se encontró installer-config.json. Se crearán las 6 cuentas
+de prueba con la contraseña 123456.
+```
+
+Even after deleting the database and reinstalling, the symptom repeated: a fresh
+seed again produced the six demo accounts (no `jhona`, `admin` = `123456`).
+
+**Investigation:** `installer_config::load()` resolved the config from
+1) `IG_INSTALLER_CONFIG`, 2) `current_exe().parent()/installer-config.json`, 3)
+(in non-test builds) the repository root. `tauri.conf.json` declares the file as
+a Tauri resource (`"resources": ["../installer-config.json"]`), but the NSIS
+bundle did not leave it where the runtime searcher looked, so the loader found
+nothing and `seed_users` fell back to the built-in six demo accounts. A local
+reproduction with `IG_INSTALLER_CONFIG` pointed at the committed file proved the
+seeding itself is correct (both configured users created, both bcrypt passwords
+verify) — the failure was purely the installed build's inability to find the
+file. Version history: alpha.1–3 shipped no config at all and seeded demo users;
+alpha.4 was the first to carry the config, so only machines that already had a
+demo-seeded DB or a broken resource copy were affected.
+
+**Fix:** Embed the committed `installer-config.json` into **release** binaries
+with `include_str!("../../installer-config.json")` and use it as the fallback
+when no on-disk file resolves. The embedded copy is validated exactly like a
+file. Debug/test builds are untouched (`cfg(all(not(debug_assertions), not(test)))`):
+`tauri dev` still reads the repo-root file, and tests still take the six-demo-user
+path because the loaders see no file. The trailing `Ok(None)` is cfg-gated to
+avoid an `unreachable_code` warning, since a release build never reaches it
+(`build-warnings: deny` in the Windows pipeline would have failed on it).
+
+**Affected files:** `src-tauri/src/installer_config.rs`, `docs/windows-installer.md`
+
+**Verification:** `cargo check --release` and `cargo check --tests` both clean;
+full Rust suite (see commit). Re-cut the installer so a fresh install seeds
+`jhona` + `admin` from the embedded config.
+
 ### 2026-09-28 — Windows installer build failed: `could not execute process rustc-1.98.1-(…)` program not found
 
 **Symptom:** The `npx tauri build --bundles nsis` step in

@@ -14,6 +14,18 @@
 //! API, works identically in development and in an installed build, and can be
 //! pointed elsewhere with an environment variable for local testing.
 //!
+//! A bare file beside the executable turned out to be fragile in the shipped
+//! NSIS bundle (v1.0.0-alpha.5): the logging showed `No se encontró
+//! installer-config.json` at first launch even though the resource was declared,
+//! so the installer seeded the six demo accounts instead of the configured ones.
+//! Release binaries therefore also **embed** the config at compile time with
+//! `include_str!` and use it whenever no on-disk file resolves. The embedded copy
+//! is exactly the committed file the release was cut from — the release build
+//! still never generates or modifies it — and it removes the dependency on where
+//! the bundler happens to place resources. Debug and test builds keep the
+//! file-only behaviour (dev reads the repo root; tests intentionally take the
+//! six-demo-user path), so the change never reaches a `tauri dev` session.
+//!
 //! ## Secrets
 //!
 //! These are the passwords the machines will ship with, and a bcrypt hash of a
@@ -153,16 +165,54 @@ pub fn resolve_path() -> Option<PathBuf> {
     candidate_paths().into_iter().find(|p| p.is_file())
 }
 
+/// The config committed in the repo, embedded into release binaries.
+///
+/// `include_str!("../../installer-config.json")` is relative to this file
+/// (`src-tauri/src/`), so `../../` lands on the repository's
+/// `installer-config.json`. Compile-time: a release that was cut from a tree
+/// whose committed config is missing a required field is caught at build time,
+/// not on a customer's first launch.
+///
+/// Gated to release builds only. `cfg(test)` keeps the developer/test path of
+/// "no file → six demo users" even under `cargo test --release`, and debug
+/// (`tauri dev`) continues to read the file so an editor can tweak it without
+/// waiting on a rebuild.
+#[cfg(all(not(debug_assertions), not(test)))]
+const EMBEDDED_CONFIG: &str = include_str!("../../installer-config.json");
+
 /// Load and validate the configuration.
 ///
 /// `Ok(None)` means there is no config file, which is the normal case for a
 /// developer checkout and falls back to the built-in default users.
 pub fn load() -> Result<Option<InstallerConfig>, ConfigError> {
-    let path = match resolve_path() {
-        Some(p) => p,
-        None => return Ok(None),
-    };
+    if let Some(path) = resolve_path() {
+        let config = read_from(&path)?;
+        return Ok(Some(config));
+    }
 
+    // No on-disk file. A release build carries the config it was cut from inside
+    // the binary, so an installer is never silently degraded to the demo users
+    // because the bundler put the resource somewhere the searcher did not look.
+    // The embedded copy is validated like any other, and the failure is equally
+    // fatal.
+    #[cfg(all(not(debug_assertions), not(test)))]
+    {
+        let config = serde_json::from_str(EMBEDDED_CONFIG).map_err(|e| {
+            ConfigError(format!(
+                "installer-config.json (embedded): no es un archivo de configuración válido: {e}"
+            ))
+        })?;
+        validate(&config, Path::new(CONFIG_FILE_NAME))?;
+        return Ok(Some(config));
+    }
+
+    #[cfg(any(debug_assertions, test))]
+    {
+        Ok(None)
+    }
+}
+
+fn read_from(path: &Path) -> Result<InstallerConfig, ConfigError> {
     let raw = std::fs::read_to_string(&path).map_err(|e| {
         ConfigError(format!(
             "No se pudo leer {}: {e}",
@@ -178,7 +228,7 @@ pub fn load() -> Result<Option<InstallerConfig>, ConfigError> {
     })?;
 
     validate(&config, &path)?;
-    Ok(Some(config))
+    Ok(config)
 }
 
 /// Reject a configuration that would create a user who cannot log in, or that

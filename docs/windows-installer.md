@@ -277,12 +277,19 @@ read **once**, on the machine's first launch, to seed the `users` table; after
 that the file is ignored and the database is the only source of truth.
 
 The file is bundled with the installer, so it lands next to the executable. It is
-found in this order:
+found in this order, and in a release build it is **also embedded into the
+binary** at compile time (the release binary carries the exact committed copy, so
+the file never needs to be located on disk):
 
 1. `IG_INSTALLER_CONFIG` — an explicit path, for testing a configuration without
    rebuilding
 2. Beside the executable — the bundled copy
-3. The repository root — so `tauri dev` and a fresh clone behave the same
+3. Embedded in the release binary — `include_str!`, release builds only
+
+The embed exists because v1.0.0-alpha.5 shipped an installer whose first launch
+logged `No se encontró installer-config.json` and seeded the six demo accounts:
+the NSIS bundle did not leave the resource where the searcher looks. A release
+build now ships with the committed accounts guaranteed.
 
 ### Preparing a release
 
