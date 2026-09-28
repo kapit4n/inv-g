@@ -3,8 +3,27 @@ import { render, screen, fireEvent, waitFor, userEvent } from "@tests/helpers/re
 import { setupI18n } from "@/i18n"
 import { CommandPalette } from "@/components/command-palette"
 import { useSettingsStore } from "@/stores"
+import { useAuthStore } from "@/stores"
+import type { User } from "@/types"
 
 setupI18n("en")
+
+const user: User = {
+  id: 1, username: "admin", email: "admin@test.com", fullName: "Admin User",
+  roleId: 1, roleName: "Administrator", isActive: true, createdAt: "2025-01-01T00:00:00Z",
+}
+
+const ALL_MODULE_PERMISSIONS = [
+  "dashboard.view",
+  "sales.view",
+  "inventory.view",
+  "purchases.view",
+  "customers.view",
+  "vehicles.view",
+  "warehouse.view",
+  "reports.view",
+  "admin.users.manage",
+]
 
 function renderPalette(open = true) {
   if (open) {
@@ -16,6 +35,9 @@ function renderPalette(open = true) {
 describe("CommandPalette", () => {
   beforeEach(() => {
     useSettingsStore.getState().setCommandPaletteOpen(false)
+    // The palette hides entries for modules the role may not open, so a session
+    // with the full set of module permissions is the default starting point.
+    useAuthStore.getState().setSession(user, "token", ALL_MODULE_PERMISSIONS)
     vi.clearAllMocks()
   })
 
@@ -120,5 +142,25 @@ describe("CommandPalette", () => {
     await waitFor(() => {
       expect(useSettingsStore.getState().commandPaletteOpen).toBe(false)
     })
+  })
+
+  it("offers only the sales module to a cashier", () => {
+    useAuthStore.getState().setSession(user, "token", [
+      "dashboard.view",
+      "sales.view",
+      "sales.create",
+      "sales.quotes",
+      "sales.register",
+      "sales.receipts",
+    ])
+    renderPalette(true)
+    // Sales destinations and the landing page are offered…
+    expect(screen.getByText("Dashboard")).toBeInTheDocument()
+    expect(screen.getByText(/Point of Sale/i)).toBeInTheDocument()
+    expect(screen.getByText(/Cash Register/i)).toBeInTheDocument()
+    // …while the modules a cashier may not open are not.
+    expect(screen.queryByText("Products")).not.toBeInTheDocument()
+    expect(screen.queryByText(/Purchase Orders/i)).not.toBeInTheDocument()
+    expect(screen.queryByText("Vehicles")).not.toBeInTheDocument()
   })
 })

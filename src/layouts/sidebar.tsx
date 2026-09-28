@@ -23,7 +23,7 @@ export function Sidebar() {
   const capabilities = useBusinessCapabilities()
   const { isEnabled } = useModules()
   const salesResetEnabled = useSalesResetEnabled()
-  const { hasPermission } = usePermissions()
+  const { hasPermission, canAccessRoute } = usePermissions()
   const location = useLocation()
   const { t } = useTranslation()
   const [expanded, setExpanded] = useState<string[]>(["/inventory", "/sales", "/purchases"])
@@ -56,6 +56,10 @@ export function Sidebar() {
       return item
     })
     .filter((item): item is NavItemConfig => item !== null)
+    // Role-based access: a module (and its children) is only shown when the
+    // user carries the module's permission (e.g. sales.view for the sales
+    // module). Roles like cashier therefore only see the modules they may use.
+    .filter((item) => canAccessRoute(item.href))
     .filter(isVisible)
 
   const gatedSecondaryNavigation: NavItemConfig[] = secondaryNavigation
@@ -81,6 +85,7 @@ export function Sidebar() {
       return item
     })
     .filter((item): item is NavItemConfig => item !== null)
+    .filter((item) => canAccessRoute(item.href))
     .filter(isVisible)
 
   const toggleExpand = (href: string) => {

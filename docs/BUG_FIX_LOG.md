@@ -35,8 +35,8 @@ email, phone, role) calling `create_admin_user` (new accounts get the standard
 `src/i18n/locales/en/employees.json`, `src/i18n/locales/es/employees.json`,
 `docs/IMPLEMENTATION_STATUS.md`.
 
-**Commit:** `806af35` on branch `fix/empleado-add-edit` (pending live test →
-merge to `main`).
+**Commit:** `806af35` on `fix/empleado-add-edit`, merged to `main` (live app
+check still pending).
 
 ---
 

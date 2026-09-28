@@ -1,6 +1,6 @@
 import { createBrowserRouter, Navigate } from "react-router-dom"
 import { AppShell } from "@/layouts/app-shell"
-import { AuthenticatedRoute, GuestRoute, ModuleRoute } from "@/components/auth-guards"
+import { AuthenticatedRoute, GuestRoute, ModuleRoute, RoutePermissionGuard } from "@/components/auth-guards"
 import { DashboardPage } from "@/features/dashboard"
 import {
   InventoryDashboardPage,
@@ -74,7 +74,9 @@ export const router = createBrowserRouter([
     element: (
       <AuthenticatedRoute>
         <ModuleRoute>
-          <AppShell />
+          <RoutePermissionGuard>
+            <AppShell />
+          </RoutePermissionGuard>
         </ModuleRoute>
       </AuthenticatedRoute>
     ),

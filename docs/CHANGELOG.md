@@ -8,6 +8,30 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Changed
+- **The cashier role is now a selling-only account.** The seeded `cashier` role
+  carries `dashboard.view` plus the sales permissions (`sales.view`,
+  `sales.create`, `sales.quotes`, `sales.register`, `sales.receipts`) and
+  nothing else, so a front-of-house user sees only **Dashboard** and the
+  **Sales** module (POS, history, quotes, returns, cash register, receipts,
+  closeout, sales customers). Inventory, Purchases, CRM, Warehouse, Reports,
+  Employees, Admin and Settings are neither shown nor reachable. Attaching a
+  customer to a sale and opening a new customer from the POS stay part of the
+  sale and remain available. Existing databases keep the permissions they were
+  seeded with, so the role must be adjusted under **Admin → Roles**. Documented
+  in `docs-site/admin/users-roles.md`.
+- **Module access is enforced by role, not just in the sidebar.** The router
+  previously only checked that a user was signed in, so any authenticated
+  account could open any URL — a bookmarked address or the command palette
+  reached Inventory, Purchases or Admin regardless of role. A
+  `RoutePermissionGuard` now wraps the authenticated layout and checks the
+  module permission for the requested path (children inherit the parent
+  module's permission, e.g. `sales.view` covers `/sales/quotes`), sending a
+  denied request to the access-denied screen. The sidebar hides modules the
+  role may not open, and the command palette no longer offers them either, so
+  no entry becomes a dead end. The Admin section is reachable with any
+  `admin.*` permission.
+
 ### Fixed
 - **Employees screen now works for real.** The **Empleados** page was a static
   mock (hardcoded rows, disabled Add button, no edit action); it is now wired to

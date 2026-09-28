@@ -5,7 +5,7 @@ import { Search } from "lucide-react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { useSettingsStore } from "@/stores"
-import { useModules, moduleForPath } from "@/hooks"
+import { useModules, moduleForPath, usePermissions } from "@/hooks"
 import { cn } from "@/lib/utils"
 import { buildCommands, commandCategories } from "@/lib/command-palette/commands"
 import type { Command, CommandCategory } from "@/lib/command-palette/types"
@@ -40,9 +40,11 @@ export function CommandPalette() {
     [isEnabled]
   )
 
+  const { canAccessRoute } = usePermissions()
+
   const commands = useMemo(
-    () => buildCommands({ navigate, cycleTheme, sidebarCollapsed, toggleSidebar, t, isModuleEnabled }),
-    [navigate, cycleTheme, sidebarCollapsed, toggleSidebar, t, isModuleEnabled]
+    () => buildCommands({ navigate, cycleTheme, sidebarCollapsed, toggleSidebar, t, isModuleEnabled, canAccessPath: canAccessRoute }),
+    [navigate, cycleTheme, sidebarCollapsed, toggleSidebar, t, isModuleEnabled, canAccessRoute]
   )
 
   const filtered = useMemo(() => {
