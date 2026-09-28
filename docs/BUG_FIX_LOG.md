@@ -6,6 +6,25 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-28 — IPC wrapper-count assertion failed after Milestone 18
+
+**Symptom:** `npm run verify` failed in
+`tests/integration/tauri-wrapper-runtime-contract.test.ts` with
+`expected 336 to be 338` at the "exposes only wrapper functions" check.
+
+**Investigation:** Milestone 18 added two IPC wrappers to `src/lib/tauri.ts`
+(`getInitialDataResetPreview`, `resetToInitialData`) for the new
+`get_initial_data_reset_preview` / `reset_to_initial_data` backend commands.
+The contract test derives the wrapper list from the live module, so the count
+grew 336 → 338 — the hardcoded expectation simply predated the new wrappers.
+No argument/command drift involved: the new wrappers' command names derive
+mechanically and needed no `COMMAND_NAME_EXCEPTIONS` entry.
+
+**Fix:** Bumped the hardcoded `wrappers.length` expectation from `336` to `338`
+in `tests/integration/tauri-wrapper-runtime-contract.test.ts`.
+
+**Affected files:** `tests/integration/tauri-wrapper-runtime-contract.test.ts`
+
 ### 2026-09-27 — "Caja registradora" not updated after selling products
 
 **Symptom:** After a POS cash sale, the Cash Register ("Caja registradora") page's
