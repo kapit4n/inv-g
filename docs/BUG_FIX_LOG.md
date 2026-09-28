@@ -83,7 +83,7 @@ frontend tests across 101 files, 195 Rust tests, 0 lint errors.
 `tests/unit/lib/settings-utils.test.ts`,
 `tests/unit/components/currency-card.test.tsx`
 
-**Commit:** TBD
+**Commit:** `c7769b8` on `main`
 
 ---
 
