@@ -6,6 +6,75 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-28 — Currency selector offered Boliviano; backend rejected it
+
+**Symptom:** On **Configuración**, choosing *Boliviano (Bs)* in the system-currency
+card produced `Value 'BOB' is not one of the allowed options: USD, MXN, EUR, GTQ,
+CRC, COP`. The dropdown had already switched to Bs and the whole app reformatted
+its prices, then the save was refused and the value rolled back.
+
+**Investigation:** The message text is produced by exactly one place,
+`validate_value` in `src-tauri/src/commands/admin/settings.rs:104`, and the
+allowed list it prints is not hardcoded — it is read out of the
+`application_settings.options` column for the `currency` key. So the six codes in
+the error *are* that database's stored value, and the row was stale.
+
+Three layers defined "the allowed currencies" and none of them referred to
+another:
+
+- `src/lib/currency.ts:35-50` — `SUPPORTED_CURRENCIES`, 14 codes including BOB.
+  This is what builds the dropdown (`currency-card.tsx:37-44`).
+- `src-tauri/src/db/seed.rs:424` — the seeder's options JSON, 7 codes. BOB was
+  added to this line in commit `20b2ed3` (Milestone 18).
+- The persisted `options` column — the backend's *only* real definition.
+
+The Milestone 18 change edited the seeder, and the CHANGELOG recorded it as
+"validator now accepts BOB". The validator was never changed; it inherits
+whatever the column says. And the seeder could not deliver the new list to an
+existing installation regardless, because `seed_application_settings` inserts
+with `INSERT OR IGNORE` (`seed.rs:499`) — the row already exists, so the insert
+is ignored and the stale options survive. The legacy-`settings` sync loop at
+`seed.rs:516-518` copies `value` only, never `options`. No migration in
+`schema.rs` had ever touched `application_settings`.
+
+**The mirror-image failure was live on every installation.** Fresh installs
+seeded 7 codes while the UI offered 14, so ARS, CLP, PEN, UYU, PYG, GBP, CHF, JPY
+and BRL were all selectable and all refused by the backend. GTQ and CRC were
+backend-only: selectable from Admin → Settings, with no `settings.currencies.*`
+label, so unformattable everywhere else.
+
+**Fix:** Schema v17 → v18 rewrites the `currency` row's `options` on existing
+databases, to the UI's 14 codes. The seeder was corrected to the same list so a
+fresh install agrees. GTQ and CRC were dropped — they have no label in either
+locale, which is what made them backend-only in the first place. The screenshot
+mock (`scripts/screenshots/helpers/invoke-mock.ts:1798`) carried its own copy of
+the stale six-code list and was corrected too.
+
+Two traps found while writing the migration, both caught by the existing tests:
+
+1. `create_tables` runs migrations *before* it finishes creating tables, so a
+   fresh database has no `application_settings` yet. A bare `UPDATE` there
+   aborted the entire init. The step now checks `sqlite_master` first; there is
+   nothing to repair on a fresh database because the seeder writes the list
+   immediately afterwards.
+2. Bumping `SCHEMA_VERSION` from 17 to 18 narrowed the additive-migration window
+   from `SCHEMA_VERSION - 4` to `- 3`, which would have pushed **v13**
+   installations onto the legacy `DROP TABLE` path and destroyed their products
+   — the exact hazard the comment above the threshold warns about. The window
+   was widened to `- 5` to keep v13 on the additive path.
+
+**Affected files:** `src-tauri/src/db/schema.rs` (SCHEMA_VERSION 18, the
+migration, three tests), `src-tauri/src/db/seed.rs`,
+`scripts/screenshots/helpers/invoke-mock.ts`, `tests/unit/lib/currency.test.ts`.
+
+**Not fixed here:** `currency-card.tsx:59` still surfaces the raw backend
+sentence via `String(err)`, so this class of error is untranslated. It needs the
+command's errors to carry a code rather than prose.
+
+**Commit:** TBD
+
+---
+
 ### 2026-09-28 — Panel de Control offered a cashier functions it cannot open
 
 **Symptom:** Signed in as `cashier` (the seeded selling-only role), the dashboard

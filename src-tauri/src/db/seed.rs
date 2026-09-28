@@ -421,7 +421,15 @@ fn seed_application_settings(conn: &Connection) -> Result<()> {
     let app_settings: &[(&str, &str, &str, &str, &str, Option<&str>, Option<&str>)] = &[
         ("general", "store_name", "Inventory Gear", "string", "Store display name", None, None),
         ("general", "store_logo", "", "string", "Store logo URL", None, None),
-        ("general", "currency", "BOB", "string", "Default currency", Some("{\"options\":[\"BOB\",\"USD\",\"MXN\",\"EUR\",\"GTQ\",\"CRC\",\"COP\"]}"), None),
+        // This options list is the backend's definition of which currency codes
+        // may be stored -- `validate_value` reads it and rejects anything else.
+        // It must stay identical to `SUPPORTED_CURRENCIES` in `src/lib/currency.ts`,
+        // or the currency selector offers codes the backend then refuses. The
+        // v17 -> v18 migration rewrites the column on existing databases for the
+        // same reason. GTQ and CRC used to be here; they were dropped because
+        // no `settings.currencies.*` label exists for them, which made them
+        // selectable only from Admin -> Settings and unformattable everywhere else.
+        ("general", "currency", "BOB", "string", "Default currency", Some("{\"options\":[\"BOB\",\"USD\",\"EUR\",\"MXN\",\"COP\",\"ARS\",\"CLP\",\"PEN\",\"UYU\",\"PYG\",\"GBP\",\"CHF\",\"JPY\",\"BRL\"]}"), None),
         ("general", "timezone", "America/Mexico_City", "string", "Timezone", None, None),
         ("general", "language", "es", "string", "Default language", Some("{\"options\":[\"es\",\"en\"]}"), None),
         ("theme", "theme", "system", "string", "Default theme", Some("{\"options\":[\"light\",\"dark\",\"system\"]}"), None),

@@ -1,6 +1,6 @@
 use rusqlite::{Connection, Result};
 
-const SCHEMA_VERSION: i32 = 17;
+const SCHEMA_VERSION: i32 = 18;
 
 fn get_user_version(conn: &Connection) -> Result<i32> {
     let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
@@ -20,18 +20,18 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
     }
 
     // Additive migration for the immediately-previous schema versions
-    // (13, 14, 15 and 16). This preserves existing business data instead of
+    // (13, 14, 15, 16 and 17). This preserves existing business data instead of
     // dropping the world; the legacy path further down begins with DROP TABLE, so
     // a database that falls through to it loses products and their pricing. Each
     // step below is guarded by `current_version <= N` and applied in order, so a
     // single pass takes v13 straight to the current version.
     //
-    // The window is deliberately four versions wide, one wider than the three
+    // The window is deliberately six versions wide, one wider than the five
     // steps above it. Bumping SCHEMA_VERSION slides this threshold, so a window
-    // of three would have silently pushed v13 customers onto the DROP TABLE path
+    // of five would have silently pushed v13 customers onto the DROP TABLE path
     // the first time a column was added. Widen the window whenever the version is
     // bumped; do not shrink it to "just the steps we wrote".
-    if current_version >= SCHEMA_VERSION - 4 {
+    if current_version >= SCHEMA_VERSION - 5 {
         conn.execute_batch("PRAGMA foreign_keys=OFF;")?;
 
         // v13 -> v14: per-product pricing columns. Every existing product gets
@@ -101,6 +101,43 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             conn.execute_batch(
                 "ALTER TABLE roles ADD COLUMN quick_login_enabled INTEGER NOT NULL DEFAULT 0;",
             )?;
+        }
+
+        // v17 -> v18: the currency setting's allowed options.
+        //
+        // The options column is the *only* definition of which currency codes
+        // may be stored: `validate_value` reads it and rejects anything outside
+        // it. It was therefore edited in place in the seeder, which is invisible
+        // to an existing installation -- `seed_application_settings` inserts
+        // with `INSERT OR IGNORE`, so a database created before the edit kept
+        // its original list forever. The symptom was the currency selector
+        // offering Boliviano while the backend answered "Value 'BOB' is not one
+        // of the allowed options", because the UI builds its list from
+        // `SUPPORTED_CURRENCIES` and the two had drifted.
+        //
+        // The list written here is the UI's, in `src/lib/currency.ts`. GTQ and
+        // CRC were dropped because no `settings.currencies.*` label exists for
+        // them, so they were selectable only from the Admin settings page and
+        // unformattable everywhere else.
+        if current_version <= 17 {
+            // This step runs before `create_tables` finishes, so on a fresh
+            // database the table does not exist yet. Nothing to repair there --
+            // the seeder writes the list below -- and letting the bare UPDATE
+            // throw would abort the whole init.
+            let table_exists: bool = conn.query_row(
+                "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'application_settings')",
+                [],
+                |row| row.get(0),
+            )?;
+            if table_exists {
+                conn.execute(
+                    "UPDATE application_settings
+                        SET options = '{\"options\":[\"BOB\",\"USD\",\"EUR\",\"MXN\",\"COP\",\"ARS\",\"CLP\",\"PEN\",\"UYU\",\"PYG\",\"GBP\",\"CHF\",\"JPY\",\"BRL\"]}'
+                      WHERE key = 'currency'
+                        AND (options IS NULL OR options NOT LIKE '%BOB%')",
+                    [],
+                )?;
+            }
         }
 
         conn.execute_batch("PRAGMA foreign_keys=ON;")?;
@@ -2075,6 +2112,92 @@ mod tests {
     }
 
     // ── FK constraint remains active after migration ─────────────────
+
+    // ── v17 -> v18: currency options column ────────────────────────────
+
+    /// Reads the currency row's options the way `validate_value` does.
+    fn currency_options(conn: &Connection) -> String {
+        conn.query_row(
+            "SELECT options FROM application_settings WHERE key = 'currency'",
+            [],
+            |row| row.get::<_, Option<String>>(0),
+        )
+        .unwrap()
+        .unwrap_or_default()
+    }
+
+    #[test]
+    fn migration_v17_to_v18_adds_bob_to_the_currency_options() {
+        let td = TestDb::new();
+        let path = td.path.to_str().unwrap();
+
+        // Reproduce the state an installation created before the seeder was
+        // edited is in: initialised, then the options column put back to the
+        // original six-code list and the version rewound to 17. The row already
+        // exists, so `INSERT OR IGNORE` would never have updated it.
+        init_database(path).unwrap();
+        {
+            let conn = Connection::open(path).unwrap();
+            conn.execute_batch(
+                "UPDATE application_settings
+                    SET options = '{\"options\":[\"USD\",\"MXN\",\"EUR\",\"GTQ\",\"CRC\",\"COP\"]}'
+                  WHERE key = 'currency';
+                 PRAGMA user_version=17;",
+            )
+            .unwrap();
+        }
+
+        let conn = init_database(path).unwrap();
+        let options = currency_options(&conn);
+        assert!(
+            options.contains("BOB"),
+            "migration must add BOB to the allowed currencies, got {options}"
+        );
+        // The codes the UI offers must all be accepted, or the selector offers
+        // codes the backend refuses.
+        for code in ["USD", "EUR", "MXN", "COP", "GBP", "JPY", "BRL"] {
+            assert!(
+                options.contains(code),
+                "migration must keep {code} selectable, got {options}"
+            );
+        }
+    }
+
+    #[test]
+    fn seeded_currency_options_match_the_frontend_currency_list() {
+        // `SUPPORTED_CURRENCIES` in src/lib/currency.ts. The two have to agree:
+        // the selector is built from that file and the backend validates against
+        // this column, so a drift is a currency the user can pick and not save.
+        const FRONTEND: [&str; 14] = [
+            "BOB", "USD", "EUR", "MXN", "COP", "ARS", "CLP", "PEN", "UYU", "PYG", "GBP",
+            "CHF", "JPY", "BRL",
+        ];
+
+        let td = TestDb::new();
+        let conn = td.conn();
+        let options = currency_options(&conn);
+        for code in FRONTEND {
+            assert!(
+                options.contains(&format!("\"{code}\"")),
+                "seeded options must allow {code}, got {options}"
+            );
+        }
+    }
+
+    #[test]
+    fn migration_leaves_an_already_current_currency_row_alone() {
+        let td = TestDb::new();
+        let path = td.path.to_str().unwrap();
+        let before = {
+            let conn = init_database(path).unwrap();
+            let options = currency_options(&conn);
+            conn.execute_batch("PRAGMA user_version=17;").unwrap();
+            options
+        };
+
+        let conn = init_database(path).unwrap();
+        assert_eq!(currency_options(&conn), before);
+    }
 
     #[test]
     fn fk_enforced_after_migration() {

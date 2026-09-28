@@ -1795,7 +1795,7 @@ function buildMockData(theme: string): DataMap {
   const appSettings = [
     { category: "general", key: "store_name", value: "InventoryGear", settingType: "string", description: "Nombre de la tienda", isSystem: true },
     { category: "general", key: "store_logo", value: "", settingType: "string", description: "URL del logotipo", isSystem: true },
-    { category: "general", key: "currency", value: "MXN", settingType: "select", description: "Moneda predeterminada", options: JSON.stringify(["USD", "MXN", "EUR", "GTQ", "CRC", "COP"]), isSystem: true },
+    { category: "general", key: "currency", value: "MXN", settingType: "select", description: "Moneda predeterminada", options: JSON.stringify(["BOB", "USD", "EUR", "MXN", "COP", "ARS", "CLP", "PEN", "UYU", "PYG", "GBP", "CHF", "JPY", "BRL"]), isSystem: true },
     { category: "general", key: "timezone", value: "America/Mexico_City", settingType: "string", description: "Zona horaria", isSystem: true },
     { category: "general", key: "language", value: "es", settingType: "select", description: "Idioma por defecto", options: JSON.stringify({ options: ["es", "en"] }), isSystem: true },
     { category: "theme", key: "theme", value: "system", settingType: "select", description: "Tema por defecto", options: JSON.stringify({ options: ["light", "dark", "system"] }), isSystem: true },

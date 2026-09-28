@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+### Settings — Boliviano was rejected by the currency selector
+- Choosing *Boliviano (Bs)* in the system-currency card failed with
+  `Value 'BOB' is not one of the allowed options`, then rolled the selector back
+- The allowed-currency list is not hardcoded: the backend reads it from the
+  `currency` row's `options` column, and no migration had ever updated that
+  column. `seed_application_settings` inserts with `INSERT OR IGNORE`, so adding
+  BOB to the seeder in Milestone 18 could never reach an existing installation —
+  the row was already there and the stale list survived. The Milestone 18 note
+  "validator now accepts it" was inaccurate; the validator was never changed
+- Schema v17 → v18 rewrites the list on existing databases, and the seeder now
+  matches the UI
+- Also fixes the mirror-image failure that was live on *every* installation: the
+  UI offered 14 currencies while the backend allowed 7, so ARS, CLP, PEN, UYU,
+  PYG, GBP, CHF, JPY and BRL were all selectable and all refused. GTQ and CRC
+  were backend-only, selectable from Admin → Settings with no label to render
+  them, and are dropped
+- Bumping the schema version narrowed the additive-migration window, which would
+  have pushed v13 installations onto the legacy `DROP TABLE` path and destroyed
+  their products. The window was widened to keep v13 additive
+- The migration also has to tolerate a missing `application_settings` table,
+  because `create_tables` migrates before it finishes creating tables
+- Docs: bug log entry with the full investigation
+
 ### Users — required-field validation when creating an account
 - Both account-creation screens (**Admin → Users** and **Empleados**) now validate
   before saving and show the message **on the field**, in the field's own language,
