@@ -270,3 +270,25 @@ administrator action recreates the initial data.
 - [ ] Live app check: run Scenarios A–D from the checklist in `docs-site/admin/database.md`
 - [ ] Decide whether the pre-reset backup naming (`inventory-gear-backup-…sqlite`)
       should match the manual-backup convention (`inventory_gear_….db`)
+
+## Employees Page — Working Add/Edit (2026-09-28)
+
+Feature status: **implemented on `fix/empleado-add-edit`, pending review + live test, then merge.**
+
+The Employees screen was a static mock (hardcoded rows, disabled "Add" button,
+no edit action). It is now a real user-management screen backed by the existing
+`admin.users.*` commands:
+
+### Status
+- [x] Rows load from `get_admin_users` (search, 1×200); stats cards (total/active/roles)
+      computed from live data; search debounced like the customers page
+- [x] **Add employee**: dialog form (username, full name, email, phone, role) →
+      `create_admin_user` with the shared `CHANGEPASSWORD` default + `created_by`
+      set to the logged-in user; the change-password notice explains the default
+- [x] **Edit employee**: same dialog pre-filled via `update_admin_user`
+- [x] Enable/disable via `archive_admin_user` / `restore_admin_user`
+- [x] Page wrapped in `PermissionGuard admin.users.manage` (owner/administrator)
+- [x] i18n: `employees.*` keys added in `en`/`es` (valid, no duplicates)
+- [x] Validation: `tsc --noEmit`, scoped ESLint, `i18n:check` all clean
+- [ ] Live app test: add/update/disable an employee, sign out/in as the new user
+- [ ] Merge to `main` after testing

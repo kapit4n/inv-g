@@ -45,6 +45,39 @@ There is no password step when creating a user:
 | Reset Password | Set new password |
 | Change Role | Assign different role |
 
+## Employees Screen
+
+The **Empleados** page (sidebar → **Empleados**, route `/employees`) is the
+same user-management feature surfaced alongside the shop, restricted to the same
+`admin.users.manage` gate as **Admin → Users**.
+
+### What is it?
+
+A screen to manage staff accounts (employees) without leaving the operational
+area of the app. It is backed by the same accounts, roles, and permission rules
+as **Admin → Users**.
+
+### How to Access
+
+**Sidebar → Empleados**. Only **Owner** and **Administrator** roles see a
+functional page; anyone without `admin.users.manage` sees an access-denied
+message (and the backend rejects any such request).
+
+### How to Use
+
+1. **Add employee** — click the button in the header and fill in **Username**,
+   **Full name**, **Email** (required) plus **Phone** and **Role** (optional).
+   New accounts start with the shared default password **`CHANGEPASSWORD`**
+   and must replace it on their first login (see [Default
+   Password](#default-password)).
+2. **Edit employee** — use the edit (pencil) icon on a row to change the same
+   fields via the pre-filled dialog.
+3. **Enable / disable** — use the cross / recycle icon to disable (archive) or
+   re-enable an account. Disabled accounts cannot sign in but are never deleted.
+
+The header cards show the current totals (total employees, active accounts,
+number of roles). Search filters by username, email, or full name.
+
 ## Roles
 
 ### How to Access

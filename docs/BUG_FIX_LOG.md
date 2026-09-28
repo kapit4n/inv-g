@@ -6,6 +6,40 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-28 — "Add/Edit employee" did nothing on the Employees page
+
+**Symptom:** On **Empleados**, the **Add employee** button was disabled and the
+rows had no edit action; the screen showed the same four hardcoded rows no
+matter what was in the database. `create_admin_user` / `update_admin_user`
+existed fully (backend + tauri wrapper + types) and worked from **Admin →
+Users**, so the backend was not at fault.
+
+**Investigation:** The page `src/features/employees/pages/employees-page.tsx`
+was a static mock: it rendered a constant local `fakeUsers` array, never called
+`getAdminUsers`, and rendered the disabled button plus plain-text rows directly.
+The wrapper (`src/lib/tauri.ts`), the types (`AdminUser`, `CreateUserInput`,
+`UpdateUserInput`), and the reference implementation (`admin-users-page.tsx` /
+`admin-user-form-page.tsx`) were all already in place and untouched, which is
+why the IPC contract count did not change.
+
+**Fix:** Replaced the mock with a real CRUD screen on top of the existing
+`admin.user.*` commands: list/search from `get_admin_users` (page 1 × 200),
+stats computed from real data, Add/Edit shared dialog (username, full name,
+email, phone, role) calling `create_admin_user` (new accounts get the standard
+`CHANGEPASSWORD` default + forced change, `created_by` = logged-in user) or
+`update_admin_user`, and enable/disable via `archive_admin_user` /
+`restore_admin_user`. The page is wrapped in `PermissionGuard admin.users.manage`
+(owner/administrator), matching the backend gate. i18n keys added in `en`/`es`.
+
+**Affected files:** `src/features/employees/pages/employees-page.tsx`,
+`src/i18n/locales/en/employees.json`, `src/i18n/locales/es/employees.json`,
+`docs/IMPLEMENTATION_STATUS.md`.
+
+**Commit:** `806af35` on branch `fix/empleado-add-edit` (pending live test →
+merge to `main`).
+
+---
+
 ### 2026-09-28 — NSIS installer seeded demo users instead of the configured accounts
 
 **Symptom:** A freshly installed alpha.5 Windows build could not log in with

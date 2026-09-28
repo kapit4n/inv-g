@@ -17,5 +17,22 @@
   "administrator": "Administrador",
   "salesAssociate": "Asociado de Ventas",
   "inventoryManager": "Gerente de Inventario",
-  "warehouseStaff": "Personal de Almacén"
+  "warehouseStaff": "Personal de Almacén",
+  "username": "Nombre de Usuario",
+  "fullName": "Nombre Completo",
+  "phone": "Teléfono",
+  "selectRole": "Seleccione un rol",
+  "defaultPasswordNotice": "Los empleados nuevos comienzan con la contraseña compartida CHANGEPASSWORD y deben cambiarla la primera vez que inicien sesión.",
+  "searchEmployees": "Buscar empleados...",
+  "noEmployees": "No se encontraron empleados",
+  "noPermission": "No tienes permiso para gestionar empleados.",
+  "loadFailed": "No se pudieron cargar los empleados",
+  "created": "Empleado creado",
+  "updated": "Empleado actualizado",
+  "enabled": "Empleado habilitado",
+  "disabled": "Empleado deshabilitado",
+  "enable": "Habilitar",
+  "disable": "Deshabilitar",
+  "lastLogin": "Último Inicio de Sesión",
+  "requiredFields": "Nombre de usuario, nombre completo y correo son obligatorios."
 }
