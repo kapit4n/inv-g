@@ -366,6 +366,8 @@ pub fn run() {
             commands::admin::check_database_integrity,
             commands::admin::get_migration_status,
             commands::admin::reindex_database,
+            commands::admin::get_sales_reset_preview,
+            commands::admin::reset_sales,
             commands::admin::get_printers,
             commands::admin::create_printer,
             commands::admin::update_printer,

@@ -114,6 +114,7 @@ export const secondaryNavigation: NavItemConfig[] = [
       { nameKey: "admin.backups", href: "/admin/backups", icon: HardDrive },
       { nameKey: "admin.restore", href: "/admin/restore", icon: RotateCcw },
       { nameKey: "admin.database", href: "/admin/database", icon: Database },
+      { nameKey: "admin.salesReset", href: "/admin/sales-reset", icon: RotateCcw },
       { nameKey: "admin.diagnostics", href: "/admin/diagnostics", icon: Activity },
       { nameKey: "admin.audit", href: "/admin/audit", icon: FileText },
       { nameKey: "admin.updates", href: "/admin/updates", icon: Wifi },

@@ -44,7 +44,7 @@ import {
   AdminDashboardPage, AdminUsersPage, AdminUserFormPage,
   AdminRolesPage, AdminRoleFormPage, AdminSettingsPage,
   AdminPrintersPage, AdminDevicesPage, AdminBackupsPage,
-  AdminRestorePage, AdminDatabasePage, AdminDiagnosticsPage,
+  AdminRestorePage, AdminDatabasePage, AdminSalesResetPage, AdminDiagnosticsPage,
   AdminAuditPage, AdminUpdatesPage, AdminLicensePage,
   AdminMaintenancePage, AdminAboutPage,
 } from "@/features/admin"
@@ -174,6 +174,7 @@ export const router = createBrowserRouter([
       { path: "admin/backups", element: <AdminBackupsPage /> },
       { path: "admin/restore", element: <AdminRestorePage /> },
       { path: "admin/database", element: <AdminDatabasePage /> },
+      { path: "admin/sales-reset", element: <AdminSalesResetPage /> },
       { path: "admin/diagnostics", element: <AdminDiagnosticsPage /> },
       { path: "admin/audit", element: <AdminAuditPage /> },
       { path: "admin/updates", element: <AdminUpdatesPage /> },

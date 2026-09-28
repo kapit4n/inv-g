@@ -10,6 +10,7 @@ import type {
   DiagnosticCheck, DiagnosticReport,
   AuditEvent, AuditFilter,
   SystemUpdate, LicenseInfo, MaintenanceLog,
+  SalesResetPreview, SalesResetResult,
 } from "@/types"
 import type {
   InventoryCategory, Brand, Manufacturer, InventorySupplier,
@@ -1378,6 +1379,16 @@ export async function getMigrationStatus(): Promise<MigrationInfo[]> {
 
 export async function reindexDatabase(): Promise<string> {
   return invoke<string>("reindex_database")
+}
+
+// ── Admin Sales Reset ──
+
+export async function getSalesResetPreview(): Promise<SalesResetPreview> {
+  return invoke<SalesResetPreview>("get_sales_reset_preview")
+}
+
+export async function resetSales(confirm: string, createdBy?: number): Promise<SalesResetResult> {
+  return invoke<SalesResetResult>("reset_sales", { confirm, createdBy })
 }
 
 // ── Admin Diagnostics ──

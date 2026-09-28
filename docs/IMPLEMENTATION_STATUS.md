@@ -181,3 +181,25 @@ Feature marker: **implemented, not yet run in the app.**
 - [ ] Automated tests for config validation, the seed and the forced-change flow
 - [ ] Live app check: build the installer and confirm a configured user is forced to change
 - [ ] Decide whether `installer-config.json` stays in version control (plaintext passwords)
+
+## Admin Reset-All-Sales Feature (2026-09-28)
+
+Feature marker: **implemented, pending live app check.**
+
+### Status
+- [x] Backend `reset_sales` command under `commands/admin/reset.rs`: preview + reset,
+      single transaction (`BEGIN IMMEDIATE`), deletes sales (cascade items/payments/
+      receipts), quotes, held sales, cash-register sessions, daily closings, and
+      sale/refund inventory movements; warranties auto-nulled via FK `SET NULL`
+- [x] Confirmation token: server rejects unless the literal `RESET` is passed
+- [x] Flag-gated: `enable_sales_reset` application setting (new `admin` group, default
+      `false`, hidden) — backend `sales_reset_enabled()` fails closed
+- [x] `reset_sales` audit entry (`severity=warning`) written on success
+- [x] Seed row for `enable_sales_reset`; registered invoke handlers `get_sales_reset_preview` / `reset_sales`
+- [x] Frontend page `/admin/sales-reset` with blast-radius preview, kept-items list,
+      permission-gated confirm card (`admin.database.manage`), exact-`RESET` gate,
+      and post-reset query invalidation (sales, closeouts, cash register, dashboard, stock)
+- [x] Sidebar entry filtered by the flag; nav + route + i18n (en/es)
+- [x] Tests: 5 Rust (`cargo test reset`) + 5 Vitest page tests
+- [x] Docs: `docs-site/admin/sales-reset.md`, settings.md (Admin group), sidebar, CHANGELOG
+- [ ] Live app check: enable the flag in Admin → Settings → Admin, open the page, run a reset

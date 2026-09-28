@@ -35,6 +35,7 @@ every value on that page in one operation.
 | Taxes | Default tax rate, tax-inclusive pricing, tax ID on invoices |
 | Notifications | Which alerts you get, and their sound |
 | Business | Rows per page, **global profit percentage**, active modules |
+| Admin | **Reset all sales tool** visibility |
 
 ## The Global Profit Percentage
 
@@ -86,6 +87,14 @@ the module and blocks its pages; it does not delete anything, and no record is
 lost. Turning it back on restores full access. Sales is treated as the primary
 module of the app, so switching it off is a deliberate choice.
 :::
+
+## The Admin Group
+
+**Admin → Reset all sales tool** (`enable_sales_reset`) shows or hides the
+[Reset all sales](/admin/sales-reset) page under **Administration**. It is off
+by default, and unlike the module switches it **fails closed**: the page and its
+sidebar entry only exist while the flag is on. The action also requires the
+**Database management** permission regardless of the flag.
 
 ## How to Modify
 

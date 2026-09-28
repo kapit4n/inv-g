@@ -1934,3 +1934,32 @@ export interface MaintenanceLog {
   createdByName?: string
   createdAt: string
 }
+
+export interface SalesResetPreview {
+  sales: number
+  salesRevenue: number
+  saleItems: number
+  salePayments: number
+  receipts: number
+  quotes: number
+  quoteItems: number
+  heldSales: number
+  heldSaleItems: number
+  cashRegisterSessions: number
+  dailyClosings: number
+  inventoryMovements: number
+}
+
+export interface SalesResetResult {
+  deletedSales: number
+  deletedSaleItems: number
+  deletedSalePayments: number
+  deletedReceipts: number
+  deletedQuotes: number
+  deletedQuoteItems: number
+  deletedHeldSales: number
+  deletedHeldSaleItems: number
+  deletedCashRegisterSessions: number
+  deletedDailyClosings: number
+  deletedInventoryMovements: number
+}

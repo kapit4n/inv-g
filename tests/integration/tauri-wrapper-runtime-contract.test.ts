@@ -113,7 +113,7 @@ describe("src/lib/tauri.ts IPC contract", () => {
   it("exposes only wrapper functions", () => {
     const nonFunctions = Object.entries(tauri).filter(([, value]) => typeof value !== "function")
     expect(nonFunctions).toEqual([])
-    expect(wrappers.length).toBe(334)
+    expect(wrappers.length).toBe(336)
   })
 
   it("derives every command name mechanically, except reviewed exceptions", () => {

@@ -9,6 +9,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **Admin → Reset All Sales.** A hidden, opt-in tool that erases every selling
+  record (sales with their items/payments/receipts, quotes, held sales, cash
+  register sessions, daily closings, and sale/refund stock movements) while
+  keeping clients, products, stock quantities, suppliers, purchases, credit
+  accounts and warranties intact. Gated by the `enable_sales_reset` flag in the
+  new **Admin** settings group (off by default, fails closed) and by the
+  `admin.database.manage` permission; requires typing `RESET` to run. Backend
+  runs in one transaction and writes a `reset_sales` audit entry; the page shows
+  a live preview of the blast radius and invalidates every selling-derived view
+  afterwards. Five backend and five frontend tests added.
 - **`npm run second-launch`** (scripts/second-launch.sh) boots the app against
   the database a previous `first-launch.sh` created, without resetting or
   re-seeding anything: users and their already-changed passwords are kept, so

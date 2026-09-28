@@ -1,7 +1,6 @@
 {
   "title": "Administration",
   "description": "System administration and configuration tools",
-
   "users": "Users",
   "roles": "Roles",
   "settings": "Settings",
@@ -10,7 +9,6 @@
   "database": "Database",
   "diagnostics": "Diagnostics",
   "audit": "Audit Center",
-
   "sidebar.dashboard": "Dashboard",
   "sidebar.users": "Users",
   "sidebar.roles": "Roles",
@@ -28,7 +26,6 @@
   "sidebar.maintenance": "Maintenance",
   "sidebar.about": "About",
   "sidebar.errorReporting": "Error Reporting",
-
   "dashboard.title": "Administration Dashboard",
   "dashboard.description": "System overview and key metrics at a glance",
   "dashboard.activeUsers": "Active Users",
@@ -63,7 +60,6 @@
   "dashboard.viewAllErrors": "View All Errors",
   "dashboard.runDiagnostics": "Run Diagnostics",
   "dashboard.createBackup": "Create Backup",
-
   "users.title": "User Administration",
   "users.description": "Manage system users, accounts, and access",
   "users.list": "User List",
@@ -125,7 +121,6 @@
   "users.searchUsers": "Search users...",
   "users.selectRole": "Select a role",
   "users.selectStatus": "Select status",
-
   "roles.title": "Roles & Permissions",
   "roles.description": "Manage user roles and configure permissions",
   "roles.list": "Role List",
@@ -170,7 +165,6 @@
   "roles.editing": "Editing role #{{id}}",
   "roles.createNew": "Create a new role",
   "roles.copySuffix": "Copy",
-
   "settings.title": "Application Settings",
   "settings.description": "Configure system-wide application preferences",
   "settings.general": "General",
@@ -368,7 +362,6 @@
   "settings.keys.enable_purchasing.description": "Shows orders, receiving and suppliers",
   "settings.keys.enable_crm": "Enable CRM module",
   "settings.keys.enable_crm.description": "Shows customers, vehicles and reminders",
-
   "printers.title": "Printer Management",
   "printers.description": "Configure and manage connected printers",
   "printers.list": "Printer List",
@@ -413,7 +406,6 @@
   "printers.selectType": "Select printer type",
   "printers.selectConnection": "Select connection type",
   "printers.selectPaperSize": "Select paper size",
-
   "devices.title": "Device Management",
   "devices.description": "Manage hardware devices connected to the system",
   "devices.list": "Device List",
@@ -456,7 +448,6 @@
   "devices.deviceAdded": "Device added successfully",
   "devices.deviceUpdated": "Device updated successfully",
   "devices.deviceDeleted": "Device deleted successfully",
-
   "backups.title": "Backup Management",
   "backups.description": "Create and manage database backups",
   "backups.list": "Backup List",
@@ -517,7 +508,6 @@
   "backups.nextBackup": "Next Backup",
   "backups.totalBackups": "Total Backups",
   "backups.totalSize": "Total Size",
-
   "restore.title": "Database Restore",
   "restore.description": "Restore the database from a backup",
   "restore.preview": "Restore Preview",
@@ -552,7 +542,6 @@
   "restore.backupSize": "Backup Size",
   "restore.tablesCount": "Tables Count",
   "restore.recordsCount": "Records Count",
-
   "database.title": "Database Administration",
   "database.description": "Database statistics, maintenance, and optimization",
   "database.stats": "Database Statistics",
@@ -602,7 +591,6 @@
   "database.schemaVersion": "Schema Version",
   "database.maintenanceActions": "Maintenance Actions",
   "database.confirmVacuum": "Are you sure you want to vacuum the database?",
-
   "diagnostics.title": "System Diagnostics",
   "diagnostics.description": "Run system checks and diagnose issues",
   "diagnostics.runAll": "Run All Checks",
@@ -653,7 +641,6 @@
   "diagnostics.summary": "Summary",
   "diagnostics.issues": "Issues",
   "diagnostics.date": "Date",
-
   "audit.title": "Audit Center",
   "audit.description": "View and search system audit logs and events",
   "audit.timeline": "Audit Timeline",
@@ -699,7 +686,6 @@
   "audit.allSeverities": "All Severities",
   "audit.eventsToday": "Events Today",
   "audit.eventsThisWeek": "Events This Week",
-
   "updateCenter.title": "Update Center",
   "updateCenter.description": "Manage application updates and version information",
   "updateCenter.currentVersion": "Current Version",
@@ -733,7 +719,6 @@
   "updateCenter.stable": "Stable",
   "updateCenter.beta": "Beta",
   "updateCenter.alpha": "Alpha",
-
   "licensing.title": "Licensing",
   "licensing.description": "Manage your software license and activation",
   "licensing.key": "License Key",
@@ -776,7 +761,6 @@
   "licensing.pasteKey": "Paste your license key here",
   "licensing.confirmDeactivate": "Are you sure you want to deactivate the license?",
   "licensing.usersStores": "{{users}} users / {{stores}} stores",
-
   "maintenance.title": "Maintenance",
   "maintenance.description": "System maintenance tools and utilities",
   "maintenance.clearCache": "Clear Cache",
@@ -822,7 +806,6 @@
   "maintenance.operation": "Operation",
   "maintenance.duration": "Duration",
   "maintenance.date": "Date",
-
   "about.title": "About",
   "about.description": "Application information and credits",
   "about.version": "Version",
@@ -853,7 +836,6 @@
   "about.resources": "Resources",
   "about.hostname": "Hostname",
   "about.desktopDescription": "Desktop Inventory Management",
-
   "errorReporting.title": "Error Reporting",
   "errorReporting.description": "View and manage application errors and exceptions",
   "errorReporting.list": "Error Log",
@@ -893,7 +875,6 @@
   "errorReporting.reportSent": "Error report sent successfully",
   "errorReporting.copyDetails": "Copy Error Details",
   "errorReporting.copied": "Copied to clipboard",
-
   "common.actions": "Actions",
   "common.search": "Search",
   "common.filter": "Filter",
@@ -912,5 +893,44 @@
   "common.error": "An error occurred",
   "common.success": "Operation completed successfully",
   "common.required": "This field is required",
-  "common.unsavedChanges": "You have unsaved changes"
+  "common.unsavedChanges": "You have unsaved changes",
+  "salesReset.title": "Reset all sales",
+  "salesReset.description": "Remove all selling records and start selling again from a clean slate.",
+  "salesReset.warning": "This action permanently deletes selling data.",
+  "salesReset.warningHint": "Clients, products, suppliers, stock quantities and credit accounts are NOT affected. Make a backup first if you are not sure.",
+  "salesReset.removedTitle": "Will be removed",
+  "salesReset.keptTitle": "Will NOT be touched",
+  "salesReset.actionTitle": "Confirm reset",
+  "salesReset.sales": "Sales",
+  "salesReset.saleItems": "Sale items",
+  "salesReset.salePayments": "Sale payments",
+  "salesReset.receipts": "Receipts",
+  "salesReset.quotes": "Quotes",
+  "salesReset.heldSales": "Held sales",
+  "salesReset.cashRegisterSessions": "Cash register sessions",
+  "salesReset.dailyClosings": "Daily closings",
+  "salesReset.inventoryMovements": "Sale/refund stock movements",
+  "salesReset.salesRevenue": "Sales revenue removed",
+  "salesReset.kept": [
+    "Clients and their vehicles, notes and reminders",
+    "Products, categories, brands and stock quantities",
+    "Suppliers and purchase orders",
+    "Credit accounts and balances",
+    "Warranties (sale link removed)",
+    "Users, roles and settings"
+  ],
+  "salesReset.confirmHint": "To confirm, type RESET in the field below.",
+  "salesReset.confirmLabel": "Confirmation text",
+  "salesReset.action": "Reset all sales",
+  "salesReset.running": "Resetting…",
+  "salesReset.completed": "Reset completed",
+  "salesReset.success": "All selling data has been removed.",
+  "salesReset.error": "Could not reset sales",
+  "salesReset.previewError": "Could not load the reset preview",
+  "salesReset.disabled": "This tool is disabled. Enable the flag 'enable_sales_reset' in Admin > Settings to use it.",
+  "salesReset.noPermission": "You do not have permission to reset sales data.",
+  "settings.admin": "Admin",
+  "settings.admin.description": "Administration and system tools",
+  "settings.keys.enable_sales_reset": "Reset all sales tool",
+  "settings.keys.enable_sales_reset.description": "Show the 'Reset all sales' tool under Administration. Requires the database management permission."
 }

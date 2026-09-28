@@ -489,6 +489,7 @@ fn seed_application_settings(conn: &Connection) -> Result<()> {
         ("business", "enable_sales", "true", "boolean", "Enable sales module", None, None),
         ("business", "enable_purchasing", "true", "boolean", "Enable purchasing module", None, None),
         ("business", "enable_crm", "true", "boolean", "Enable CRM module", None, None),
+        ("admin", "enable_sales_reset", "false", "boolean", "Show the 'Reset all sales' admin tool", None, None),
     ];
 
     let mut sort_order: std::collections::HashMap<&str, i64> = std::collections::HashMap::new();
