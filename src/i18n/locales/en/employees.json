@@ -17,5 +17,22 @@
   "administrator": "Administrator",
   "salesAssociate": "Sales Associate",
   "inventoryManager": "Inventory Manager",
-  "warehouseStaff": "Warehouse Staff"
+  "warehouseStaff": "Warehouse Staff",
+  "username": "Username",
+  "fullName": "Full Name",
+  "phone": "Phone",
+  "selectRole": "Select a role",
+  "defaultPasswordNotice": "New employees start with the shared password CHANGEPASSWORD and must change it the first time they sign in.",
+  "searchEmployees": "Search employees...",
+  "noEmployees": "No employees found",
+  "noPermission": "You do not have permission to manage employees.",
+  "loadFailed": "Failed to load employees",
+  "created": "Employee created",
+  "updated": "Employee updated",
+  "enabled": "Employee enabled",
+  "disabled": "Employee disabled",
+  "enable": "Enable",
+  "disable": "Disable",
+  "lastLogin": "Last Login",
+  "requiredFields": "Username, full name and email are required."
 }
