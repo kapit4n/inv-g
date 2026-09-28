@@ -200,19 +200,22 @@ pub fn reset_to_initial_data_inner(
     // destructive phase only ever runs with a verified snapshot on disk.
     let backup_file = create_pre_reset_backup(conn, db_path, actor)?;
 
-    conn.execute_batch("BEGIN IMMEDIATE").map_err(|e| e.to_string())?;
+    // Suspended BEFORE the transaction begins: SQLite only honours the
+    // `foreign_keys` pragma when a transaction is opened, so a toggle inside it
+    // is a silent no-op. The preserved history tables still reference rows that
+    // are about to be deleted (e.g. `backup_history.created_by` -> users), so
+    // enforcement must be off for the destructive phase.
+    conn.execute_batch("PRAGMA foreign_keys = OFF").map_err(|e| e.to_string())?;
+    if let Err(e) = conn.execute_batch("BEGIN IMMEDIATE") {
+        let _ = conn.execute_batch("PRAGMA foreign_keys = ON");
+        return Err(e.to_string());
+    }
     let tx_result: std::result::Result<InitialDataResetResult, String> = (|| {
-        // The preserved history tables still reference rows we are about to
-        // delete (e.g. `backup_history.created_by` -> users), so foreign-key
-        // enforcement is suspended for the destructive phase and restored at
-        // the end of the transaction.
-        conn.execute_batch("PRAGMA foreign_keys = OFF").map_err(|e| e.to_string())?;
         let deleted_rows = delete_all_business_data(conn)?;
         // Let AUTOINCREMENT counters restart so re-seeded rows begin at the
         // same ids a fresh installation produces. No-op when `sqlite_sequence`
         // does not exist.
         let _ = conn.execute_batch("DELETE FROM sqlite_sequence");
-        conn.execute_batch("PRAGMA foreign_keys = ON").map_err(|e| e.to_string())?;
 
         seed_database_with_profile(conn, profile).map_err(|e| e.to_string())?;
 

@@ -6,6 +6,34 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-28 — Restore-Initial-Data reset failed with "FOREIGN KEY constraint failed"
+
+**Symptom:** `cargo test` failed 183 passed / 1 failed:
+`commands::admin::initial_data::tests::reset_wipes_business_data_and_restores_initial_state`
+panicked with `FOREIGN KEY constraint failed` from inside
+`reset_to_initial_data_inner`.
+
+**Investigation:** The reset wrapped its destructive phase in a transaction and
+switched foreign-key enforcement with `PRAGMA foreign_keys = OFF` / `= ON`
+**inside** that transaction. SQLite only applies the `foreign_keys` pragma when
+a transaction is *opened*; toggling it mid-transaction is a documented silent
+no-op. So the wipe actually ran with FK enforcement still ON, and the very first
+child-referencing delete (e.g. `customers` referencing rows, or children
+referencing `customers`) aborted the transaction with "FOREIGN KEY constraint
+failed" at the test's `.unwrap()`.
+
+**Fix:** Move `PRAGMA foreign_keys = OFF` **before** `BEGIN IMMEDIATE`, with a
+guard that re-enables enforcement if `BEGIN` fails. The restore to `= ON` after
+the transaction was already in place and now genuinely re-enables it (the PRAGMA
+is not transactional). FK stays off through delete → re-seed → audit insert,
+which is exactly the intended window because the preserved history tables hold
+dangling references until the re-seed completes.
+
+**Affected files:** `src-tauri/src/commands/admin/initial_data.rs`
+
+**Tests:** `reset_wipes_business_data_and_restores_initial_state` re-run green;
+full Rust suite 184 passed / 0 failed.
+
 ### 2026-09-28 — IPC wrapper-count assertion failed after Milestone 18
 
 **Symptom:** `npm run verify` failed in
