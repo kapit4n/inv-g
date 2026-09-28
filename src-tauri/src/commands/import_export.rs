@@ -2454,15 +2454,38 @@ mod tests {
 
     fn demo_db() -> Connection {
         let db = test_db();
+        // test_db() runs on the `empty` profile, whose seed now creates the
+        // mandatory default store ("Tienda Principal") as the lowest id. The
+        // demo warehouse and its location therefore cannot assume ids 1/1 —
+        // resolve them from the rows they reference or the import will reject
+        // the location as belonging to the wrong store.
+        let wid: i64 = db
+            .query_row(
+                "INSERT INTO warehouses (name, code, is_active) VALUES ('Almacén Principal', 'WH-001', 1)
+                 RETURNING id",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        let lid: i64 = db
+            .query_row(
+                "INSERT INTO storage_locations (warehouse_id, zone, aisle, shelf, bin, code, is_active)
+                 VALUES (?1, 'A', '01', 'A', '01', 'WH-001-A-01-A-01', 1)
+                 RETURNING id",
+                rusqlite::params![wid],
+                |r| r.get(0),
+            )
+            .unwrap();
         db.execute_batch(
             "INSERT INTO categories (name, is_active) VALUES ('Dirección', 1), ('Suspensión', 1);
              INSERT INTO brands (name, is_active) VALUES ('Toyota Genuine', 1), ('TRW', 1);
-             INSERT INTO suppliers (company_name, is_active) VALUES ('Autorepuestos Demo SRL', 1);
-             INSERT INTO warehouses (name, code, is_active) VALUES ('Almacén Principal', 'WH-001', 1);
-             INSERT INTO storage_locations (warehouse_id, zone, aisle, shelf, bin, code, is_active)
-             VALUES (1, 'A', '01', 'A', '01', 'WH-001-A-01-A-01', 1);
-             INSERT INTO products (name, sku, oem_number, internal_code, sale_price, cost_price, stock_quantity, warehouse_id, storage_location_id, is_active)
-             VALUES ('MUÑON DIREC. TOY COROLLA/IPSU 84/95', '860067', '860067', '860067', 35.0, 24.5, 4, 1, 1, 1);",
+             INSERT INTO suppliers (company_name, is_active) VALUES ('Autorepuestos Demo SRL', 1);",
+        )
+        .unwrap();
+        db.execute(
+            "INSERT INTO products (name, sku, oem_number, internal_code, sale_price, cost_price, stock_quantity, warehouse_id, storage_location_id, is_active)
+             VALUES ('MUÑON DIREC. TOY COROLLA/IPSU 84/95', '860067', '860067', '860067', 35.0, 24.5, 4, ?1, ?2, 1)",
+            rusqlite::params![wid, lid],
         )
         .unwrap();
         db

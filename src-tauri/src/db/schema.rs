@@ -1761,6 +1761,8 @@ mod tests {
                     created_at TEXT NOT NULL DEFAULT (datetime('now')),
                     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
                 );
+                CREATE TABLE warehouses (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, code TEXT);
+                CREATE TABLE roles (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT);
                 INSERT INTO products (name, sku, cost_price, sale_price) VALUES
                     ('Regular margin', 'V13-A', 24.5, 35.0),
                     ('Zero cost', 'V13-B', 0.0, 12.0),
@@ -1844,6 +1846,8 @@ mod tests {
                     profit_margin_pct REAL,
                     edited_price REAL
                 );
+                CREATE TABLE warehouses (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, code TEXT);
+                CREATE TABLE roles (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT);
                 INSERT INTO products (name, sku, cost_price, sale_price, profit_margin_pct, edited_price) VALUES
                     ('V14-A', 'V14-A', 20.0, 30.0, 50.0, NULL),
                     ('V14-B', 'V14-B', 10.0, 15.0, NULL, 15.0);

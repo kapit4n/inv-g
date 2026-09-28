@@ -413,9 +413,13 @@ mod tests {
     }
 
     #[test]
-    fn empty_profile_has_no_stores_and_no_capabilities() {
+    fn empty_profile_has_no_capabilities_and_a_single_default_store() {
+        // The `empty` profile seeds no stores of its own, but seeding since
+        // store management enforces "the app can always resolve a store", so it
+        // ends exactly one active default ("Tienda Principal"). What `empty`
+        // still guarantees is that it has none of the multi-store machinery.
         let db = test_db(PROFILE_EMPTY);
-        assert_eq!(store_count(&db), 0);
+        assert_eq!(store_count(&db), 1);
         assert!(!is_multi_store(&db));
         let caps = capabilities_for(&db);
         assert!(!caps.multi_store);
@@ -423,7 +427,7 @@ mod tests {
         assert!(!caps.store_management);
         assert!(!caps.store_transfers);
         assert!(!caps.cross_store_reports);
-        assert_eq!(default_store_id(&db), None);
+        assert!(default_store_id(&db).is_some());
     }
 
     #[test]

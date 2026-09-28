@@ -123,7 +123,16 @@ pub fn candidate_paths() -> Vec<PathBuf> {
         }
     }
 
-    paths.push(repo_root().join(CONFIG_FILE_NAME));
+    // The repository root exists so `tauri dev` and a fresh clone read the same
+    // config — but only outside the test profile. Under `cargo test` a developer
+    // checkout has this file on disk, and reading it would make every
+    // user-seeding test depend on whichever config happens to be checked out
+    // (a committed owner yields one user, `{"users": []}` yields none). Test
+    // binaries never carry the repo-root candidate, so seeding takes the
+    // built-in six-demo-user path every time.
+    if cfg!(not(test)) {
+        paths.push(repo_root().join(CONFIG_FILE_NAME));
+    }
     paths
 }
 

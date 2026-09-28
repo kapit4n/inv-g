@@ -6,6 +6,65 @@ Each entry records: date, symptom, root cause, fix, commit. This log is append-o
 
 ---
 
+### 2026-09-27 — Six Rust tests failed in CI
+
+**Symptom:** `cargo test` in CI: 162 passed, 6 failed — `fresh_db_seeds_users`
+("Expected at least 6 seed users, got 1"), `migration_from_old_version_with_fk_linked_data`
+("Should have seeded users after migration"), `empty_profile_has_no_stores_and_no_capabilities`
+(`left: 1, right: 0` on the store count), the two additive-migration tests
+(`migration_from_previous_version_is_additive_and_preserves_prices`,
+`migration_v14_to_v15_adds_equivalents_and_preserves_prices`, both "no such table:
+warehouses"), and `test_execute_replace_sets_absolute_stock_and_logs_movement`
+("La ubicación 'WH-001-A-01-A-01' no pertenece al almacén seleccionado").
+
+**Root cause 1 — test binaries read the developer's live config.** The other
+half of the config-dependency the previous entry flagged: `installer_config::resolve_path`
+falls through to the repo root, so the committed config (one owner, `jhona`)
+made every seeding path create one user instead of the six built-in demo
+accounts. Two tests asserted the demo count and failed; swap in `{"users": []}`
+and the same two tests fail with *zero* users. Test results were a function of
+whichever config happened to be checked out, not of the code under test.
+
+**Root cause 2 — the default-store invariant contradicted two tests.** Store
+management introduced `ensure_default_store`, which runs on every startup and
+creates "Tienda Principal" when no warehouse exists. The `empty` profile now ends
+with exactly one store, so `empty_profile_has_no_stores_and_no_capabilities`
+(asserting zero stores) broke. Worse for the import tests: `demo_db()` seeds on
+the empty profile and *assumed* its inserted `WH-001` warehouse was id 1 — but it
+was id 2, after Tienda Principal. The demo location was attached to warehouse 1
+(Tienda Principal), so the import validator correctly rejected `WH-001-A-01-A-01`
+as not belonging to the selected warehouse. The demo catalog itself is fine; the
+test fixture encoded a pre-store-management id layout.
+
+**Root cause 3 — migration fixtures were incomplete for the current window.**
+The replayed-additive window spans v13→v17: v13→v14 adds pricing columns to
+`products`, v14→v15 creates `product_equivalents`, v15→v16 runs
+`ALTER TABLE warehouses ADD COLUMN is_default`, and v16→v17 runs
+`ALTER TABLE roles ADD COLUMN quick_login_enabled`. The two fixtures created only
+`products`, so the replay died at the v15→v16 step with "no such table:
+warehouses" — they were written when the window stopped at v15.
+
+**Fix:**
+1. `candidate_paths()` omits the repository-root candidate when compiled as a
+   test (`cfg!(not(test))`). The environment variable and executable-dir
+   candidates (used by a genuine bundled resource) are untouched, so
+   `tauri dev`/fresh clones behave exactly as before; the test binary simply
+   never sees the working tree's config, and seeding deterministically takes the
+   six-demo-user path.
+2. The empty-profile test now asserts the real contract — one active *default*
+   store that the store-management invariant guarantees, and none of the
+   multi-store capabilities — and `demo_db()` resolves its warehouse and
+   location ids via `INSERT ... RETURNING id` instead of assuming 1/1.
+3. Both migration fixtures create the `warehouses` and `roles` tables (the
+   minimal real v13/v14 shape) before the replay, so the v15→v16 and v16→v17
+   steps apply.
+
+**Affected files:** `src-tauri/src/installer_config.rs`, `commands/business.rs`,
+`commands/import_export.rs`, `db/schema.rs`. Suite is 168/168 Rust + 1631/1631
+vitest green; `npm run verify` passes end to end.
+
+---
+
 ### 2026-09-27 — The CI test suite was red before the branch was touched
 
 **Symptom:** `ci.yml` failed on 4 vitest tests no branch change had anything to do
@@ -42,11 +101,11 @@ page was correct; only the test double was stale.
 `tests/unit/components/sales-customers-page.test.tsx` (coverage had also dropped
 below the vitest thresholds because the sales page was the only uncovered module).
 
-**Not fixed, decision pending:** `cargo test` still reads the real
-`installer-config.json` from the repo root, so Rust test results depend on the
+**Not fixed, decision pending:** `cargo test` still read the real
+`installer-config.json` from the repo root, so Rust test results depended on the
 working tree (`fresh_db_seeds_users` asserts ≥6 users and fails whenever the
-committed config lists fewer). Root-cause fix is to point the suite at a fixed
-test fixture, independent of the working tree.
+committed config lists fewer). That and the other Rust failures are resolved in
+the entry below.
 
 ---
 

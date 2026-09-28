@@ -9,6 +9,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Fixed
+- **`cargo test` is deterministic again.** Test binaries no longer read the
+  developer's live `installer-config.json` from the repo root (`cfg!(not(test))`
+  drops that candidate), so user-seeding tests always use the built-in demo
+  accounts no matter which config is checked out. Three further stale contracts
+  were corrected: the empty profile now always owns one default store (the
+  store-management invariant), the import test fixture resolves its warehouse and
+  location ids instead of assuming 1/1, and the two additive-migration fixtures
+  create the `warehouses` and `roles` tables the v15→v17 replay now touches.
+  Rust suite is 168/168.
 - **The four failing CI vitest tests now pass.** The IPC runtime-contract test
   asserted a stale wrapper count (327; the module had grown to 334 with the
   store-management and installer-config commands) and the settings-page test
