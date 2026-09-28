@@ -1963,3 +1963,28 @@ export interface SalesResetResult {
   deletedDailyClosings: number
   deletedInventoryMovements: number
 }
+
+export interface InitialDataPreview {
+  users: number
+  roles: number
+  permissions: number
+  products: number
+  warehouses: number
+  customers: number
+  sales: number
+  purchaseOrders: number
+  quotes: number
+  inventoryMovements: number
+  backupCount: number
+}
+
+export interface InitialDataResetResult {
+  backupFile: string
+  deletedRows: number
+  usersRestored: number
+  rolesRestored: number
+  productsRestored: number
+  warehousesRestored: number
+}
+
+export const INITIAL_DATA_CONFIRM_TEXT = "RESTAURAR"

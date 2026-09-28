@@ -231,3 +231,42 @@ forced first-login change.
 - [ ] Live app check: log in as a non-administrator and confirm the Users link
       and routes are hidden, then create a user and log in with `CHANGEPASSWORD`
       to confirm the forced change screen appears
+
+## Database Lifecycle — First-Launch Initialization & Restore-Initial-Data (2026-09-28)
+
+Feature status: **implemented, pending live app check.**
+
+Completes the database lifecycle guarantees: first launch initializes and seeds,
+restarts and updates never re-seed or delete, and only an explicit, verified
+administrator action recreates the initial data.
+
+### Status
+- [x] First-launch marker `database_initialized` written into the legacy `settings`
+      table on every boot and after a reset (never surfaced in the settings UI);
+      the tier-1 seed still only runs when `users` is empty, so updates never re-seed
+- [x] Seeds Bolivian defaults: currency value `BOB` + `BOB` added to the allowed
+      currency options (both legacy `settings` and `application_settings`), so the
+      settings validator accepts it
+- [x] Backend `commands/admin/initial_data.rs`: `get_initial_data_reset_preview` +
+      `reset_to_initial_data`, gated server-side on `admin.database.manage` and the
+      literal confirm token `RESTAURAR`
+- [x] Automatic pre-reset backup (`inventory-gear-backup-<timestamp>.sqlite` in the
+      backups folder) with checksum + `backup_history` record; a failed backup
+      aborts the reset
+- [x] Transactional wipe: `PRAGMA foreign_keys=OFF` → DELETE from every data table
+      (schema kept, `backup_history`/`restore_history`/`audit_logs` preserved) →
+      re-enable FK → full re-seed via the existing `seed_database_with_profile`; on
+      failure everything rolls back
+- [x] Reset recorded in the audit trail; accounts are recreated as on first launch
+      (installer-config users or the six demo accounts), `password_change_required`
+      re-armed, so the acting session is invalidated deliberately
+- [x] Frontend: "Restaurar datos iniciales" card on Admin → Database with blast-radius
+      preview, two-step confirmation (dialog + typed `RESTAURAR`), success then forced
+      sign-out to `/login`; tauri wrappers + typings + i18n (en/es)
+- [x] Rust: 4 unit tests (preview, confirm-token gate, permission gate, full reset
+      incl. backup-on-disk + history preservation); `cargo check --tests` green
+- [x] Docs: `docs/CHANGELOG.md`, `docs-site/admin/database.md` (lifecycle + restore
+      section + manual checklist Scenarios A–D)
+- [ ] Live app check: run Scenarios A–D from the checklist in `docs-site/admin/database.md`
+- [ ] Decide whether the pre-reset backup naming (`inventory-gear-backup-…sqlite`)
+      should match the manual-backup convention (`inventory_gear_….db`)

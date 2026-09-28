@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased]
+
+### Database Lifecycle — First-Launch Initialization & Restore-Initial-Data
+- Database is initialized once (schema + seed only when there are no users); restarts and
+  updates never re-seed or delete data; `database_initialized` marker recorded in settings
+- New admin-only **Restaurar datos iniciales** tool on Admin → Database: blast-radius
+  preview, two-step confirmation (`RESTAURAR` token + dialog), auto pre-reset backup
+  (`inventory-gear-backup-<timestamp>.sqlite` with checksum + history record) that keeps
+  the previous state restorable, then a transactional wipe + full first-launch re-seed;
+  operator is signed out afterwards because the acting account no longer exists
+- Backend gated on `admin.database.manage` permission; audit entry written
+- Seeds Bolivian defaults: currency `BOB` value + option (validator now accepts it)
+- Docs: docs-site Admin → Database lifecycle + restore section, manual checklist Scenarios A–D
+
 ## [0.11.0] - 2026-07-29
 
 ### Milestone 11: Administration Frontend

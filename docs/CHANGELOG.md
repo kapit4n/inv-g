@@ -9,6 +9,21 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **Database lifecycle: first-launch initialization & "Restore initial data."** The
+  database is initialized exactly once — schema migrations on startup plus an
+  idempotent seed that only runs while there are no users — and restarting or
+  updating the app never re-seeds or deletes data. A `database_initialized`
+  marker in the settings table records the completed initialization. An
+  admin-only **Restaurar datos iniciales** tool (Admin → Database,
+  `admin.database.manage` permission) wipes every data table inside a
+  transaction and re-runs the first-launch seed, after first writing an
+  automatic pre-reset backup (`inventory-gear-backup-<timestamp>.sqlite`) that
+  keeps the previous state restorable. It requires the literal confirm token
+  `RESTAURAR` in a two-step dialog and signs the operator out afterwards
+  because their account no longer exists. Bolivian startup defaults: the
+  currency is seeded as **BOB** and BOB is added to the allowed currency
+  options. Documented in `docs-site/admin/database.md` (lifecycle, restore
+  section, manual checklist Scenarios A–D).
 - **Admin-only user creation with a forced default password.** Creating users in
   **Admin → Users** is now restricted to `owner`/`administrator` roles: the
   backend rejects creators without `admin.users.manage`, the sidebar entry and

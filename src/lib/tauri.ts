@@ -11,6 +11,7 @@ import type {
   AuditEvent, AuditFilter,
   SystemUpdate, LicenseInfo, MaintenanceLog,
   SalesResetPreview, SalesResetResult,
+  InitialDataPreview, InitialDataResetResult,
 } from "@/types"
 import type {
   InventoryCategory, Brand, Manufacturer, InventorySupplier,
@@ -1389,6 +1390,16 @@ export async function getSalesResetPreview(): Promise<SalesResetPreview> {
 
 export async function resetSales(confirm: string, createdBy?: number): Promise<SalesResetResult> {
   return invoke<SalesResetResult>("reset_sales", { confirm, createdBy })
+}
+
+// ── Admin Initial-Data Reset ──
+
+export async function getInitialDataResetPreview(): Promise<InitialDataPreview> {
+  return invoke<InitialDataPreview>("get_initial_data_reset_preview")
+}
+
+export async function resetToInitialData(confirm: string, actorId?: number): Promise<InitialDataResetResult> {
+  return invoke<InitialDataResetResult>("reset_to_initial_data", { confirm, actorId })
 }
 
 // ── Admin Diagnostics ──

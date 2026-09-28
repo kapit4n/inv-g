@@ -368,6 +368,8 @@ pub fn run() {
             commands::admin::reindex_database,
             commands::admin::get_sales_reset_preview,
             commands::admin::reset_sales,
+            commands::admin::get_initial_data_reset_preview,
+            commands::admin::reset_to_initial_data,
             commands::admin::get_printers,
             commands::admin::create_printer,
             commands::admin::update_printer,

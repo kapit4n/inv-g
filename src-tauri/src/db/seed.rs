@@ -186,7 +186,7 @@ const DEFAULT_USERS: &[(&str, &str, &str, &str)] = &[
 const DEFAULT_SETTINGS: &[(&str, &str, &str, &str, &str)] = &[
     ("store_name", "Inventory Gear", "general", "string", "Store name"),
     ("store_logo", "", "general", "string", "Store logo URL"),
-    ("currency", "USD", "general", "string", "Default currency"),
+    ("currency", "BOB", "general", "string", "Default currency"),
     ("timezone", "America/Mexico_City", "general", "string", "Timezone"),
     ("tax_rate", "16", "general", "number", "Default tax rate percentage"),
     ("receipt_footer", "¡Gracias por su compra!", "printing", "string", "Receipt footer text"),
@@ -322,6 +322,7 @@ pub fn seed_database_with_profile(conn: &Connection, profile: &str) -> Result<()
     seed_device_settings(conn)?;
     seed_license_record(conn)?;
     seed_system_update_record(conn)?;
+    seed_initialization_marker(conn)?;
     ensure_default_store(conn)?;
 
     Ok(())
@@ -422,7 +423,7 @@ fn seed_application_settings(conn: &Connection) -> Result<()> {
     let app_settings: &[(&str, &str, &str, &str, &str, Option<&str>, Option<&str>)] = &[
         ("general", "store_name", "Inventory Gear", "string", "Store display name", None, None),
         ("general", "store_logo", "", "string", "Store logo URL", None, None),
-        ("general", "currency", "USD", "string", "Default currency", Some("{\"options\":[\"USD\",\"MXN\",\"EUR\",\"GTQ\",\"CRC\",\"COP\"]}"), None),
+        ("general", "currency", "BOB", "string", "Default currency", Some("{\"options\":[\"BOB\",\"USD\",\"MXN\",\"EUR\",\"GTQ\",\"CRC\",\"COP\"]}"), None),
         ("general", "timezone", "America/Mexico_City", "string", "Timezone", None, None),
         ("general", "language", "es", "string", "Default language", Some("{\"options\":[\"es\",\"en\"]}"), None),
         ("theme", "theme", "system", "string", "Default theme", Some("{\"options\":[\"light\",\"dark\",\"system\"]}"), None),
@@ -792,6 +793,24 @@ fn seed_settings(conn: &Connection) -> Result<()> {
             rusqlite::params![key, value, group, setting_type, description],
         )?;
     }
+    Ok(())
+}
+
+/// Internal "first launch has been completed" flag.
+///
+/// Mirrors the intent of the tier-1 (users == 0) seed without depending on a
+/// volatile outcome: it is (re)written on every boot and again after the admin
+/// "restore initial data" tool, so a database that has already been initialized
+/// is never treated as brand new. Stored in the legacy `settings` table, which
+/// is the mechanism the settings UI never renders, so no spurious setting tab
+/// appears for it.
+fn seed_initialization_marker(conn: &Connection) -> Result<()> {
+    conn.execute(
+        "INSERT INTO settings (key, value, group_name, setting_type, description)
+         VALUES ('database_initialized', 'true', 'system', 'string', 'Database has completed first-launch initialization')
+         ON CONFLICT(key) DO UPDATE SET value = 'true'",
+        [],
+    )?;
     Ok(())
 }
 

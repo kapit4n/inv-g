@@ -184,7 +184,7 @@ fn fetch_admin_user(conn: &rusqlite::Connection, id: i64) -> Result<AdminUser, S
 }
 
 /// Whether a user's role grants the given permission key.
-fn user_has_permission(conn: &rusqlite::Connection, user_id: i64, key: &str) -> Result<bool, String> {
+pub(crate) fn user_has_permission(conn: &rusqlite::Connection, user_id: i64, key: &str) -> Result<bool, String> {
     let count: i64 = conn.query_row(
         "SELECT COUNT(*)
          FROM users u
